@@ -1,0 +1,4 @@
+[submodule "lib/cl-occt"]
+	path = lib/cl-occt
+	url = https://github.com/torusJKL/cl-occt
+	ignore = dirty
