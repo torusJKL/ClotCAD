@@ -5,7 +5,7 @@ occt-tarball := root-dir + "/.local/occt.tar.gz"
 occt-src := root-dir + "/.local/occt-src"
 occt-build := root-dir + "/.local/occt-build"
 occt-install := root-dir + "/.local"
-clocct-dir := home_directory() + "/code/cl-occt/main"
+clocct-dir := root-dir + "/lib/cl-occt"
 
 default:
     @echo "cl-occt-viewer (Qt) — Common Lisp parametric CAD with 3D viewer"
@@ -17,6 +17,7 @@ default:
     @echo "  clean  Remove build artifacts"
 
 setup:
+    # Download and build OCCT 8.0.0
     mkdir -p {{occt-install}}
     curl -Lo {{occt-tarball}} {{occt-url}}
     mkdir -p {{occt-src}}
@@ -37,6 +38,10 @@ setup:
         {{occt-src}}
     cmake --build {{occt-build}} -- -j$(nproc)
     cmake --install {{occt-build}}
+    # Init submodule and build cl-occt's C wrapper
+    git submodule update --init {{clocct-dir}}
+    ln -sf ../../.local {{clocct-dir}}/.local
+    cd {{clocct-dir}} && just wrap
 
 viewer:
     mkdir -p build lib
@@ -45,11 +50,11 @@ viewer:
     cp build/libocctviewer.so lib/
 
 start:
-    LD_LIBRARY_PATH=lib:{{occt-install}}/lib:{{clocct-dir}}/lib:{{clocct-dir}}/.local/lib \
+    LD_LIBRARY_PATH=lib:{{occt-install}}/lib:{{clocct-dir}}/lib \
     sbcl --script start.lisp
 
 test:
-    LD_LIBRARY_PATH=lib:{{occt-install}}/lib:{{clocct-dir}}/lib:{{clocct-dir}}/.local/lib \
+    LD_LIBRARY_PATH=lib:{{occt-install}}/lib:{{clocct-dir}}/lib \
     sbcl --noinform --quit \
       --eval '(require :asdf)' \
       --eval '(push "{{clocct-dir}}/" asdf:*central-registry*)' \

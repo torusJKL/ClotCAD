@@ -1,0 +1,5 @@
+build/
+lib/
+!lib/cl-occt/
+.local/
+*.fasl

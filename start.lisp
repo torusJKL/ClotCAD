@@ -5,14 +5,9 @@
   (when (probe-file quicklisp-init)
     (load quicklisp-init)))
 
-(push (merge-pathnames (make-pathname :directory '(:relative ".." ".." "cl-occt" "main"))
-                       (truename "."))
+(push (merge-pathnames #P"lib/cl-occt/" (truename "."))
       asdf:*central-registry*)
 (push (truename ".") asdf:*central-registry*)
-(let ((clocct (merge-pathnames (make-pathname :directory '(:relative "code" "cl-occt" "main"))
-                               (user-homedir-pathname))))
-  (when (probe-file (merge-pathnames "cl-occt.asd" clocct))
-    (push clocct asdf:*central-registry*)))
 
 (asdf:load-system :cl-occt-viewer)
 (in-package :cl-occt-viewer)

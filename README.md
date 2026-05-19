@@ -1,10 +1,11 @@
 # cl-occt-viewer (Qt)
 
-Qt6-based 3D viewer for [cl-occt](https://github.com/anomalyco/cl-occt) using OCCT's Application Interactive Services (AIS/TKV3d). Renders shapes in a QOpenGLWidget with `AIS_ViewController` camera control, native Qt widget panels, and Swank/SLIME connectivity.
+Qt6-based 3D viewer for [cl-occt](https://github.com/torusJKL/cl-occt) using OCCT's Application Interactive Services (AIS/TKV3d). Renders shapes in a QOpenGLWidget with `AIS_ViewController` camera control, native Qt widget panels, and Swank/SLIME connectivity.
 
 ## Quickstart
 
 ```sh
+git clone --recursive https://github.com/torusJKL/qt-viewer   # first time only
 just viewer       # build libocctviewer.so
 just start        # launch viewer + Swank server on port 4005
 ```
@@ -91,6 +92,9 @@ src/viewer/
 ├── queue.lisp               Event queue + DAG bridge
 ├── repl.lisp                Eval/file-op callbacks
 └── lifecycle.lisp           start-viewer, stop-viewer
+
+lib/cl-occt/
+└── cl-occt (git submodule)  Lisp OCCT bindings
 ```
 
 ## Prerequisites
@@ -98,18 +102,25 @@ src/viewer/
 - Qt6 (Widgets + OpenGLWidgets) — `apt install qt6-base-dev libqt6opengl6-dev`
 - OCCT 8.0.0
 - SBCL + Quicklisp
-- cl-occt (at `~/code/cl-occt/main/`)
+- cl-occt (included as git submodule at `lib/cl-occt/`)
 - CMake ≥ 3.16
 
-## Build OCCT (one-time)
+## Build OCCT + cl-occt (one-time)
 
 ```sh
 just setup
 ```
 
-This downloads OCCT 8.0.0 source, configures with CMake (Release, Shared libraries, Visualization + DataExchange modules), builds, and installs to `.local/`. Takes ~10 minutes.
+This downloads OCCT 8.0.0 source, configures with CMake (Release, Shared libraries, Visualization + DataExchange modules), builds, installs to `.local/`, then initializes the cl-occt submodule and builds its C wrapper library. Takes ~10-15 minutes.
 
-To configure manually:
+If you cloned without `--recursive`:
+
+```sh
+git submodule update --init lib/cl-occt
+just setup
+```
+
+To configure OCCT manually:
 
 ```sh
 mkdir -p .local
