@@ -1,0 +1,39 @@
+;; Initialize Quicklisp for library dependencies
+(let ((quicklisp-init (merge-pathnames "quicklisp/setup.lisp"
+                                       (user-homedir-pathname))))
+  (when (probe-file quicklisp-init)
+    (load quicklisp-init)))
+
+(require :asdf)
+
+(push (merge-pathnames (make-pathname :directory '(:relative ".." ".." "cl-occt" "main"))
+                       (truename "."))
+      asdf:*central-registry*)
+(push (truename ".") asdf:*central-registry*)
+(let ((clocct (merge-pathnames (make-pathname :directory '(:relative "code" "cl-occt" "main"))
+                               (user-homedir-pathname))))
+  (when (probe-file (merge-pathnames "cl-occt.asd" clocct))
+    (push clocct asdf:*central-registry*)))
+
+(asdf:load-system :cl-occt-viewer)
+(in-package :cl-occt-viewer)
+
+;; Start Swank in background thread for SLIME connectivity
+(handler-case
+    (progn
+      (ql:quickload :swank :silent t)
+      (let ((create-server (find-symbol "CREATE-SERVER" :swank)))
+        (when create-server
+          (sb-thread:make-thread
+           (lambda ()
+             (funcall create-server :port 4005 :dont-close t)
+             (loop (sleep 1)))
+           :name "cl-occt-slime")
+          (format t ";; Swank server started on port 4005~%"))))
+  (error (e)
+    (format t ";; Warning: Could not start Swank: ~A~%" e)))
+
+;; Start viewer (blocks main thread with Qt event loop)
+(format t ";; Starting viewer...~%")
+(start-viewer)
+(sb-ext:quit)
