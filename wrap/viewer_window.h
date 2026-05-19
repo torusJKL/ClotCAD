@@ -42,10 +42,14 @@ private:
   void setupMenus();
   void setupStatusBar();
   void setupPanels();
+  bool eventFilter(QObject* obj, QEvent* event) override;
 
   ViewerWidget* myViewport = nullptr;
   REPLPanel* myRepl = nullptr;
   SceneTreePanel* mySceneTree = nullptr;
+
+  QAction* myReplAction = nullptr;
+  QAction* mySceneTreeAction = nullptr;
 
   QLabel* myShapeCountLabel = nullptr;
   QLabel* myFpsLabel = nullptr;

@@ -32,7 +32,7 @@
           (:display
            (when (and shape viewer)
              (%viewer-put-shape viewer (cl-occt::%ptr shape) name)
-             (setf (gethash name *displayed-models*) t)))
+              (setf (gethash name *displayed-models*) shape)))
           (:update
            (when (and shape viewer)
              (%viewer-put-shape viewer (cl-occt::%ptr shape) name)))

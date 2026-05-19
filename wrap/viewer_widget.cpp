@@ -89,9 +89,14 @@ void ViewerWidget::paintGL()
   if (myView.IsNull() || myView->Window().IsNull())
     return;
 
+  // Skip rendering during modal file dialogs to avoid division-by-zero in OCCT
+  if (myProcessingModal)
+    return;
+
   OcctGlTools::InitializeGlFbo(myView);
   OcctGlTools::ResetGlStateBeforeOcct(myView);
 
+  myView->Invalidate();
   myView->InvalidateImmediate();
   AIS_ViewController::FlushViewEvents(myContext, myView, true);
 
@@ -170,7 +175,7 @@ void ViewerWidget::setupAxis()
   myAxis->SetDrawArrows(true);
   myAxis->SetSize(50.0);
   Handle(Graphic3d_TransformPers) tpers =
-    new Graphic3d_TransformPers(Graphic3d_TMF_TriedronPers, Aspect_TOTP_LEFT_LOWER);
+    new Graphic3d_TransformPers(Graphic3d_TMF_TriedronPers, Aspect_TOTP_LEFT_LOWER, NCollection_Vec2<int>(60, 60));
   myAxis->SetTransformPersistence(tpers);
   myContext->Display(myAxis, false);
   myContext->Deactivate(myAxis);

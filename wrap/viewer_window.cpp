@@ -6,6 +6,8 @@
 #include <Standard_WarningsDisable.hxx>
 #include <QApplication>
 #include <QHBoxLayout>
+#include <QAction>
+#include <QEvent>
 #include <Standard_WarningsRestore.hxx>
 
 ViewerWindow::ViewerWindow(const char* title, int width, int height)
@@ -35,8 +37,12 @@ void ViewerWindow::setupMenus()
   exportMenu->addAction(tr("S&TL"));
 
   QMenu* viewMenu = mb->addMenu(tr("&View"));
-  viewMenu->addAction(tr("&REPL"))->setCheckable(true);
-  viewMenu->addAction(tr("&Scene Tree"))->setCheckable(true);
+  myReplAction = viewMenu->addAction(tr("&REPL"));
+  myReplAction->setCheckable(true);
+  myReplAction->setChecked(true);
+  mySceneTreeAction = viewMenu->addAction(tr("&Scene Tree"));
+  mySceneTreeAction->setCheckable(true);
+  mySceneTreeAction->setChecked(true);
   viewMenu->addSeparator();
   viewMenu->addAction(tr("&Axis"))->setCheckable(true);
   viewMenu->addAction(tr("&Grid"))->setCheckable(true);
@@ -56,10 +62,29 @@ void ViewerWindow::setupPanels()
   myRepl = new REPLPanel(this);
   addDockWidget(Qt::RightDockWidgetArea, myRepl);
   myRepl->setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetMovable);
+  connect(myReplAction, &QAction::toggled, myRepl, &QDockWidget::setVisible);
+  myRepl->installEventFilter(this);
 
   mySceneTree = new SceneTreePanel(this);
   addDockWidget(Qt::LeftDockWidgetArea, mySceneTree);
   mySceneTree->setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetMovable);
+  connect(mySceneTreeAction, &QAction::toggled, mySceneTree, &QDockWidget::setVisible);
+  mySceneTree->installEventFilter(this);
+}
+
+bool ViewerWindow::eventFilter(QObject* obj, QEvent* event)
+{
+  if (event->type() == QEvent::Show)
+  {
+    if (obj == myRepl)    myReplAction->setChecked(true);
+    if (obj == mySceneTree) mySceneTreeAction->setChecked(true);
+  }
+  else if (event->type() == QEvent::Hide)
+  {
+    if (obj == myRepl)    myReplAction->setChecked(false);
+    if (obj == mySceneTree) mySceneTreeAction->setChecked(false);
+  }
+  return QMainWindow::eventFilter(obj, event);
 }
 
 void ViewerWindow::updateShapeCount(int count)

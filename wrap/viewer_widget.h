@@ -23,6 +23,7 @@ public:
   const Handle(V3d_Viewer)& Viewer() const { return myViewer; }
   const Handle(V3d_View)& View() const { return myView; }
   const Handle(AIS_InteractiveContext)& Context() const { return myContext; }
+  const Handle(AIS_Trihedron)& Axis() const { return myAxis; }
 
 signals:
   void viewRedrawn();
@@ -50,6 +51,9 @@ private:
   Handle(AIS_InteractiveContext) myContext;
   Handle(AIS_Trihedron) myAxis;
   bool myFirstInit = true;
+
+public:
+  bool myProcessingModal = false;
 };
 
 #endif

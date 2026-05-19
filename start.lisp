@@ -1,10 +1,9 @@
 ;; Initialize Quicklisp for library dependencies
+(require :asdf)
 (let ((quicklisp-init (merge-pathnames "quicklisp/setup.lisp"
                                        (user-homedir-pathname))))
   (when (probe-file quicklisp-init)
     (load quicklisp-init)))
-
-(require :asdf)
 
 (push (merge-pathnames (make-pathname :directory '(:relative ".." ".." "cl-occt" "main"))
                        (truename "."))

@@ -170,19 +170,19 @@
       (assert-true (member "a" names :test 'string=))
       (assert-true (member "b" names :test 'string=)))))
 
-(deftest first-displayed-shape-returns-nil-when-empty
+(deftest export-all-step-warns-on-empty
   (with-mocked-viewer
-    (multiple-value-bind (shape name) (first-displayed-shape)
-      (assert-nil shape)
-      (assert-nil name))))
+    (let ((warnings '()))
+      (handler-bind ((warning (lambda (w) (push w warnings) (muffle-warning w))))
+        (export-all-step "/tmp/test.step"))
+      (assert-true warnings "should warn when no shapes in *displayed-models*"))))
 
-(deftest first-displayed-shape-returns-first-entry
+(deftest export-all-stl-warns-on-empty
   (with-mocked-viewer
-    (setf (gethash "a" *displayed-models*) :shape-a)
-    (setf (gethash "b" *displayed-models*) :shape-b)
-    (multiple-value-bind (shape name) (first-displayed-shape)
-      (assert-true shape)
-      (assert-true (stringp name)))))
+    (let ((warnings '()))
+      (handler-bind ((warning (lambda (w) (push w warnings) (muffle-warning w))))
+        (export-all-stl "/tmp/test.stl"))
+      (assert-true warnings "should warn when no shapes in *displayed-models*"))))
 
 ;; --- REPL multiline logic tests ---
 
@@ -265,9 +265,8 @@
                display-converts-keyword-to-string
                undisplay-removes-from-models undisplay-queues-remove-message
                clear-all-empties-models clear-all-queues-clear-message
-               get-displayed-names-empty get-displayed-names-returns-names
-               first-displayed-shape-returns-nil-when-empty
-               first-displayed-shape-returns-first-entry
+                get-displayed-names-empty get-displayed-names-returns-names
+                export-all-step-warns-on-empty export-all-stl-warns-on-empty
                repl-accumulator-starts-empty repl-eof-sentinel-is-gensym
                incomplete-form-signals-error complete-form-reads-correctly
                read-empty-string-returns-eof

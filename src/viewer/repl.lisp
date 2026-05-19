@@ -30,11 +30,41 @@
 (defun get-displayed-names ()
   (loop for k being the hash-keys of *displayed-models* collect k))
 
-(defun first-displayed-shape ()
-  (let ((names (get-displayed-names)))
-    (when names
-      (let ((name (first names)))
-        (values (gethash name *displayed-models*) name)))))
+(defun export-all-step (path)
+  (when (zerop (hash-table-count *displayed-models*))
+    (warn "No shapes to export")
+    (return-from export-all-step nil))
+  (let ((doc (cl-occt.impl:%xde-new-doc)))
+    (unless doc
+      (error "Failed to create XDE document"))
+    (unwind-protect
+         (progn
+           (maphash (lambda (name shape)
+                      (let ((buf (cffi:foreign-alloc :char :count 256)))
+                        (unwind-protect
+                             (cl-occt.impl:%xde-add-part
+                              doc "" (cl-occt::%ptr shape) name
+                              -1 0d0 0d0 0d0 0d0
+                              (cffi:null-pointer) buf 256)
+                          (cffi:foreign-free buf))))
+                    *displayed-models*)
+           (let ((result (cl-occt.impl:%xde-write-step doc path)))
+             (when (zerop result)
+               (error "STEP write failed"))))
+      (cl-occt.impl:%xde-free-doc doc))
+    t))
+
+(defun export-all-stl (path)
+  (when (zerop (hash-table-count *displayed-models*))
+    (warn "No shapes to export")
+    (return-from export-all-stl nil))
+  (let ((shapes '()))
+    (maphash (lambda (name shape)
+               (declare (ignore name))
+               (push shape shapes))
+             *displayed-models*)
+    (let ((compound (cl-occt:make-compound shapes)))
+      (cl-occt:write-stl compound path :deflection 0.1))))
 
 (cffi:defcallback handle-file-op :void ((path :string) (op :int))
   (handler-case
@@ -46,15 +76,9 @@
                (display name shape)
                (%viewer-fit-all *viewer*)))))
         (1  ;; export STEP
-         (multiple-value-bind (shape name) (first-displayed-shape)
-           (declare (ignore name))
-           (when shape
-             (cl-occt:write-step shape path))))
+         (export-all-step path))
         (2  ;; export STL
-         (multiple-value-bind (shape name) (first-displayed-shape)
-           (declare (ignore name))
-           (when shape
-             (cl-occt:write-stl shape path :deflection 0.1))))
+         (export-all-stl path))
         (3  ;; import STL
          (let ((shape (cl-occt:read-stl path)))
            (when shape
