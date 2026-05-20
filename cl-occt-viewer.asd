@@ -7,13 +7,15 @@
   :pathname "src/"
   :serial t
   :components
-  ((:module "viewer"
-    :components
-    ((:file "package")
-     (:file "bindings")
-     (:file "queue")
-     (:file "repl")
-     (:file "lifecycle")))))
+   ((:module "viewer"
+     :components
+     ((:file "package")
+      (:file "bindings")
+      (:file "queue")
+      (:file "repl")
+      (:file "ui")
+      (:file "render")
+      (:file "lifecycle")))))
 
 (defsystem :cl-occt-viewer/tests
   :description "Test suite for cl-occt-viewer"

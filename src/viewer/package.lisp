@@ -35,6 +35,8 @@
    ;; Axis
    :%viewer-show-axis
    :%viewer-is-axis-visible
+   ;; Dock panels
+   :%viewer-show-dock
    ;; Quality
    :%viewer-set-antialiasing
    ;; Exported Lisp variables and functions
@@ -42,6 +44,8 @@
    :*viewer-queue*
    :*queue-lock*
    :*displayed-models*
+   :*grid-visible*
+   :*axis-visible*
    :start-viewer
    :stop-viewer
    :display
@@ -49,6 +53,12 @@
    :clear-all
    :register-viewer-callbacks
    :drain-queue
+   :show-grid
+   :show-axis
+   :toggle-grid
+   :toggle-axis
+   :set-antialiasing
+   :fit-all
    :run-tests
    :*repl-eof-sentinel*
    :*repl-accumulator*))
@@ -62,4 +72,14 @@
    :display
    :undisplay
    :clear-all
+   :show-grid
+   :show-axis
+   :toggle-grid
+   :toggle-axis
+   :show-repl
+   :show-scene-tree
+   :toggle-repl
+   :toggle-scene-tree
+   :set-antialiasing
+   :fit-all
    :run-tests))

@@ -8,6 +8,12 @@
 #include <AIS_Shape.hxx>
 #include <AIS_Trihedron.hxx>
 #include <AIS_InteractiveContext.hxx>
+#include <Geom_Axis2Placement.hxx>
+#include <Graphic3d_TransformPers.hxx>
+#include <Graphic3d_TransModeFlags.hxx>
+#include <Aspect_TypeOfTriedronPosition.hxx>
+#include <Prs3d_DatumMode.hxx>
+#include <gp.hxx>
 #include <TopoDS_Shape.hxx>
 #include <V3d_View.hxx>
 
@@ -15,10 +21,7 @@
 #include <QApplication>
 #include <QObject>
 #include <QEvent>
-#include <QMetaObject>
 #include <QCoreApplication>
-#include <QTimer>
-#include <QDateTime>
 #include <QFileDialog>
 #include <QDockWidget>
 #include <map>
@@ -26,11 +29,8 @@
 #include <vector>
 #include <cstring>
 #include <algorithm>
-#include <mutex>
-#include <queue>
 #include <Standard_WarningsRestore.hxx>
 
-// --- Custom event for inter-thread wake ---
 static const QEvent::Type WakeEventType = static_cast<QEvent::Type>(QEvent::User + 1);
 
 class WakeEvent : public QEvent
@@ -39,45 +39,30 @@ public:
   WakeEvent() : QEvent(WakeEventType) {}
 };
 
-// --- ViewerState ---
 struct ViewerState {
   ViewerWindow* window = nullptr;
   ViewerWidget* widget = nullptr;
 
-  // OCCT handles (mirrored from widget for C API convenience)
   Handle(AIS_InteractiveContext) context;
 
-  // Shape storage
+  // Transient name->AIS_Shape cache (for name-based erase/lookup in OCCT calls)
   std::map<std::string, Handle(AIS_Shape), std::less<>> shapes;
   std::vector<std::string> shape_names;
+
+  Handle(AIS_Trihedron) axisTrihedron;
 
   // Callbacks
   eval_fn eval_callback = nullptr;
   file_op_fn file_op_callback = nullptr;
   drain_fn drain_callback = nullptr;
 
-  // Grid / axis state
-  bool axis_visible = true;
-  bool grid_visible = true;
-
-  // Queue for inter-thread communication
-  std::mutex queue_mutex;
-  std::queue<std::function<void()>> pending_actions;
+  // Cache for viewer_get_shape_name
+  mutable std::string name_cache;
 
   // Running state
   bool running = false;
-
-  // Guard against redraw during modal file dialogs (avoids division-by-zero in OCCT rendering)
-  bool processing_modal = false;
-
-  // Timer for periodic updates (stopped during modals to prevent race conditions)
-  QTimer* timer = nullptr;
-
-  // Cache for viewer_get_shape_name
-  mutable std::string name_cache;
 };
 
-// --- QApplication singleton management ---
 static QApplication* theApp = nullptr;
 static int theArgc = 1;
 static const char* theArgv[] = {"cl-occt-viewer", nullptr};
@@ -92,7 +77,6 @@ static void ensureQApplication()
   }
 }
 
-// --- Wake event receiver object (installed as event filter on ViewerWindow) ---
 class WakeReceiver : public QObject
 {
 public:
@@ -102,16 +86,10 @@ public:
   {
     if (e->type() == WakeEventType)
     {
-      // Skip processing during modal file dialogs to avoid crashes
-      if (!state->processing_modal)
-      {
-        // Drain the Lisp-side queue (shape changes from worker thread)
-        if (state->drain_callback)
-          state->drain_callback();
-        // Trigger a redraw after processing queued changes
-        if (state->widget)
-          state->widget->update();
-      }
+      if (state->drain_callback)
+        state->drain_callback();
+      if (state->widget)
+        state->widget->update();
       return true;
     }
     return QObject::eventFilter(watched, e);
@@ -129,159 +107,74 @@ occt_viewer viewer_create(const char* title, int width, int height)
   s->widget = win->viewport();
   s->context = win->viewport()->Context();
 
-  // Setup menu actions
-  QMenuBar* mb = win->menuBar();
-  QList<QAction*> actions = mb->actions();
-  for (QAction* fileAction : actions)
-  {
-    if (fileAction->text() == "&File")
+  // Wire File menu actions
+  QObject::connect(win->importStepAction(), &QAction::triggered, [s]() {
+    if (!s->file_op_callback) return;
+    QFileDialog dialog(s->window, "Import STEP", QString(), "STEP Files (*.step *.STEP)");
+    dialog.setFileMode(QFileDialog::ExistingFile);
+    dialog.setAcceptMode(QFileDialog::AcceptOpen);
+    if (dialog.exec() == QDialog::Accepted)
     {
-      QMenu* fileMenu = fileAction->menu();
-      if (!fileMenu) continue;
-      QList<QAction*> fileActions = fileMenu->actions();
-      for (QAction* importAction : fileActions)
-      {
-        if (importAction->text() == "&Import")
-        {
-          QMenu* importMenu = importAction->menu();
-          if (!importMenu) continue;
-          QList<QAction*> importItems = importMenu->actions();
-          for (QAction* item : importItems)
-          {
-            if (item->text() == "&STEP")
-              QObject::connect(item, &QAction::triggered, [s]() {
-                if (s->file_op_callback)
-                {
-                  s->widget->myProcessingModal = true;
-                  s->processing_modal = true;
-                  if (s->timer) s->timer->stop();
-                  QFileDialog dialog(s->window, "Import STEP", QString(), "STEP Files (*.step *.STEP)");
-                  dialog.setOption(QFileDialog::DontUseNativeDialog);
-                  dialog.setFileMode(QFileDialog::ExistingFile);
-                  dialog.setAcceptMode(QFileDialog::AcceptOpen);
-                  QString path;
-                  if (dialog.exec() == QDialog::Accepted)
-                    path = dialog.selectedFiles().value(0);
-                  if (s->timer) s->timer->start();
-                  s->processing_modal = false;
-                  s->widget->myProcessingModal = false;
-                  if (!path.isEmpty())
-                    s->file_op_callback(path.toUtf8().constData(), 0);
-                }
-              });
-            else if (item->text() == "S&TL")
-              QObject::connect(item, &QAction::triggered, [s]() {
-                if (s->file_op_callback)
-                {
-                  s->widget->myProcessingModal = true;
-                  s->processing_modal = true;
-                  if (s->timer) s->timer->stop();
-                  QFileDialog dialog(s->window, "Import STL", QString(), "STL Files (*.stl *.STL)");
-                  dialog.setOption(QFileDialog::DontUseNativeDialog);
-                  dialog.setFileMode(QFileDialog::ExistingFile);
-                  dialog.setAcceptMode(QFileDialog::AcceptOpen);
-                  QString path;
-                  if (dialog.exec() == QDialog::Accepted)
-                    path = dialog.selectedFiles().value(0);
-                  if (s->timer) s->timer->start();
-                  s->processing_modal = false;
-                  s->widget->myProcessingModal = false;
-                  if (!path.isEmpty())
-                    s->file_op_callback(path.toUtf8().constData(), 3);
-                }
-              });
-          }
-        }
-        else if (importAction->text() == "&Export")
-        {
-          QMenu* exportMenu = importAction->menu();
-          if (!exportMenu) continue;
-          QList<QAction*> exportItems = exportMenu->actions();
-          for (QAction* item : exportItems)
-          {
-            if (item->text() == "&STEP")
-              QObject::connect(item, &QAction::triggered, [s, item]() {
-                if (s->file_op_callback && !s->shapes.empty())
-                {
-                  s->widget->myProcessingModal = true;
-                  s->processing_modal = true;
-                  if (s->timer) s->timer->stop();
-                  QFileDialog dialog(s->window, "Export STEP", QString(), "STEP Files (*.step *.STEP)");
-                  dialog.setOption(QFileDialog::DontUseNativeDialog);
-                  dialog.setFileMode(QFileDialog::AnyFile);
-                  dialog.setAcceptMode(QFileDialog::AcceptSave);
-                  QString path;
-                  if (dialog.exec() == QDialog::Accepted)
-                    path = dialog.selectedFiles().value(0);
-                  if (s->timer) s->timer->start();
-                  s->processing_modal = false;
-                  s->widget->myProcessingModal = false;
-                  if (!path.isEmpty())
-                    s->file_op_callback(path.toUtf8().constData(), 1);
-                }
-              });
-            else if (item->text() == "S&TL")
-              QObject::connect(item, &QAction::triggered, [s, item]() {
-                if (s->file_op_callback && !s->shapes.empty())
-                {
-                  s->widget->myProcessingModal = true;
-                  s->processing_modal = true;
-                  if (s->timer) s->timer->stop();
-                  QFileDialog dialog(s->window, "Export STL", QString(), "STL Files (*.stl *.STL)");
-                  dialog.setOption(QFileDialog::DontUseNativeDialog);
-                  dialog.setFileMode(QFileDialog::AnyFile);
-                  dialog.setAcceptMode(QFileDialog::AcceptSave);
-                  QString path;
-                  if (dialog.exec() == QDialog::Accepted)
-                    path = dialog.selectedFiles().value(0);
-                  if (s->timer) s->timer->start();
-                  s->processing_modal = false;
-                  s->widget->myProcessingModal = false;
-                  if (!path.isEmpty())
-                    s->file_op_callback(path.toUtf8().constData(), 2);
-                }
-              });
-          }
-        }
-      }
+      QString path = dialog.selectedFiles().value(0);
+      if (!path.isEmpty())
+        s->file_op_callback(path.toUtf8().constData(), 0);
     }
-  }
+  });
 
-  // Wire view menu
-  for (QAction* viewAction : actions)
-  {
-    if (viewAction->text() == "&View")
+  QObject::connect(win->importStlAction(), &QAction::triggered, [s]() {
+    if (!s->file_op_callback) return;
+    QFileDialog dialog(s->window, "Import STL", QString(), "STL Files (*.stl *.STL)");
+    dialog.setFileMode(QFileDialog::ExistingFile);
+    dialog.setAcceptMode(QFileDialog::AcceptOpen);
+    if (dialog.exec() == QDialog::Accepted)
     {
-      QMenu* viewMenu = viewAction->menu();
-      if (!viewMenu) continue;
-      for (QAction* va : viewMenu->actions())
-      {
-        if (va->text() == "&Axis")
-        {
-          va->setChecked(true);
-          QObject::connect(va, &QAction::toggled, [s](bool checked) {
-            viewer_show_axis(s, checked ? 1 : 0);
-          });
-        }
-        else if (va->text() == "&Grid")
-        {
-          va->setChecked(true);
-          QObject::connect(va, &QAction::toggled, [s](bool checked) {
-            viewer_show_grid(s, checked ? 1 : 0);
-          });
-        }
-      }
+      QString path = dialog.selectedFiles().value(0);
+      if (!path.isEmpty())
+        s->file_op_callback(path.toUtf8().constData(), 3);
     }
-  }
+  });
+
+  QObject::connect(win->exportStepAction(), &QAction::triggered, [s]() {
+    if (!s->file_op_callback) return;
+    QFileDialog dialog(s->window, "Export STEP", QString(), "STEP Files (*.step *.STEP)");
+    dialog.setFileMode(QFileDialog::AnyFile);
+    dialog.setAcceptMode(QFileDialog::AcceptSave);
+    if (dialog.exec() == QDialog::Accepted)
+    {
+      QString path = dialog.selectedFiles().value(0);
+      if (!path.isEmpty())
+        s->file_op_callback(path.toUtf8().constData(), 1);
+    }
+  });
+
+  QObject::connect(win->exportStlAction(), &QAction::triggered, [s]() {
+    if (!s->file_op_callback) return;
+    QFileDialog dialog(s->window, "Export STL", QString(), "STL Files (*.stl *.STL)");
+    dialog.setFileMode(QFileDialog::AnyFile);
+    dialog.setAcceptMode(QFileDialog::AcceptSave);
+    if (dialog.exec() == QDialog::Accepted)
+    {
+      QString path = dialog.selectedFiles().value(0);
+      if (!path.isEmpty())
+        s->file_op_callback(path.toUtf8().constData(), 2);
+    }
+  });
+
+  // Wire View menu actions
+  QObject::connect(win->axisAction(), &QAction::toggled, [s](bool checked) {
+    viewer_show_axis(s, checked ? 1 : 0);
+  });
+  QObject::connect(win->gridAction(), &QAction::toggled, [s](bool checked) {
+    viewer_show_grid(s, checked ? 1 : 0);
+  });
 
   // Wire scene tree context
-  SceneTreePanel* st = s->window->sceneTree();
+  SceneTreePanel* st = win->sceneTree();
   if (st)
   {
     st->setContext(s->context);
     QObject::connect(st, &SceneTreePanel::visibilityChanged, [s](const QString& name, bool visible) {
-      QByteArray nameUtf8 = name.toUtf8();
-      viewer_set_shape_visible(s, nameUtf8.constData(), visible ? 1 : 0);
+      viewer_set_shape_visible(s, name.toUtf8().constData(), visible ? 1 : 0);
     });
   }
 
@@ -316,29 +209,6 @@ void viewer_run(occt_viewer vwr)
 {
   auto* s = (ViewerState*)vwr;
   s->running = true;
-  // Start a timer to update FPS and shape count in status bar
-  s->timer = new QTimer(s->window);
-  QObject::connect(s->timer, &QTimer::timeout, [s]() {
-    if (s->widget)
-    {
-      s->window->updateShapeCount((int)s->shapes.size());
-      // FPS from ImGui style — use timer since we don't have a render loop
-      static int frameCount = 0;
-      static qint64 lastTime = QDateTime::currentMSecsSinceEpoch();
-      frameCount++;
-      qint64 now = QDateTime::currentMSecsSinceEpoch();
-      if (now - lastTime >= 1000)
-      {
-        s->window->updateFps(frameCount * 1000.0 / (now - lastTime));
-        frameCount = 0;
-        lastTime = now;
-      }
-    }
-    if (!s->processing_modal)
-      viewer_redraw(s);
-  });
-  s->timer->start(100); // update 10 times per second
-
   theApp->exec();
   s->running = false;
 }
@@ -375,10 +245,10 @@ void viewer_put_shape(occt_viewer vwr, occt_shape shape_ptr, const char* name)
   auto* s = (ViewerState*)vwr;
   auto* shape = static_cast<TopoDS_Shape*>(shape_ptr);
 
-  auto it = s->shapes.find(name);
   Handle(AIS_Shape) ais_shape = new AIS_Shape(*shape);
   s->context->Display(ais_shape, false);
 
+  auto it = s->shapes.find(name);
   if (it != s->shapes.end())
   {
     s->context->Remove(it->second, false);
@@ -388,13 +258,12 @@ void viewer_put_shape(occt_viewer vwr, occt_shape shape_ptr, const char* name)
   {
     s->shapes[name] = ais_shape;
     s->shape_names.push_back(name);
-    // Find scene tree dock
     auto docks = s->window->findChildren<SceneTreePanel*>();
     for (auto* dock : docks)
       dock->addShape(QString::fromUtf8(name));
   }
 
-  if (!s->processing_modal && !s->widget->View()->Window().IsNull())
+  if (!s->widget->View()->Window().IsNull())
     s->widget->View()->FitAll();
 }
 
@@ -440,9 +309,9 @@ void viewer_fit_all(occt_viewer vwr)
 
 void viewer_set_eval_callback(occt_viewer vwr, eval_fn fn)
 {
-  ((ViewerState*)vwr)->eval_callback = fn;
-  // Propagate to REPL panel
+  if (!vwr) return;
   auto* s = (ViewerState*)vwr;
+  s->eval_callback = fn;
   auto docks = s->window->findChildren<REPLPanel*>();
   for (auto* dock : docks)
     dock->setEvalCallback(fn);
@@ -507,7 +376,6 @@ void viewer_notify_shape_change(occt_viewer vwr)
 void viewer_show_grid(occt_viewer vwr, int show)
 {
   auto* s = (ViewerState*)vwr;
-  s->grid_visible = show;
   if (!s->widget->Viewer().IsNull())
   {
     if (show)
@@ -515,35 +383,75 @@ void viewer_show_grid(occt_viewer vwr, int show)
     else
       s->widget->Viewer()->DeactivateGrid();
   }
+  if (s->window && s->window->gridAction())
+    s->window->gridAction()->setChecked(show ? true : false);
   viewer_redraw(vwr);
 }
 
 int viewer_is_grid_visible(occt_viewer vwr)
 {
-  return ((ViewerState*)vwr)->grid_visible ? 1 : 0;
+  auto* s = (ViewerState*)vwr;
+  if (s->window && s->window->gridAction())
+    return s->window->gridAction()->isChecked() ? 1 : 0;
+  return 0;
 }
 
 void viewer_show_axis(occt_viewer vwr, int show)
 {
   auto* s = (ViewerState*)vwr;
-  s->axis_visible = show;
-  if (s->widget)
+  if (!s->widget) return;
+
+  if (s->axisTrihedron.IsNull())
   {
-    Handle(AIS_Trihedron) axis = s->widget->Axis();
-    if (!axis.IsNull())
-    {
-      if (show)
-        s->context->Display(axis, false);
-      else
-        s->context->Erase(axis, false);
-    }
+    Handle(Geom_Axis2Placement) axes = new Geom_Axis2Placement(gp::Origin(), gp::DX(), gp::DY());
+    s->axisTrihedron = new AIS_Trihedron(axes);
+    s->axisTrihedron->SetDatumDisplayMode(Prs3d_DM_WireFrame);
+    s->axisTrihedron->SetDrawArrows(true);
+    s->axisTrihedron->SetSize(50.0);
+    Handle(Graphic3d_TransformPers) tpers =
+      new Graphic3d_TransformPers(Graphic3d_TMF_TriedronPers, Aspect_TOTP_LEFT_LOWER, NCollection_Vec2<int>(60, 60));
+    s->axisTrihedron->SetTransformPersistence(tpers);
+    s->context->Display(s->axisTrihedron, false);
+    s->context->Deactivate(s->axisTrihedron);
   }
+  else
+  {
+    if (show)
+      s->context->Display(s->axisTrihedron, false);
+    else
+      s->context->Erase(s->axisTrihedron, false);
+  }
+  if (s->window && s->window->axisAction())
+    s->window->axisAction()->setChecked(show ? true : false);
   viewer_redraw(vwr);
 }
 
 int viewer_is_axis_visible(occt_viewer vwr)
 {
-  return ((ViewerState*)vwr)->axis_visible ? 1 : 0;
+  auto* s = (ViewerState*)vwr;
+  if (s->window && s->window->axisAction())
+    return s->window->axisAction()->isChecked() ? 1 : 0;
+  return 0;
+}
+
+void viewer_show_dock(occt_viewer vwr, const char* dock_name, int show)
+{
+  if (!vwr || !dock_name) return;
+  auto* s = (ViewerState*)vwr;
+  if (!s->window) return;
+
+  QString qname = QString::fromUtf8(dock_name);
+  QAction* action = nullptr;
+  if (qname == "REPLPanel")
+    action = s->window->replAction();
+  else if (qname == "SceneTreePanel")
+    action = s->window->sceneTreeAction();
+  if (!action) return;
+
+  if (show < 0)
+    action->toggle();
+  else
+    action->setChecked(show ? true : false);
 }
 
 void viewer_set_drain_callback(occt_viewer vwr, drain_fn fn)

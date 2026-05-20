@@ -2,7 +2,6 @@
 #define VIEWER_WIDGET_H
 
 #include <AIS_InteractiveContext.hxx>
-#include <AIS_Trihedron.hxx>
 #include <AIS_ViewController.hxx>
 #include <V3d_Viewer.hxx>
 #include <V3d_View.hxx>
@@ -23,7 +22,6 @@ public:
   const Handle(V3d_Viewer)& Viewer() const { return myViewer; }
   const Handle(V3d_View)& View() const { return myView; }
   const Handle(AIS_InteractiveContext)& Context() const { return myContext; }
-  const Handle(AIS_Trihedron)& Axis() const { return myAxis; }
 
 signals:
   void viewRedrawn();
@@ -43,17 +41,10 @@ protected:
 
 private:
   void updateView();
-  void setupAxis();
-  void setupGrid();
 
   Handle(V3d_Viewer) myViewer;
   Handle(V3d_View) myView;
   Handle(AIS_InteractiveContext) myContext;
-  Handle(AIS_Trihedron) myAxis;
-  bool myFirstInit = true;
-
-public:
-  bool myProcessingModal = false;
 };
 
 #endif

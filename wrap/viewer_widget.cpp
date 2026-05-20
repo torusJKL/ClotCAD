@@ -3,17 +3,9 @@
 #include "OcctQtTools.h"
 
 #include <AIS_DisplayMode.hxx>
-#include <AIS_Shape.hxx>
-#include <AIS_Trihedron.hxx>
 #include <Aspect_DisplayConnection.hxx>
-#include <Geom_Axis2Placement.hxx>
-#include <gp.hxx>
-#include <Graphic3d_TransformPers.hxx>
-#include <Graphic3d_TransModeFlags.hxx>
-#include <Aspect_TypeOfTriedronPosition.hxx>
 #include <OpenGl_GraphicDriver.hxx>
 #include <OpenGl_Context.hxx>
-#include <Prs3d_DatumMode.hxx>
 #include <Quantity_Color.hxx>
 
 ViewerWidget::ViewerWidget(QWidget* parent)
@@ -75,22 +67,11 @@ void ViewerWidget::initializeGL()
     return;
   }
   makeCurrent();
-
-  if (myFirstInit)
-  {
-    setupAxis();
-    setupGrid();
-    myFirstInit = false;
-  }
 }
 
 void ViewerWidget::paintGL()
 {
   if (myView.IsNull() || myView->Window().IsNull())
-    return;
-
-  // Skip rendering during modal file dialogs to avoid division-by-zero in OCCT
-  if (myProcessingModal)
     return;
 
   OcctGlTools::InitializeGlFbo(myView);
@@ -165,23 +146,4 @@ void ViewerWidget::updateView()
 {
   update();
   emit viewRedrawn();
-}
-
-void ViewerWidget::setupAxis()
-{
-  Handle(Geom_Axis2Placement) axes = new Geom_Axis2Placement(gp::Origin(), gp::DX(), gp::DY());
-  myAxis = new AIS_Trihedron(axes);
-  myAxis->SetDatumDisplayMode(Prs3d_DM_WireFrame);
-  myAxis->SetDrawArrows(true);
-  myAxis->SetSize(50.0);
-  Handle(Graphic3d_TransformPers) tpers =
-    new Graphic3d_TransformPers(Graphic3d_TMF_TriedronPers, Aspect_TOTP_LEFT_LOWER, NCollection_Vec2<int>(60, 60));
-  myAxis->SetTransformPersistence(tpers);
-  myContext->Display(myAxis, false);
-  myContext->Deactivate(myAxis);
-}
-
-void ViewerWidget::setupGrid()
-{
-  myViewer->ActivateGrid(Aspect_GT_Rectangular, Aspect_GDM_Lines);
 }

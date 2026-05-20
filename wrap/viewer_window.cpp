@@ -6,7 +6,6 @@
 #include <Standard_WarningsDisable.hxx>
 #include <QApplication>
 #include <QHBoxLayout>
-#include <QAction>
 #include <QEvent>
 #include <Standard_WarningsRestore.hxx>
 
@@ -28,13 +27,11 @@ void ViewerWindow::setupMenus()
   QMenuBar* mb = menuBar();
 
   QMenu* fileMenu = mb->addMenu(tr("&File"));
-  QMenu* importMenu = fileMenu->addMenu(tr("&Import"));
-  importMenu->addAction(tr("&STEP"));
-  importMenu->addAction(tr("S&TL"));
-
-  QMenu* exportMenu = fileMenu->addMenu(tr("&Export"));
-  exportMenu->addAction(tr("&STEP"));
-  exportMenu->addAction(tr("S&TL"));
+  myImportStepAction = fileMenu->addAction(tr("Import &STEP..."));
+  myImportStlAction = fileMenu->addAction(tr("Import S&TL..."));
+  fileMenu->addSeparator();
+  myExportStepAction = fileMenu->addAction(tr("Export &STEP..."));
+  myExportStlAction = fileMenu->addAction(tr("Export S&TL..."));
 
   QMenu* viewMenu = mb->addMenu(tr("&View"));
   myReplAction = viewMenu->addAction(tr("&REPL"));
@@ -44,8 +41,12 @@ void ViewerWindow::setupMenus()
   mySceneTreeAction->setCheckable(true);
   mySceneTreeAction->setChecked(true);
   viewMenu->addSeparator();
-  viewMenu->addAction(tr("&Axis"))->setCheckable(true);
-  viewMenu->addAction(tr("&Grid"))->setCheckable(true);
+  myAxisAction = viewMenu->addAction(tr("&Axis"));
+  myAxisAction->setCheckable(true);
+  myAxisAction->setChecked(true);
+  myGridAction = viewMenu->addAction(tr("&Grid"));
+  myGridAction->setCheckable(true);
+  myGridAction->setChecked(true);
 }
 
 void ViewerWindow::setupStatusBar()

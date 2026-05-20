@@ -99,6 +99,11 @@
 (defcfun (%viewer-is-axis-visible "viewer_is_axis_visible") :int
   (vwr :pointer))
 
+;; --- Dock panels ---
+
+(defcfun (%viewer-show-dock "viewer_show_dock") :void
+  (vwr :pointer) (dock-name :string) (show :int))
+
 ;; --- Quality ---
 
 (defcfun (%viewer-set-antialiasing "viewer_set_antialiasing") :void

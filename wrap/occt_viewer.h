@@ -52,6 +52,9 @@ int  viewer_is_grid_visible(occt_viewer vwr);
 void viewer_show_axis(occt_viewer vwr, int show);
 int  viewer_is_axis_visible(occt_viewer vwr);
 
+// --- Dock panels ---
+void viewer_show_dock(occt_viewer vwr, const char* dock_name, int show);
+
 // --- Quality ---
 void viewer_set_antialiasing(occt_viewer vwr, int enable);
 

@@ -1,7 +1,5 @@
 (in-package :cl-occt-viewer)
 
-;; --- Test framework (matching cl-occt style) ---
-
 (defstruct test-result
   (pass 0)
   (fail 0)
@@ -37,31 +35,62 @@
   (unless (eq expected actual)
     (error (or msg (format nil "expected ~S eq ~S" expected actual)))))
 
-;; --- Mock viewer for queue tests ---
+;; --- Mock viewer for queue + ui tests ---
 
 (defmacro with-mocked-viewer (&body body)
-  (let ((old-syms (mapcar (lambda (s) (gensym)) '(%vp %ps %rs %cl %fa))))
-    `(let ((*viewer* (make-array 1))
+  (let ((old-syms (mapcar (lambda (s) (gensym))
+                          '(%vp %ps %rs %cl %fa %sg %sa %aa %sec %sfoc %ar %sd %igv %iav))))
+    `       (let ((*viewer* (make-array 1))
            (*viewer-queue* nil)
            (*displayed-models* (make-hash-table :test 'equal))
-           (*queue-lock* (sb-thread:make-mutex)))
+           (*queue-lock* (sb-thread:make-mutex))
+           (*grid-visible* t)
+           (*axis-visible* t)
+           (mock-grid-state 1)
+           (mock-axis-state 1))
        (let (,@(mapcar (lambda (s sym)
-                         `(,sym (symbol-function (quote ,s))))
-                       '(%viewer-post-event %viewer-put-shape
-                         %viewer-remove-shape %viewer-clear %viewer-fit-all)
-                       old-syms))
+                          `(,sym (symbol-function (quote ,s))))
+                        '(%viewer-post-event %viewer-put-shape
+                          %viewer-remove-shape %viewer-clear
+                          %viewer-fit-all %viewer-show-grid
+                          %viewer-show-axis %viewer-set-antialiasing
+                          %viewer-set-eval-callback
+                          %viewer-set-file-op-callback
+                          %viewer-append-repl-output
+                          %viewer-show-dock
+                          %viewer-is-grid-visible
+                          %viewer-is-axis-visible)
+                        old-syms))
          (setf (symbol-function '%viewer-post-event) (lambda (vwr) (declare (ignore vwr)))
                (symbol-function '%viewer-put-shape) (lambda (vwr s n) (declare (ignore vwr s n)))
                (symbol-function '%viewer-remove-shape) (lambda (vwr n) (declare (ignore vwr n)))
                (symbol-function '%viewer-clear) (lambda (vwr) (declare (ignore vwr)))
-               (symbol-function '%viewer-fit-all) (lambda (vwr) (declare (ignore vwr))))
+               (symbol-function '%viewer-fit-all) (lambda (vwr) (declare (ignore vwr)))
+               (symbol-function '%viewer-show-grid) (lambda (vwr s) (declare (ignore vwr)) (setf mock-grid-state s))
+               (symbol-function '%viewer-show-axis) (lambda (vwr s) (declare (ignore vwr)) (setf mock-axis-state s))
+               (symbol-function '%viewer-set-antialiasing) (lambda (vwr e) (declare (ignore vwr e)))
+               (symbol-function '%viewer-set-eval-callback) (lambda (vwr fn) (declare (ignore vwr fn)))
+               (symbol-function '%viewer-set-file-op-callback) (lambda (vwr fn) (declare (ignore vwr fn)))
+               (symbol-function '%viewer-append-repl-output) (lambda (vwr text) (declare (ignore vwr text)))
+               (symbol-function '%viewer-show-dock) (lambda (vwr dn s) (declare (ignore vwr dn s)))
+               (symbol-function '%viewer-is-grid-visible) (lambda (vwr) (declare (ignore vwr)) mock-grid-state)
+               (symbol-function '%viewer-is-axis-visible) (lambda (vwr) (declare (ignore vwr)) mock-axis-state))
          (unwind-protect
              (progn ,@body)
            (setf (symbol-function '%viewer-post-event) ,(nth 0 old-syms)
                  (symbol-function '%viewer-put-shape) ,(nth 1 old-syms)
                  (symbol-function '%viewer-remove-shape) ,(nth 2 old-syms)
                  (symbol-function '%viewer-clear) ,(nth 3 old-syms)
-                 (symbol-function '%viewer-fit-all) ,(nth 4 old-syms)))))))
+                 (symbol-function '%viewer-fit-all) ,(nth 4 old-syms)
+                 (symbol-function '%viewer-show-grid) ,(nth 5 old-syms)
+                 (symbol-function '%viewer-show-axis) ,(nth 6 old-syms)
+                 (symbol-function '%viewer-set-antialiasing) ,(nth 7 old-syms)
+                 (symbol-function '%viewer-set-eval-callback) ,(nth 8 old-syms)
+                 (symbol-function '%viewer-set-file-op-callback) ,(nth 9 old-syms)
+                 (symbol-function '%viewer-append-repl-output) ,(nth 10 old-syms)
+                 (symbol-function '%viewer-show-dock) ,(nth 11 old-syms)
+                 (symbol-function '%viewer-is-grid-visible) ,(nth 12 old-syms)
+                 (symbol-function '%viewer-is-axis-visible) ,(nth 13 old-syms)))))))
 
 ;; --- Queue tests ---
 
@@ -155,6 +184,145 @@
     (clear-all)
     (assert-equal :clear (first (first *viewer-queue*)))))
 
+;; --- UI state tests ---
+
+(deftest show-grid-sets-visible
+  (with-mocked-viewer
+    (show-grid t)
+    (assert-true *grid-visible*)
+    (show-grid nil)
+    (assert-nil *grid-visible*)))
+
+(deftest show-axis-sets-visible
+  (with-mocked-viewer
+    (show-axis t)
+    (assert-true *axis-visible*)
+    (show-axis nil)
+    (assert-nil *axis-visible*)))
+
+(deftest toggle-grid-flips
+  (with-mocked-viewer
+    (let ((before *grid-visible*))
+      (toggle-grid)
+      (assert-equal (not before) *grid-visible*))))
+
+(deftest toggle-axis-flips
+  (with-mocked-viewer
+    (let ((before *axis-visible*))
+      (toggle-axis)
+      (assert-equal (not before) *axis-visible*))))
+
+;; --- initialize-viewer test ---
+
+(deftest initialize-viewer-calls-all-three
+  (let ((*viewer* (make-array 1))
+        (*grid-visible* t)
+        (*axis-visible* t)
+        (show-axis-args nil)
+        (show-grid-args nil)
+        (set-aa-args nil))
+    (let ((old-axis (symbol-function '%viewer-show-axis))
+          (old-grid (symbol-function '%viewer-show-grid))
+          (old-aa (symbol-function '%viewer-set-antialiasing)))
+      (setf (symbol-function '%viewer-show-axis)
+            (lambda (vwr show) (declare (ignore vwr)) (push show show-axis-args))
+            (symbol-function '%viewer-show-grid)
+            (lambda (vwr show) (declare (ignore vwr)) (push show show-grid-args))
+            (symbol-function '%viewer-set-antialiasing)
+            (lambda (vwr enable) (declare (ignore vwr)) (push enable set-aa-args)))
+      (unwind-protect
+          (progn
+            (initialize-viewer *viewer*)
+            (assert-equal '(1) (nreverse show-axis-args)
+                          "%viewer-show-axis should be called with show=1")
+            (assert-equal '(1) (nreverse show-grid-args)
+                          "%viewer-show-grid should be called with show=1")
+            (assert-equal '(1) (nreverse set-aa-args)
+                          "%viewer-set-antialiasing should be called with enable=1"))
+        (setf (symbol-function '%viewer-show-axis) old-axis
+              (symbol-function '%viewer-show-grid) old-grid
+              (symbol-function '%viewer-set-antialiasing) old-aa)))))
+
+;; --- set-antialiasing / fit-all tests ---
+
+(deftest set-antialiasing-calls-c-api
+  (with-mocked-viewer
+    (let ((called-with nil))
+      (let ((old (symbol-function '%viewer-set-antialiasing)))
+        (setf (symbol-function '%viewer-set-antialiasing)
+              (lambda (vwr e) (declare (ignore vwr)) (setf called-with e)))
+        (unwind-protect
+            (progn
+              (set-antialiasing nil)
+              (assert-equal 0 called-with "set-antialiasing nil should pass 0")
+              (set-antialiasing t)
+              (assert-equal 1 called-with "set-antialiasing t should pass 1"))
+          (setf (symbol-function '%viewer-set-antialiasing) old))))))
+
+(deftest fit-all-calls-c-api
+  (with-mocked-viewer
+    (let ((called nil))
+      (let ((old (symbol-function '%viewer-fit-all)))
+        (setf (symbol-function '%viewer-fit-all)
+              (lambda (vwr) (declare (ignore vwr)) (setf called t)))
+        (unwind-protect
+            (progn
+              (fit-all)
+              (assert-true called "fit-all should call %viewer-fit-all"))
+          (setf (symbol-function '%viewer-fit-all) old))))))
+
+;; --- Edge case tests ---
+
+(deftest undisplay-nonexistent-is-safe
+  (with-mocked-viewer
+    (setf (gethash "a" *displayed-models*) t)
+    (undisplay "nonexistent")
+    (assert-equal 1 (hash-table-count *displayed-models*)
+                  "undisplay of nonexistent should not affect models")
+    (assert-true (gethash "a" *displayed-models*))))
+
+(deftest clear-all-on-empty-is-safe
+  (with-mocked-viewer
+    (assert-true (zerop (hash-table-count *displayed-models*)))
+    (clear-all)
+    (assert-true (zerop (hash-table-count *displayed-models*))
+                  "clear-all on empty should not error")))
+
+(deftest drain-queue-on-empty-is-safe
+  (with-mocked-viewer
+    (drain-queue *viewer*)
+    (assert-true (null *viewer-queue*)
+                  "drain on empty queue should not error")))
+
+(deftest queue-push-without-viewer-is-safe
+  (let ((*viewer* nil)
+        (*viewer-queue* nil)
+        (*queue-lock* (sb-thread:make-mutex)))
+    (queue-push :display "test" nil)
+    (assert-equal 1 (length *viewer-queue*)
+                  "should queue even without *viewer*")))
+
+(deftest display-replaces-existing-name
+  (with-mocked-viewer
+    (display "part" :shape-a)
+    (assert-equal 1 (hash-table-count *displayed-models*))
+    (assert-true (eq :shape-a (gethash "part" *displayed-models*)))
+    ;; Replace with different shape
+    (display "part" :shape-b)
+    (assert-equal 1 (hash-table-count *displayed-models*)
+                  "same name should not increase model count")
+    (assert-true (eq :shape-b (gethash "part" *displayed-models*))
+                 "display with same name should replace")))
+
+(deftest drain-queue-display-updates-models
+  (with-mocked-viewer
+    (queue-push :display "box" nil)
+    (drain-queue *viewer*)
+    (assert-true (nth-value 1 (gethash "box" *displayed-models*))
+                 "drain of :display should populate *displayed-models*")
+    ;; Name maps to nil shape since the mock ignores the C call
+    (assert-nil (gethash "box" *displayed-models*))))
+
 ;; --- Helper function tests ---
 
 (deftest get-displayed-names-empty
@@ -184,7 +352,7 @@
         (export-all-stl "/tmp/test.stl"))
       (assert-true warnings "should warn when no shapes in *displayed-models*"))))
 
-;; --- REPL multiline logic tests ---
+;; --- REPL multiline tests ---
 
 (deftest repl-accumulator-starts-empty
   (assert-true (string= *repl-accumulator* "")))
@@ -229,25 +397,25 @@
 (deftest register-viewer-callbacks-sets-viewer
   (with-mocked-viewer
     (let ((called-eval nil)
-          (called-file nil)
+          (called-file-op nil)
           (called-drain nil))
       (let ((old-eval (symbol-function '%viewer-set-eval-callback))
-            (old-file (symbol-function '%viewer-set-file-op-callback))
+            (old-file-op (symbol-function '%viewer-set-file-op-callback))
             (old-drain (symbol-function '%viewer-set-drain-callback)))
         (setf (symbol-function '%viewer-set-eval-callback)
               (lambda (vwr fn) (declare (ignore vwr)) (setf called-eval fn))
               (symbol-function '%viewer-set-file-op-callback)
-              (lambda (vwr fn) (declare (ignore vwr)) (setf called-file fn))
+              (lambda (vwr fn) (declare (ignore vwr)) (setf called-file-op fn))
               (symbol-function '%viewer-set-drain-callback)
               (lambda (vwr fn) (declare (ignore vwr)) (setf called-drain fn)))
         (unwind-protect
             (progn
               (register-viewer-callbacks *viewer*)
               (assert-true called-eval "eval callback should be registered")
-              (assert-true called-file "file op callback should be registered")
+              (assert-true called-file-op "file-op callback should be registered")
               (assert-true called-drain "drain callback should be registered"))
           (setf (symbol-function '%viewer-set-eval-callback) old-eval
-                (symbol-function '%viewer-set-file-op-callback) old-file
+                (symbol-function '%viewer-set-file-op-callback) old-file-op
                 (symbol-function '%viewer-set-drain-callback) old-drain))))))
 
 ;; --- Test runner ---
@@ -261,12 +429,23 @@
              '(queue-push-adds-item queue-push-multiple-items queue-push-item-contents
                drain-queue-processes-all-items drain-queue-clear-empties-models
                drain-queue-remove-removes-one
+               drain-queue-display-updates-models
+               drain-queue-on-empty-is-safe
+               queue-push-without-viewer-is-safe
                display-adds-to-models display-queues-display-message
                display-converts-keyword-to-string
+               display-replaces-existing-name
                undisplay-removes-from-models undisplay-queues-remove-message
+               undisplay-nonexistent-is-safe
                clear-all-empties-models clear-all-queues-clear-message
-                get-displayed-names-empty get-displayed-names-returns-names
-                export-all-step-warns-on-empty export-all-stl-warns-on-empty
+               clear-all-on-empty-is-safe
+               show-grid-sets-visible show-axis-sets-visible
+               toggle-grid-flips toggle-axis-flips
+               set-antialiasing-calls-c-api
+               fit-all-calls-c-api
+               initialize-viewer-calls-all-three
+               get-displayed-names-empty get-displayed-names-returns-names
+               export-all-step-warns-on-empty export-all-stl-warns-on-empty
                repl-accumulator-starts-empty repl-eof-sentinel-is-gensym
                incomplete-form-signals-error complete-form-reads-correctly
                read-empty-string-returns-eof
