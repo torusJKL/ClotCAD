@@ -13,7 +13,8 @@
   "Mutex protecting the viewer queue.")
 
 (defvar *displayed-models* (make-hash-table :test 'equal)
-  "Map model name (string) → shape object currently displayed.")
+  "Map model name (string) → shape object currently displayed.
+   Single source of truth — no C++ duplicate.")
 
 (defun queue-push (type name &optional shape)
   (sb-thread:with-mutex (*queue-lock*)
@@ -30,20 +31,17 @@
       (destructuring-bind (type name &optional shape) msg
         (case type
           (:display
-           (when (and shape viewer)
-             (%viewer-put-shape viewer (cl-occt::%ptr shape) name)
-              (setf (gethash name *displayed-models*) shape)))
-          (:update
+           (setf (gethash name *displayed-models*) shape)
            (when (and shape viewer)
              (%viewer-put-shape viewer (cl-occt::%ptr shape) name)))
           (:remove
+           (remhash name *displayed-models*)
            (when viewer
-             (%viewer-remove-shape viewer name))
-           (remhash name *displayed-models*))
+             (%viewer-remove-shape viewer name)))
           (:clear
+           (clrhash *displayed-models*)
            (when viewer
-             (%viewer-clear viewer))
-           (clrhash *displayed-models*)))))))
+             (%viewer-clear viewer))))))))
 
 (defun display (name shape)
   (let ((sname (string name)))
@@ -66,7 +64,7 @@
         when (gethash (string name) *displayed-models*)
         do (let ((cached (cl-occt.impl:model-cached-shape m)))
              (if cached
-                 (queue-push :update (string name) cached)
+                 (queue-push :display (string name) cached)
                  (queue-push :remove (string name))))))
 
 (let ((original (symbol-function 'cl-occt.impl:propagate-changes)))

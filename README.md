@@ -1,20 +1,21 @@
 # cl-occt-viewer (Qt)
 
-Qt6-based 3D viewer for [cl-occt](https://github.com/torusJKL/cl-occt) using OCCT's Application Interactive Services (AIS/TKV3d). Renders shapes in a QOpenGLWidget with `AIS_ViewController` camera control, native Qt widget panels, and Swank/SLIME connectivity.
+Qt6-based 3D viewer for [cl-occt](https://github.com/torusJKL/cl-occt) using OCCT's Application Interactive Services (AIS/TKV3d). Renders shapes in a QOpenGLWidget with `AIS_ViewController` camera control, native Qt dock widgets, and Swank/SLIME connectivity.
 
 ## Quickstart
 
 ```sh
-git clone --recursive https://github.com/torusJKL/qt-viewer   # first time only
-just viewer       # build libocctviewer.so
-just start        # launch viewer + Swank server on port 4005
+just setup         # Build OCCT + cl-occt (one-time, ~10 min)
+just viewer        # Build libocctviewer.so
+just start         # Launch viewer + Swank server on port 4005
 ```
 
 From Emacs: `M-x slime-connect` (port 4005).
 
 ## Usage
 
-Display shapes from the in-window REPL (right panel) or from SLIME:
+Type Lisp expressions directly in the in-window REPL (right dock) or
+connect via SLIME (`M-x slime-connect`, port 4005).
 
 ```lisp
 (display :box (cl-occt:make-box 10 20 30))
@@ -23,40 +24,63 @@ Display shapes from the in-window REPL (right panel) or from SLIME:
 (clear-all)
 ```
 
+All viewer settings are changeable at runtime from either REPL:
+
+```lisp
+(show-axis nil)          ; hide axis helper
+(toggle-grid)            ; toggle grid
+(toggle-repl)            ; toggle REPL dock
+(toggle-scene-tree)      ; toggle Scene Manager
+(set-antialiasing nil)   ; disable antialiasing
+```
+
 ## Layout
 
 ```
 ┌──────────────────────────────────────────────────┐
-│ [File ▼]  [View ▼]                               │
-├──────────┬───────────────────────────┬───────────┤
-│ Scene    │    3D Viewport            │  REPL     │
-│ Tree     │    (OCCT AIS rendering)   │           │
-│          │                           │ > (code)  │
-│ ☑ :box   │    ┌──┐  axis            │ #<SHAPE   │
-│ ☑ :sphere│    │╳ │                   │           │
-│          │    └──┘                   │           │
-│          │    Grid                   │           │
-├──────────┴───────────────────────────┴───────────┤
-│ Displaying 2 shapes                  FPS: 60     │
+│ ┌──────────┬──────────────────────┬────────────┐ │
+│ │ Scene    │     3D Viewport     │   REPL     │ │
+│ │ Tree     │     (OCCT AIS)      │   ──────── │ │
+│ │          │                     │ > (display │ │
+│ │ ☑ :box   │       ┌──┐ axis     │ > :box ... │ │
+│ │ ☑ :sphere│       │╳ │          │ > (+ 1 2)  │ │
+│ │          │       └──┘          │ 3          │ │
+│ │          │       Grid          │            │ │
+│ └──────────┴──────────────────────┴────────────┘ │
+│ Displaying N shapes         FPS: 60               │
 └──────────────────────────────────────────────────┘
 ```
 
 ## Export
 
-File → Export writes **all visible shapes** to a single file:
+Use **File > Export STEP/STL** from the menu (opens a save dialog), or
+export directly from the REPL:
 
-- **STEP** — Uses OCCT's XDE framework. Each shape is written as a separate named part, preserving all metadata.
-- **STL** — Shapes are combined into a compound via `cl-occt:make-compound` and written as one mesh.
+```lisp
+;; Export all displayed shapes as STEP
+(let ((compound (apply #'cl-occt:make-compound
+                       (loop for k being the hash-keys of *displayed-models*
+                             collect (gethash k *displayed-models*)))))
+  (cl-occt:write-step compound "export.step"))
+```
+
+```lisp
+;; Export all displayed shapes as STL
+(let ((compound (apply #'cl-occt:make-compound
+                       (loop for k being the hash-keys of *displayed-models*
+                             collect (gethash k *displayed-models*)))))
+  (cl-occt:write-stl compound "export.stl"))
+```
 
 ## Interface
 
 | Component | Description |
 |-----------|-------------|
-| **3D Viewport** | QOpenGLWidget with OCCT AIS rendering. Orbit (LMB), pan (MMB), zoom (RMB/scroll) |
-| **REPL Panel** (right) | QPlainTextEdit output + QLineEdit input, history via Up/Down arrows |
+| **Menu Bar** (top) | File (Import/Export STEP/STL) and View (REPL, Scene Tree, Axis, Grid toggles) |
+| **3D Viewport** (center) | QOpenGLWidget with OCCT AIS rendering. Orbit (LMB), pan (MMB), zoom (RMB/scroll) |
 | **Scene Tree** (left) | Shape list with visibility checkboxes |
-| **Menu Bar** | File → Import/Export STEP/STL (exports all visible shapes), View → toggle panels/axis/grid |
-| **Status Bar** | Shape count + FPS |
+| **REPL** (right) | In-window Lisp REPL with input/output history |
+| **Status Bar** (bottom) | Shape count and FPS labels |
 
 ## Architecture
 
@@ -65,12 +89,25 @@ Main Thread (Qt)               Worker Thread (Swank)
 ┌─────────────────────────┐    ┌──────────────────────┐
 │ QApplication::exec()    │    │ Swank :port 4005     │
 │   ViewerWindow          │    │   └─ SLIME eval      │
-│     ViewerWidget        │    │                      │
+│     Menu Bar            │    │                      │
+│       File→Import/Export│    │ Qt REPL eval:        │
+│       View→Axis/Grid/.. │    │   eval_string cb     │
+│     ViewerWidget        │    │   → snprintf result  │
 │       paintGL()         │◀───│ display() → push q   │
 │         OCCT redraw     │    │ → postEvent()        │
 │         FlushViewEvents │    │ → WakeReceiver       │
-│     REPLPanel           │    │ → drain_queue()      │
-│     SceneTreePanel      │    │ → update() → paintGL │
+│     SceneTreePanel      │    │ → drain_queue()      │
+│     REPLPanel           │    │ → update() → paintGL │
+│       eval callback ────│───→│                      │
+│     Status Bar          │    │  Lisp modules:       │
+│                         │    │   ui.lisp — state    │
+│ Lisp modules:           │    │   render.lisp—redraw │
+│   ui.lisp    — state    │    │   queue.lisp—dispatch│
+│   render.lisp— redraw   │    │   repl.lisp—callbacks│
+│   queue.lisp — dispatch │    │                      │
+│   repl.lisp  — callbacks│    │  Menu actions wire:  │
+│                         │    │  File→file_op_cb     │
+│                         │    │  View→show_axis/grid │
 └─────────────────────────┘    └──────────────────────┘
 ```
 
@@ -78,10 +115,10 @@ Main Thread (Qt)               Worker Thread (Swank)
 
 ```
 wrap/
-├── occt_viewer.h/.cpp      C API (26 extern "C" functions)
+├── occt_viewer.h/.cpp      C API (~25 extern "C" functions)
 ├── viewer_widget.h/.cpp     QOpenGLWidget + AIS_ViewController
-├── viewer_window.h/.cpp     QMainWindow, menus, status bar
-├── repl_panel.h/.cpp        REPL dock widget
+├── viewer_window.h/.cpp     QMainWindow (menus, panels, status bar)
+├── repl_panel.h/.cpp        Qt REPL dock widget
 ├── scene_tree_panel.h/.cpp  Scene tree dock widget
 ├── OcctQtTools.h/.cpp       Qt↔OCCT glue helpers
 └── OcctGlTools.h/.cpp       GL context/FBO wrapping
@@ -90,11 +127,13 @@ src/viewer/
 ├── package.lisp             Package exports
 ├── bindings.lisp            CFFI bindings
 ├── queue.lisp               Event queue + DAG bridge
-├── repl.lisp                Eval/file-op callbacks
+├── repl.lisp                Drain callback registration
+├── ui.lisp                  Viewer state management
+├── render.lisp              Periodic redraw loop
 └── lifecycle.lisp           start-viewer, stop-viewer
 
 lib/cl-occt/
-└── cl-occt (git submodule)  Lisp OCCT bindings
+└── cl-occt (git submodule)  Lisp OCCT bindings (incl. AIS/V3d)
 ```
 
 ## Prerequisites
@@ -167,7 +206,7 @@ Run the Lisp unit test suite (no display required):
 just test
 ```
 
-Tests cover queue operations, display/undisplay/clear, helper functions, REPL multiline input parsing, file operation dispatch, multi-shape export warnings, and callback registration. CFFI functions are mocked via `with-mocked-viewer`.
+Tests cover queue operations, display/undisplay/clear, UI state management (grid/axis visibility toggles), and callback registration. CFFI functions are mocked via `with-mocked-viewer`.
 
 To run from a Lisp REPL:
 

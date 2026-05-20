@@ -8,7 +8,6 @@
 #include <QMenuBar>
 #include <QMenu>
 #include <QAction>
-#include <QTimer>
 #include <QLabel>
 #include <QCloseEvent>
 #include <Standard_WarningsRestore.hxx>
@@ -27,6 +26,15 @@ public:
   ViewerWidget* viewport() const { return myViewport; }
   REPLPanel* replPanel() const { return myRepl; }
   SceneTreePanel* sceneTree() const { return mySceneTree; }
+
+  QAction* importStepAction() const { return myImportStepAction; }
+  QAction* importStlAction() const { return myImportStlAction; }
+  QAction* exportStepAction() const { return myExportStepAction; }
+  QAction* exportStlAction() const { return myExportStlAction; }
+  QAction* axisAction() const { return myAxisAction; }
+  QAction* gridAction() const { return myGridAction; }
+  QAction* replAction() const { return myReplAction; }
+  QAction* sceneTreeAction() const { return mySceneTreeAction; }
 
 signals:
   void windowClosed();
@@ -50,6 +58,12 @@ private:
 
   QAction* myReplAction = nullptr;
   QAction* mySceneTreeAction = nullptr;
+  QAction* myImportStepAction = nullptr;
+  QAction* myImportStlAction = nullptr;
+  QAction* myExportStepAction = nullptr;
+  QAction* myExportStlAction = nullptr;
+  QAction* myAxisAction = nullptr;
+  QAction* myGridAction = nullptr;
 
   QLabel* myShapeCountLabel = nullptr;
   QLabel* myFpsLabel = nullptr;
