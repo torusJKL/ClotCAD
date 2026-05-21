@@ -67,9 +67,9 @@
    :show-axis
    :toggle-grid
    :toggle-axis
-   :set-antialiasing
-   :fit-all
-   :run-tests
+    :set-view-aa
+    :fit-view
+    :run-tests
    :*repl-eof-sentinel*
    :*repl-accumulator*))
 
@@ -90,8 +90,8 @@
    :show-scene-tree
    :toggle-repl
    :toggle-scene-tree
-    :set-antialiasing
-    :fit-all
+    :set-view-aa
+    :fit-view
     :run-tests
     :apply-theme
     :set-accent
@@ -99,6 +99,10 @@
     :theme-light
     :theme-auto
     :set-font-size
-    :*theme-mode*
-    :*accent-color*
-    :*font-size*))
+     :*theme-mode*
+     :*accent-color*
+     :*font-size*))
+
+(defpackage :cl-occt-user
+  (:use :cl :cl-occt :cl-occt-viewer)
+  (:nicknames :cad-user :occt-user))

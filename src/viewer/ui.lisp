@@ -29,10 +29,10 @@
 (defun toggle-scene-tree ()
   (%viewer-show-dock *viewer* "SceneTreePanel" -1))
 
-(defun set-antialiasing (enable)
+(defun set-view-aa (enable)
   (%viewer-set-antialiasing *viewer* (if enable 1 0)))
 
-(defun fit-all ()
+(defun fit-view ()
   (%viewer-fit-all *viewer*))
 
 (defun update-shape-count ()

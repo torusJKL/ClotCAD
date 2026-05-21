@@ -306,9 +306,9 @@
               (symbol-function '%viewer-get-trihedron) old-gt
               (symbol-function '%viewer-set-placeholder-color) old-spc)))))
 
-;; --- set-antialiasing / fit-all tests ---
+;; --- set-view-aa / fit-view tests ---
 
-(deftest set-antialiasing-calls-c-api
+(deftest set-view-aa-calls-c-api
   (with-mocked-viewer
     (let ((called-with nil))
       (let ((old (symbol-function '%viewer-set-antialiasing)))
@@ -316,13 +316,13 @@
               (lambda (vwr e) (declare (ignore vwr)) (setf called-with e)))
         (unwind-protect
             (progn
-              (set-antialiasing nil)
-              (assert-equal 0 called-with "set-antialiasing nil should pass 0")
-              (set-antialiasing t)
-              (assert-equal 1 called-with "set-antialiasing t should pass 1"))
+              (set-view-aa nil)
+              (assert-equal 0 called-with "set-view-aa nil should pass 0")
+              (set-view-aa t)
+              (assert-equal 1 called-with "set-view-aa t should pass 1"))
           (setf (symbol-function '%viewer-set-antialiasing) old))))))
 
-(deftest fit-all-calls-c-api
+(deftest fit-view-calls-c-api
   (with-mocked-viewer
     (let ((called nil))
       (let ((old (symbol-function '%viewer-fit-all)))
@@ -330,9 +330,38 @@
               (lambda (vwr) (declare (ignore vwr)) (setf called t)))
         (unwind-protect
             (progn
-              (fit-all)
-              (assert-true called "fit-all should call %viewer-fit-all"))
+              (fit-view)
+              (assert-true called "fit-view should call %viewer-fit-all"))
           (setf (symbol-function '%viewer-fit-all) old))))))
+
+;; --- Workspace package tests ---
+
+(deftest cl-occt-user-package-exists
+  (assert-true (find-package :cl-occt-user)
+               "cl-occt-user package should exist")
+  (assert-true (find-package :cad-user)
+               "cad-user nickname should resolve")
+  (assert-true (find-package :occt-user)
+               "occt-user nickname should resolve"))
+
+(deftest cl-occt-user-has-modeling-symbols
+  (dolist (sym '("MAKE-SPHERE" "CUT" "FUSE" "TRANSLATE"))
+    (let ((found (find-symbol sym :cl-occt-user)))
+      (assert-true found (format nil "~A should be accessible in cl-occt-user" sym))
+      (assert-true (fboundp found)
+                   (format nil "~A should be fbound in cl-occt-user" sym)))))
+
+(deftest cl-occt-user-has-viewer-symbols
+  (dolist (sym '("DISPLAY" "UNDISPLAY" "CLEAR-ALL" "SHOW-GRID" "FIT-VIEW" "SET-VIEW-AA"))
+    (let ((found (find-symbol sym :cl-occt-user)))
+      (assert-true found (format nil "~A should be accessible in cl-occt-user" sym))
+      (assert-true (fboundp found)
+                   (format nil "~A should be fbound in cl-occt-user" sym)))))
+
+(deftest cl-occt-user-no-fit-all-conflict
+  (let ((found (find-symbol "FIT-ALL" :cl-occt-user)))
+    (assert-true found "fit-all should still be accessible (from cl-occt)")
+    (assert-true (fboundp found) "fit-all from cl-occt should be fbound")))
 
 ;; --- Edge case tests ---
 
@@ -689,9 +718,13 @@
                clear-all-on-empty-is-safe
                show-grid-sets-visible show-axis-sets-visible
                toggle-grid-flips toggle-axis-flips
-               set-antialiasing-calls-c-api
-               fit-all-calls-c-api
-               initialize-viewer-calls-all-three
+               set-view-aa-calls-c-api
+                fit-view-calls-c-api
+                cl-occt-user-package-exists
+                cl-occt-user-has-modeling-symbols
+                cl-occt-user-has-viewer-symbols
+                cl-occt-user-no-fit-all-conflict
+                initialize-viewer-calls-all-three
                get-displayed-names-empty get-displayed-names-returns-names
                export-all-step-warns-on-empty export-all-stl-warns-on-empty
                repl-accumulator-starts-empty repl-eof-sentinel-is-gensym

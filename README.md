@@ -14,14 +14,15 @@ From Emacs: `M-x slime-connect` (port 4005).
 
 ## Usage
 
-Type Lisp expressions directly in the in-window REPL (right dock) or
-connect via SLIME (`M-x slime-connect`, port 4005).
+The viewer starts in the `CL-OCCT-USER` package, which gives you
+unqualified access to all modeling and viewer commands:
 
 ```lisp
-(display :box (cl-occt:make-box 10 20 30))
-(display :sphere (cl-occt:make-sphere 25))
+(display :box (make-box 10 20 30))
+(display :sphere (make-sphere 25))
 (undisplay :box)
 (clear-all)
+(fit-view)                ; fit all shapes to viewport
 ```
 
 All viewer settings are changeable at runtime from either REPL:
@@ -31,8 +32,28 @@ All viewer settings are changeable at runtime from either REPL:
 (toggle-grid)            ; toggle grid
 (toggle-repl)            ; toggle REPL dock
 (toggle-scene-tree)      ; toggle Scene Manager
-(set-antialiasing nil)   ; disable antialiasing
+(set-view-aa nil)        ; disable antialiasing
 ```
+
+You can switch to the `cl-occt` or `cl-occt-viewer` packages directly
+for qualified access, or use the package nicknames `:cad-user` / `:occt-user`:
+
+```lisp
+(in-package :cad-user)   ; same as CL-OCCT-USER
+```
+
+## Workspace Package
+
+The system provides `:cl-occt-user` — a convenience workspace package
+that combines `:cl-occt` (modeling API) and `:cl-occt-viewer` (viewer
+commands) into a single namespace. Load it through nicknames:
+
+| Package | Nicknames |
+|---------|-----------|
+| `CL-OCCT-USER` | `CAD-USER`, `OCCT-USER` |
+
+This is the default package when starting the viewer via `just start`.
+From a SLIME REPL, type `(in-package :cad-user)` to switch.
 
 ## Layout
 
@@ -124,7 +145,7 @@ wrap/
 └── OcctGlTools.h/.cpp       GL context/FBO wrapping
 
 src/viewer/
-├── package.lisp             Package exports
+├── package.lisp             Package exports (cl-occt-viewer, cl-occt-user)
 ├── bindings.lisp            CFFI bindings
 ├── queue.lisp               Event queue + DAG bridge
 ├── repl.lisp                Drain callback registration
