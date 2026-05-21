@@ -71,6 +71,7 @@ void viewer_set_antialiasing(occt_viewer vwr, int enable);
 
 // --- Theme ---
 void viewer_set_stylesheet(occt_viewer vwr, const char* qss);
+void viewer_set_icon_palette(occt_viewer vwr, const char* fg_color);
 int  viewer_color_scheme(occt_viewer vwr);
 typedef void (*color_scheme_fn)(int scheme);
 void viewer_set_color_scheme_callback(occt_viewer vwr, color_scheme_fn fn);

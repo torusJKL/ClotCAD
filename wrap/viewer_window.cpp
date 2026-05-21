@@ -52,6 +52,9 @@ void ViewerWindow::setupMenus()
   myGridAction = viewMenu->addAction(tr("&Grid"));
   myGridAction->setCheckable(true);
   myGridAction->setChecked(true);
+
+  QMenu* helpMenu = mb->addMenu(tr("&Help"));
+  myAboutAction = helpMenu->addAction(tr("&About ClotCAD"));
 }
 
 void ViewerWindow::setupStatusBar()

@@ -40,6 +40,7 @@ public:
   QAction* gridAction() const { return myGridAction; }
   QAction* replAction() const { return myReplAction; }
   QAction* sceneTreeAction() const { return mySceneTreeAction; }
+  QAction* aboutAction() const { return myAboutAction; }
 
 signals:
   void windowClosed();
@@ -72,6 +73,7 @@ private:
   QAction* myExportReplHistoryAction = nullptr;
   QAction* myAxisAction = nullptr;
   QAction* myGridAction = nullptr;
+  QAction* myAboutAction = nullptr;
 
   QLabel* myShapeCountLabel = nullptr;
   QLabel* myFpsLabel = nullptr;

@@ -49,7 +49,7 @@
                               '(%vp %ss %fa %sg %sa %aa %sec %sfoc %ar %sd %igv %iav
                                 %ss2 %cs %cscc %gv %gt %spc %sst %svc
                                 %gc %gao %ssc %stc %smsc %vst %vrh %vrs
-                                %vpd %sis))))
+                                 %vpd %sis %sip))))
     `(let ((*viewer* (make-array 1))
            (*viewer-queue* nil)
            (*displayed-models* (make-hash-table :test 'equal))
@@ -92,8 +92,9 @@
                             %viewer-set-repl-history-modifier
                             %viewer-set-repl-submit-modifier
                             %viewer-post-event-delayed
-                            %viewer-set-import-status)
-                         old-syms))
+                             %viewer-set-import-status
+                             %viewer-set-icon-palette)
+                          old-syms))
          (setf (symbol-function '%viewer-post-event) (lambda (vwr) (declare (ignore vwr)))
                (symbol-function '%viewer-sync-shapes)
                (lambda (vwr items count) (declare (ignore vwr items count)))
@@ -124,8 +125,9 @@
                 (symbol-function '%viewer-set-repl-history-modifier) (lambda (vwr mod) (declare (ignore vwr mod)))
                  (symbol-function '%viewer-set-repl-submit-modifier) (lambda (vwr mod) (declare (ignore vwr mod)))
                  (symbol-function '%viewer-post-event-delayed) (lambda (vwr ms) (declare (ignore vwr ms)))
-                 (symbol-function '%viewer-set-import-status) (lambda (vwr show cur tot) (declare (ignore vwr show cur tot))))
-           (unwind-protect
+                  (symbol-function '%viewer-set-import-status) (lambda (vwr show cur tot) (declare (ignore vwr show cur tot)))
+                  (symbol-function '%viewer-set-icon-palette) (lambda (vwr fg) (declare (ignore vwr fg))))
+            (unwind-protect
               (progn ,@body)
             (setf (symbol-function '%viewer-post-event) ,(nth 0 old-syms)
                   (symbol-function '%viewer-sync-shapes) ,(nth 1 old-syms)
@@ -156,7 +158,8 @@
                     (symbol-function '%viewer-set-repl-history-modifier) ,(nth 26 old-syms)
                      (symbol-function '%viewer-set-repl-submit-modifier) ,(nth 27 old-syms)
                      (symbol-function '%viewer-post-event-delayed) ,(nth 28 old-syms)
-                     (symbol-function '%viewer-set-import-status) ,(nth 29 old-syms)))))))
+                      (symbol-function '%viewer-set-import-status) ,(nth 29 old-syms)
+                      (symbol-function '%viewer-set-icon-palette) ,(nth 30 old-syms)))))))
 
 ;; --- Queue tests ---
 
@@ -1116,7 +1119,8 @@
           (old-gt (symbol-function '%viewer-get-trihedron))
           (old-spc (symbol-function '%viewer-set-placeholder-color))
           (old-msms (symbol-function '%viewer-set-mouse-selection-scheme))
-          (old-vst (symbol-function '%viewer-sync-tree-selection)))
+          (old-vst (symbol-function '%viewer-sync-tree-selection))
+           (old-sip (symbol-function '%viewer-set-icon-palette)))
       (setf (symbol-function '%viewer-show-axis)
             (lambda (vwr show) (declare (ignore vwr)) (push show show-axis-args))
             (symbol-function '%viewer-show-grid)
@@ -1125,6 +1129,8 @@
             (lambda (vwr enable) (declare (ignore vwr)) (push enable set-aa-args))
             (symbol-function '%viewer-set-stylesheet)
             (lambda (vwr qss) (declare (ignore vwr qss)))
+            (symbol-function '%viewer-set-icon-palette)
+            (lambda (vwr fg) (declare (ignore vwr fg)))
             (symbol-function '%viewer-color-scheme)
             (lambda (vwr) (declare (ignore vwr)) 0)
             (symbol-function '%viewer-set-color-scheme-callback)
@@ -1152,6 +1158,7 @@
               (symbol-function '%viewer-show-grid) old-grid
               (symbol-function '%viewer-set-antialiasing) old-aa
               (symbol-function '%viewer-set-stylesheet) old-ss
+              (symbol-function '%viewer-set-icon-palette) old-sip
               (symbol-function '%viewer-color-scheme) old-cs
               (symbol-function '%viewer-set-color-scheme-callback) old-csc
               (symbol-function '%viewer-get-view) old-gv

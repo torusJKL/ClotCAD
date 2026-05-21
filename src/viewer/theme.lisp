@@ -212,6 +212,25 @@ QToolTip {
     font-size: {{font-size}};
 }
 
+QDialog {
+    background-color: {{window-bg}};
+    color: {{window-fg}};
+}
+QDialog QPushButton {
+    background-color: {{button-bg}};
+    color: {{button-fg}};
+    border: 1px solid {{button-border}};
+    padding: 6px 18px;
+    border-radius: 4px;
+    min-width: 80px;
+}
+QDialog QPushButton:hover {
+    background-color: {{button-hover-bg}};
+}
+QDialog QPushButton:pressed {
+    background-color: {{button-pressed-bg}};
+}
+
 QMessageBox {
     background-color: {{window-bg}};
     color: {{window-fg}};
@@ -229,6 +248,70 @@ QMessageBox QPushButton:hover {
 }
 QMessageBox QPushButton:pressed {
     background-color: {{button-pressed-bg}};
+}
+
+QFileDialog {
+    background-color: {{window-bg}};
+    color: {{window-fg}};
+}
+QFileDialog QLineEdit {
+    background-color: {{input-bg}};
+    color: {{input-fg}};
+    border: 1px solid {{input-border}};
+    padding: 4px 6px;
+}
+QFileDialog QListView, QFileDialog QTreeView {
+    background-color: {{tree-bg}};
+    color: {{tree-fg}};
+    alternate-background-color: {{tree-alt-bg}};
+    selection-background-color: {{highlight}};
+    selection-color: {{highlight-text}};
+    outline: none;
+}
+QFileDialog QComboBox {
+    background-color: {{input-bg}};
+    color: {{input-fg}};
+    border: 1px solid {{input-border}};
+    padding: 4px 6px;
+}
+QFileDialog QPushButton {
+    background-color: {{button-bg}};
+    color: {{button-fg}};
+    border: 1px solid {{button-border}};
+    padding: 6px 18px;
+    border-radius: 4px;
+    min-width: 80px;
+}
+QFileDialog QPushButton:hover {
+    background-color: {{button-hover-bg}};
+}
+QFileDialog QPushButton:pressed {
+    background-color: {{button-pressed-bg}};
+}
+QFileDialog QHeaderView {
+    background-color: {{tree-bg}};
+    color: {{tree-fg}};
+}
+QFileDialog QLabel {
+    color: {{window-fg}};
+}
+QFileDialog QToolBar {
+    background: transparent;
+    spacing: 4px;
+}
+QFileDialog QToolButton {
+    color: {{window-fg}};
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 4px;
+}
+QFileDialog QToolButton:hover {
+    background: {{button-hover-bg}};
+    border-color: {{button-border}};
+}
+QFileDialog QToolButton:pressed {
+    background: {{button-pressed-bg}};
 }")
 
 ;; ----------------------------------------------------------------------

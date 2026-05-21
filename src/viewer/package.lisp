@@ -37,9 +37,10 @@
    :%viewer-show-dock
     ;; Quality
     :%viewer-set-antialiasing
-    ;; Theme
-    :%viewer-set-stylesheet
-    :%viewer-color-scheme
+     ;; Theme
+     :%viewer-set-stylesheet
+     :%viewer-set-icon-palette
+     :%viewer-color-scheme
     :%viewer-set-color-scheme-callback
     :%viewer-get-view
     :%viewer-get-trihedron

@@ -112,6 +112,9 @@
 (defcfun (%viewer-set-stylesheet "viewer_set_stylesheet") :void
   (vwr :pointer) (qss :string))
 
+(defcfun (%viewer-set-icon-palette "viewer_set_icon_palette") :void
+  (vwr :pointer) (fg-color :string))
+
 (defcfun (%viewer-color-scheme "viewer_color_scheme") :int
   (vwr :pointer))
 

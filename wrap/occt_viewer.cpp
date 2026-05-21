@@ -19,16 +19,25 @@
 
 #include <Standard_WarningsDisable.hxx>
 #include <QApplication>
+#include <QIcon>
 #include <QObject>
 #include <QEvent>
 #include <QCoreApplication>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QDialog>
+#include <QVBoxLayout>
+#include <QLabel>
+#include <QDialogButtonBox>
 #include <QStyleHints>
 #include <QTimer>
 #include <QDockWidget>
 #include <QStyleHints>
+#include <QProxyStyle>
+#include <QPainter>
+#include <QStyleOptionToolButton>
+#include <QToolButton>
 #include <map>
 #include <string>
 #include <vector>
@@ -38,6 +47,54 @@
 #include <Standard_WarningsRestore.hxx>
 
 static const QEvent::Type WakeEventType = static_cast<QEvent::Type>(QEvent::User + 1);
+
+// ---------------------------------------------------------------------------
+//  Proxy style that generates theme-aware standard icons.
+//  Required because QFileDialog's parent-directory toolbar button uses
+//  QIcon::fromTheme("go-up") or standardIcon(SP_FileDialogToParent), both of
+//  which return a black system-theme icon on Linux.  We intercept
+//  SP_FileDialogToParent and paint an arrow using QPalette::ButtonText so it
+//  always matches the current light/dark foreground color.
+// ---------------------------------------------------------------------------
+class ThemeIconStyle : public QProxyStyle
+{
+public:
+  using QProxyStyle::QProxyStyle;
+
+  QIcon standardIcon(StandardPixmap pixmap, const QStyleOption* option, const QWidget* widget) const override
+  {
+    if (pixmap == SP_FileDialogToParent || pixmap == SP_ArrowBack || pixmap == SP_ArrowForward)
+    {
+      QColor fg = QColor("#e0e0e0");
+      if (option)
+        fg = option->palette.color(QPalette::ButtonText);
+      else if (widget)
+        fg = widget->palette().color(QPalette::ButtonText);
+      else
+        fg = QApplication::palette().color(QPalette::ButtonText);
+
+      QPixmap pm(20, 20);
+      pm.fill(Qt::transparent);
+      QPainter p(&pm);
+      p.setRenderHint(QPainter::Antialiasing);
+      p.translate(10, 10);
+      if (pixmap == SP_ArrowBack)
+        p.rotate(-90);
+      else if (pixmap == SP_ArrowForward)
+        p.rotate(90);
+      QFont f = p.font();
+      f.setPixelSize(18);
+      f.setBold(true);
+      p.setFont(f);
+      p.setPen(fg);
+      p.drawText(QRect(-10, -10, 20, 20), Qt::AlignCenter, QStringLiteral("\u25B2"));
+      p.end();
+
+      return QIcon(pm);
+    }
+    return QProxyStyle::standardIcon(pixmap, option, widget);
+  }
+};
 
 class WakeEvent : public QEvent
 {
@@ -56,6 +113,7 @@ static void ensureQApplication()
     qputenv("QT_QPA_PLATFORM", "xcb");
     OcctQtTools::qtGlPlatformSetup();
     theApp = new QApplication(theArgc, const_cast<char**>(theArgv));
+    theApp->setStyle(new ThemeIconStyle(theApp->style()));
   }
 }
 
@@ -77,6 +135,63 @@ public:
     return QObject::eventFilter(watched, e);
   }
 };
+
+static void showAboutDialog(QWidget* parent)
+{
+  QDialog dlg(parent);
+  dlg.setWindowTitle(QStringLiteral("About ClotCAD"));
+  dlg.setFixedSize(420, 360);
+
+  auto* layout = new QVBoxLayout(&dlg);
+  layout->setAlignment(Qt::AlignCenter);
+  layout->setSpacing(8);
+  layout->setContentsMargins(24, 24, 24, 16);
+
+  auto* logoLabel = new QLabel(&dlg);
+  QPixmap logo(QStringLiteral(":/icons/ClotCAD-logo.svg"));
+  if (!logo.isNull())
+    logoLabel->setPixmap(logo.scaledToWidth(80, Qt::SmoothTransformation));
+  logoLabel->setAlignment(Qt::AlignCenter);
+  layout->addWidget(logoLabel);
+
+  auto* nameLabel = new QLabel(QStringLiteral("<h2>ClotCAD</h2>"), &dlg);
+  nameLabel->setAlignment(Qt::AlignCenter);
+  layout->addWidget(nameLabel);
+
+  auto* descLabel = new QLabel(
+    QStringLiteral(
+      "<p>A parametric CAD application built on "
+      "OpenCASCADE Technology and Qt.</p>"),
+    &dlg);
+  descLabel->setAlignment(Qt::AlignCenter);
+  descLabel->setWordWrap(true);
+  layout->addWidget(descLabel);
+
+  auto* linksLabel = new QLabel(
+    QStringLiteral(
+      "<p style='line-height: 1.6;'>"
+      "<a href='https://github.com/torusJKL/ClotCAD' style='color: %1;'>ClotCAD</a><br>"
+      "<a href='https://dev.opencascade.org/' style='color: %2;'>OCCT</a><br>"
+      "<a href='https://www.qt.io/' style='color: %3;'>Qt</a><br>"
+      "<a href='https://www.sbcl.org/' style='color: %4;'>SBCL</a>"
+      "</p>")
+      .arg(dlg.palette().color(QPalette::Link).name())
+      .arg(dlg.palette().color(QPalette::Link).name())
+      .arg(dlg.palette().color(QPalette::Link).name())
+      .arg(dlg.palette().color(QPalette::Link).name()),
+    &dlg);
+  linksLabel->setAlignment(Qt::AlignCenter);
+  linksLabel->setOpenExternalLinks(true);
+  layout->addWidget(linksLabel);
+
+  layout->addStretch();
+
+  auto* buttonBox = new QDialogButtonBox(QDialogButtonBox::Close, &dlg);
+  QObject::connect(buttonBox, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+  layout->addWidget(buttonBox);
+
+  dlg.exec();
+}
 
 // ========== C API ==========
 
@@ -207,6 +322,11 @@ occt_viewer viewer_create(const char* title, int width, int height)
   });
   QObject::connect(win->gridAction(), &QAction::toggled, [s](bool checked) {
     viewer_show_grid(s, checked ? 1 : 0);
+  });
+
+  // Wire Help menu action
+  QObject::connect(win->aboutAction(), &QAction::triggered, [win]() {
+    showAboutDialog(win);
   });
 
   // Wire scene tree
@@ -558,8 +678,42 @@ void viewer_set_antialiasing(occt_viewer vwr, int enable)
 void viewer_set_stylesheet(occt_viewer vwr, const char* qss)
 {
   (void)vwr;
-  if (theApp && qss)
-    theApp->setStyleSheet(QString::fromUtf8(qss));
+  if (!theApp || !qss) return;
+  QString qssStr = QString::fromUtf8(qss);
+
+  // Set QPalette BEFORE setStyleSheet -- the stylesheet overrides the palette,
+  // but only for roles that QSS properties control (e.g., WindowText via `color`).
+  // ButtonText is NOT controlled by QSS on non-button widgets like QFileDialog,
+  // so the stylesheet will preserve our ButtonText value from the app palette.
+  // This is needed because QFileDialog's parent-directory icon uses
+  // QCommonStyle::standardIcon(SP_FileDialogToParent) which reads ButtonText.
+  bool dark = qssStr.contains("#1e1e1e");
+  QPalette pal = theApp->palette();
+  if (dark) {
+    pal.setColor(QPalette::WindowText, QColor("#e0e0e0"));
+    pal.setColor(QPalette::ButtonText, QColor("#e0e0e0"));
+    pal.setColor(QPalette::Text, QColor("#f0f0f0"));
+  } else {
+    pal.setColor(QPalette::WindowText, QColor("#1a1a1a"));
+    pal.setColor(QPalette::ButtonText, QColor("#1a1a1a"));
+    pal.setColor(QPalette::Text, QColor("#1a1a1a"));
+  }
+  theApp->setPalette(pal);
+
+  theApp->setStyleSheet(qssStr);
+}
+
+void viewer_set_icon_palette(occt_viewer vwr, const char* fg_color)
+{
+  (void)vwr;
+  if (!theApp || !fg_color) return;
+  QPalette pal = theApp->palette();
+  QColor fg(QString::fromUtf8(fg_color));
+  if (!fg.isValid()) return;
+  pal.setColor(QPalette::WindowText, fg);
+  pal.setColor(QPalette::ButtonText, fg);
+  pal.setColor(QPalette::Text, fg);
+  theApp->setPalette(pal);
 }
 
 int viewer_color_scheme(occt_viewer vwr)
