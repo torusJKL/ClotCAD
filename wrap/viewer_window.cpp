@@ -2,7 +2,6 @@
 #include "viewer_widget.h"
 #include "repl_panel.h"
 #include "scene_tree_panel.h"
-
 #include <Standard_WarningsDisable.hxx>
 #include <QApplication>
 #include <QHBoxLayout>

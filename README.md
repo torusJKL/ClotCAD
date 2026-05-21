@@ -233,6 +233,38 @@ symbol-based export:
 | **REPL** (right) | In-window Lisp REPL with multi-line input, multi-form evaluation, input/output history, and configurable key bindings |
 | **Status Bar** (bottom) | Shape count, import progress/cancel label, and FPS |
 
+## Download
+
+Pre-built binaries are available for Linux:
+
+| Format | Description |
+|--------|-------------|
+| **ClotCAD-\*.AppImage** | Single-file executable — `chmod +x` and run |
+| **ClotCAD-\*.tar.gz** | Portable tarball — extract and run `run.sh` |
+
+**Requirements:** glibc ≥ 2.39 (Ubuntu 24.04+, Fedora 39+, Arch, etc.).
+
+Both bundles include SBCL, OCCT, Qt6, and Swank — zero installation steps.
+
+**Source code:** https://github.com/<your-org>/clotcad (GPL-3.0)
+
+### From AppImage
+
+```sh
+chmod +x ClotCAD-*.AppImage
+./ClotCAD-*.AppImage
+```
+
+### From tarball
+
+```sh
+tar xzf ClotCAD-*.tar.gz
+cd ClotCAD-*
+./run.sh
+```
+
+Connect from Emacs: `M-x slime-connect` (port 4005).
+
 ## Architecture
 
 ```

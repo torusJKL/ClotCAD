@@ -5,6 +5,7 @@
 #include "repl_panel.h"
 #include "scene_tree_panel.h"
 #include "OcctQtTools.h"
+#include "icon_data.h"
 
 #include <AIS_Trihedron.hxx>
 #include <AIS_ViewCube.hxx>
@@ -23,6 +24,7 @@
 
 #include <Standard_WarningsDisable.hxx>
 #include <QApplication>
+#include <QPixmap>
 #include <QIcon>
 #include <QObject>
 #include <QEvent>
@@ -160,7 +162,7 @@ public:
 
 static QApplication* theApp = nullptr;
 static int theArgc = 1;
-static const char* theArgv[] = {"cl-occt-viewer", nullptr};
+static const char* theArgv[] = {"ClotCAD", nullptr};
 
 static void ensureQApplication()
 {
@@ -170,6 +172,9 @@ static void ensureQApplication()
     OcctQtTools::qtGlPlatformSetup();
     theApp = new QApplication(theArgc, const_cast<char**>(theArgv));
     theApp->setStyle(new ThemeIconStyle(theApp->style()));
+    QPixmap pm;
+    if (pm.loadFromData(clotcad_icon_png, clotcad_icon_png_len))
+      theApp->setWindowIcon(QIcon(pm));
   }
 }
 
@@ -256,6 +261,11 @@ occt_viewer viewer_create(const char* title, int width, int height)
   ensureQApplication();
   auto* s = new ViewerState();
   auto* win = new ViewerWindow(title, width, height);
+  {
+    QPixmap pm;
+    if (pm.loadFromData(clotcad_icon_png, clotcad_icon_png_len))
+      win->setWindowIcon(QIcon(pm));
+  }
   s->window = win;
   s->widget = win->viewport();
   s->widget->setViewerState(s);
