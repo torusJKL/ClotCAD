@@ -89,7 +89,9 @@
         (when (eql type :sync-selection)
           (sync-selection-to-occt viewer)
           (%viewer-sync-tree-selection viewer))))
-    (update-shape-count)))
+    (update-shape-count)
+    ;; Phase 3: process Lisp file import tick (no-op when not importing)
+    (process-import-tick)))
 
 (defun display (name shape &key (visible t) (show-in-tree t) (origin :display))
   (let ((sname (string name)))

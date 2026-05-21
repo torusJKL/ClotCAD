@@ -37,12 +37,23 @@ Without this, the C++ library and OCCT won't load.
 
 Tests are in `t/` directory, loaded via `:cl-occt-viewer/tests` ASDF system. Run with `just test` (uses mocked CFFI, no display needed).
 
-The `with-mocked-viewer` macro mocks `%viewer-post-event`, `%viewer-put-shape`,
-`%viewer-remove-shape`, `%viewer-clear`, `%viewer-fit-all`, `%viewer-show-grid`,
+The `with-mocked-viewer` macro mocks `%viewer-post-event`, `%viewer-sync-shapes`,
+`%viewer-post-event-delayed`, `%viewer-fit-all`, `%viewer-show-grid`,
 `%viewer-show-axis`, `%viewer-set-antialiasing`, `%viewer-set-eval-callback`,
 `%viewer-set-file-op-callback`, `%viewer-append-repl-output`, `%viewer-show-dock`,
-`%viewer-is-grid-visible`, and `%viewer-is-axis-visible`. Add new CFFI function
-symbols to the mock list if new tests require them.
+`%viewer-is-grid-visible`, `%viewer-is-axis-visible`, `%viewer-set-stylesheet`,
+`%viewer-color-scheme`, `%viewer-set-color-scheme-callback`, `%viewer-get-view`,
+`%viewer-get-trihedron`, `%viewer-set-placeholder-color`, `%viewer-set-status-text`,
+`%viewer-set-visibility-callback`, `%viewer-set-import-status`, `%viewer-get-context`,
+`%viewer-get-ais-object`, `%viewer-set-selection-callback`, `%viewer-set-tree-selection-callback`,
+`%viewer-set-mouse-selection-scheme`, `%viewer-sync-tree-selection`,
+`%viewer-set-repl-history-modifier`, and `%viewer-set-repl-submit-modifier`.
+Add new CFFI function symbols to the mock list if new tests require them.
+
+The Lisp import/export system uses `*repl-log*` (REPL history log),
+`*import-speed*` (replay delay), `*import-cancelled*` (cancellation flag),
+and `*export-with-output*` (debug mode toggle). User-facing functions:
+`cancel-import`, `replay-speed`, `result-export`, and `export-repl-history`.
 
 ## OpenCode Workflow
 

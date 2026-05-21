@@ -210,6 +210,25 @@ QToolTip {
     padding: 6px 8px;
     border-radius: 4px;
     font-size: {{font-size}};
+}
+
+QMessageBox {
+    background-color: {{window-bg}};
+    color: {{window-fg}};
+}
+QMessageBox QPushButton {
+    background-color: {{button-bg}};
+    color: {{button-fg}};
+    border: 1px solid {{button-border}};
+    padding: 6px 18px;
+    border-radius: 4px;
+    min-width: 80px;
+}
+QMessageBox QPushButton:hover {
+    background-color: {{button-hover-bg}};
+}
+QMessageBox QPushButton:pressed {
+    background-color: {{button-pressed-bg}};
 }")
 
 ;; ----------------------------------------------------------------------
@@ -293,6 +312,11 @@ QToolTip {
     (:axis-z-color . "#1E88E5")
     (:highlight . ,accent)
     (:highlight-text . "#ffffff")
+    (:button-bg . "#383838")
+    (:button-fg . "#e0e0e0")
+    (:button-border . "#555555")
+    (:button-hover-bg . "#454545")
+    (:button-pressed-bg . "#2a2a2a")
     (:font-size . ,*font-size*)))
 
 (defun %light-palette (accent)
@@ -335,6 +359,11 @@ QToolTip {
     (:axis-z-color . "#1E88E5")
     (:highlight . ,accent)
     (:highlight-text . "#ffffff")
+    (:button-bg . "#e0e0e0")
+    (:button-fg . "#1a1a1a")
+    (:button-border . "#c0c0c0")
+    (:button-hover-bg . "#d0d0d0")
+    (:button-pressed-bg . "#b0b0b0")
     (:font-size . ,*font-size*)))
 
 ;; ----------------------------------------------------------------------

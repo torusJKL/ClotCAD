@@ -149,7 +149,57 @@ From a SLIME REPL, type `(in-package :cad-user)` to switch.
 └──────────────────────────────────────────────────┘
 ```
 
-## Export
+## Lisp File Import
+
+You can load a `.lisp` file of forms and evaluate them sequentially (same as
+typing each form in the REPL). Use **File > Import Lisp...** from the menu.
+
+A **danger warning** is shown before any code executes — importing a Lisp file
+gives it full access to your system (files, network, shell).
+
+```lisp
+;; Example "model.lisp" you might import:
+(def :s (make-sphere 20))
+(show :s)
+(def :b (make-box 10 10 10))
+(cut :s :b)
+(display :result *)
+```
+
+Import forms are evaluated one at a time on the Qt main thread, yielding to
+the event loop between forms. The 3D view stays interactive while importing.
+
+**Controls during import:**
+
+| Action | What it does |
+|--------|-------------|
+| **Ctrl+G** | Cancel the current import |
+| Click "Importing N/M..." in status bar | Cancel the current import |
+| `(cancel-import)` | Cancel the current import |
+| `(replay-speed 500)` | Wait 500ms between forms (nil = immediate) |
+
+The status bar shows "Importing 5/42..." during an active import. Click it
+to cancel.
+
+## REPL History Export
+
+Use **File > Export REPL History...** to save the REPL session log to a
+`.lisp` file.
+
+```lisp
+;; Toggle debug mode (includes results as comments):
+(result-export t)     ;; include outputs like "; NIL"
+(result-export nil)   ;; code only (default)
+
+;; Export manually from the REPL:
+(export-repl-history "session.lisp")
+```
+
+If `result-export` is `nil` (default), the exported file contains only the
+code you submitted. If `t`, each output line is included as a `;` comment
+after the corresponding input.
+
+## Export STEP/STL
 
 Use **File > Export STEP/STL** from the menu (opens a save dialog), or
 export directly from the REPL using either the classic API or the new
@@ -165,11 +215,11 @@ symbol-based export:
 
 | Component | Description |
 |-----------|-------------|
-| **Menu Bar** (top) | File (Import/Export STEP/STL) and View (REPL, Scene Tree, Axis, Grid toggles) |
+| **Menu Bar** (top) | File (Import/Export STEP/STL, Import Lisp, Export REPL History) and View (REPL, Scene Tree, Axis, Grid toggles) |
 | **3D Viewport** (center) | QOpenGLWidget with OCCT AIS rendering. Orbit (LMB), pan (MMB), zoom (RMB/scroll) |
 | **Scene Tree** (left) | Shape list with visibility checkboxes. Click to select, Ctrl+click to toggle, Shift+click for range |
 | **REPL** (right) | In-window Lisp REPL with multi-line input, multi-form evaluation, input/output history, and configurable key bindings |
-| **Status Bar** (bottom) | Shape count and FPS labels |
+| **Status Bar** (bottom) | Shape count, import progress/cancel label, and FPS |
 
 ## Architecture
 
@@ -302,10 +352,11 @@ just test
 
 Tests cover queue operations, display/undisplay/clear, UI state management
 (grid/axis visibility toggles), callback registration, multi-form REPL
-evaluation, and the full set of operations: `def`, `show`, `hide`, `toggle`,
-`show-defs`, `toggle-defs`, `resolve-shape`, selection (`select`, `deselect`,
-`clear-selection`), and all wrapper functions. CFFI functions are mocked
-via `with-mocked-viewer`.
+evaluation, Lisp file import (tick processing, cancellation, error recovery),
+REPL history export (clean and debug modes), and the full set of operations:
+`def`, `show`, `hide`, `toggle`, `show-defs`, `toggle-defs`, `resolve-shape`,
+selection (`select`, `deselect`, `clear-selection`), and all wrapper functions.
+CFFI functions are mocked via `with-mocked-viewer`.
 
 To run from a Lisp REPL:
 

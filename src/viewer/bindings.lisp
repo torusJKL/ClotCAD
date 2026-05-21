@@ -33,6 +33,9 @@
 (defcfun (%viewer-post-event "viewer_post_event") :void
   (vwr :pointer))
 
+(defcfun (%viewer-post-event-delayed "viewer_post_event_delayed") :void
+  (vwr :pointer) (ms :int))
+
 (defcfun (%viewer-redraw "viewer_redraw") :void
   (vwr :pointer))
 
@@ -126,6 +129,9 @@
 
 (defcfun (%viewer-set-status-text "viewer_set_status_text") :void
   (vwr :pointer) (text :string))
+
+(defcfun (%viewer-set-import-status "viewer_set_import_status") :void
+  (vwr :pointer) (show :int) (current :int) (total :int))
 
 (defcfun (%viewer-set-visibility-callback "viewer_set_visibility_callback") :void
   (vwr :pointer) (fn :pointer))

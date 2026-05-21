@@ -10,8 +10,9 @@
    :%viewer-quit
    :%viewer-is-running
    ;; Inter-thread wake
-   :%viewer-post-event
-   :%viewer-redraw
+    :%viewer-post-event
+    :%viewer-post-event-delayed
+    :%viewer-redraw
     ;; Shapes
     :%viewer-sync-shapes
     :%viewer-fit-all
@@ -44,6 +45,7 @@
     :%viewer-get-trihedron
     :%viewer-set-placeholder-color
     :%viewer-set-status-text
+:%viewer-set-import-status
      :%viewer-set-visibility-callback
      ;; Selection
      :%viewer-get-context
@@ -134,13 +136,18 @@
        :*theme-mode*
        :*accent-color*
        :*font-size*
-       ;; Selection
-       :*selected*
-       :select
-       :deselect
-       :clear-selection
-       :selected-shapes
-       :apply-selection-schemes))
+        ;; Selection
+        :*selected*
+        :select
+        :deselect
+        :clear-selection
+        :selected-shapes
+        :apply-selection-schemes
+        ;; Lisp import/export
+        :cancel-import
+        :replay-speed
+        :result-export
+        :export-repl-history))
 
 (defpackage :cl-occt-user
   (:use :cl :cl-occt :cl-occt-viewer)

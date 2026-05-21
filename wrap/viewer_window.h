@@ -9,6 +9,8 @@
 #include <QMenu>
 #include <QAction>
 #include <QLabel>
+#include <QMouseEvent>
+#include <QShortcut>
 #include <QCloseEvent>
 #include <Standard_WarningsRestore.hxx>
 
@@ -29,8 +31,11 @@ public:
 
   QAction* importStepAction() const { return myImportStepAction; }
   QAction* importStlAction() const { return myImportStlAction; }
+  QAction* importLispAction() const { return myImportLispAction; }
   QAction* exportStepAction() const { return myExportStepAction; }
   QAction* exportStlAction() const { return myExportStlAction; }
+  QAction* exportReplHistoryAction() const { return myExportReplHistoryAction; }
+  QLabel*  importStatusLabel() const { return myImportStatusLabel; }
   QAction* axisAction() const { return myAxisAction; }
   QAction* gridAction() const { return myGridAction; }
   QAction* replAction() const { return myReplAction; }
@@ -38,6 +43,7 @@ public:
 
 signals:
   void windowClosed();
+  void importCancelRequested();
 
 public slots:
   void setStatusText(const char* text);
@@ -60,13 +66,16 @@ private:
   QAction* mySceneTreeAction = nullptr;
   QAction* myImportStepAction = nullptr;
   QAction* myImportStlAction = nullptr;
+  QAction* myImportLispAction = nullptr;
   QAction* myExportStepAction = nullptr;
   QAction* myExportStlAction = nullptr;
+  QAction* myExportReplHistoryAction = nullptr;
   QAction* myAxisAction = nullptr;
   QAction* myGridAction = nullptr;
 
   QLabel* myShapeCountLabel = nullptr;
   QLabel* myFpsLabel = nullptr;
+  QLabel* myImportStatusLabel = nullptr;
 };
 
 #endif

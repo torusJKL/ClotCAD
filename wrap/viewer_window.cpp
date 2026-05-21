@@ -20,6 +20,9 @@ ViewerWindow::ViewerWindow(const char* title, int width, int height)
   setupMenus();
   setupPanels();
   setupStatusBar();
+
+  auto* cancelShortcut = new QShortcut(QKeySequence("Ctrl+G"), this);
+  connect(cancelShortcut, &QShortcut::activated, this, &ViewerWindow::importCancelRequested);
 }
 
 void ViewerWindow::setupMenus()
@@ -29,9 +32,11 @@ void ViewerWindow::setupMenus()
   QMenu* fileMenu = mb->addMenu(tr("&File"));
   myImportStepAction = fileMenu->addAction(tr("Import &STEP..."));
   myImportStlAction = fileMenu->addAction(tr("Import S&TL..."));
+  myImportLispAction = fileMenu->addAction(tr("Import &Lisp..."));
   fileMenu->addSeparator();
   myExportStepAction = fileMenu->addAction(tr("Export &STEP..."));
   myExportStlAction = fileMenu->addAction(tr("Export S&TL..."));
+  myExportReplHistoryAction = fileMenu->addAction(tr("Export REPL &History..."));
 
   QMenu* viewMenu = mb->addMenu(tr("&View"));
   myReplAction = viewMenu->addAction(tr("&REPL"));
@@ -54,7 +59,13 @@ void ViewerWindow::setupStatusBar()
   QStatusBar* sb = statusBar();
   myShapeCountLabel = new QLabel(tr("Displaying 0 shapes"));
   myFpsLabel = new QLabel(this);
+  myImportStatusLabel = new QLabel(this);
+  myImportStatusLabel->setStyleSheet("QLabel { color: #cc0000; text-decoration: underline; }");
+  myImportStatusLabel->setCursor(Qt::PointingHandCursor);
+  myImportStatusLabel->setVisible(false);
+  myImportStatusLabel->installEventFilter(this);
   sb->addWidget(myShapeCountLabel);
+  sb->addPermanentWidget(myImportStatusLabel);
   sb->addPermanentWidget(myFpsLabel);
 }
 
@@ -84,6 +95,11 @@ bool ViewerWindow::eventFilter(QObject* obj, QEvent* event)
   {
     if (obj == myRepl)    myReplAction->setChecked(false);
     if (obj == mySceneTree) mySceneTreeAction->setChecked(false);
+  }
+  else if (event->type() == QEvent::MouseButtonPress && obj == myImportStatusLabel)
+  {
+    emit importCancelRequested();
+    return true;
   }
   return QMainWindow::eventFilter(obj, event);
 }

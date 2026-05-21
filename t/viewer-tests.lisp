@@ -46,9 +46,10 @@
 
 (defmacro with-mocked-viewer (&body body)
   (let ((old-syms (mapcar (lambda (s) (gensym))
-                             '(%vp %ss %fa %sg %sa %aa %sec %sfoc %ar %sd %igv %iav
-                               %ss2 %cs %cscc %gv %gt %spc %sst %svc
-                               %gc %gao %ssc %stc %smsc %vst %vrh %vrs))))
+                              '(%vp %ss %fa %sg %sa %aa %sec %sfoc %ar %sd %igv %iav
+                                %ss2 %cs %cscc %gv %gt %spc %sst %svc
+                                %gc %gao %ssc %stc %smsc %vst %vrh %vrs
+                                %vpd %sis))))
     `(let ((*viewer* (make-array 1))
            (*viewer-queue* nil)
            (*displayed-models* (make-hash-table :test 'equal))
@@ -89,7 +90,9 @@
                             %viewer-set-mouse-selection-scheme
                             %viewer-sync-tree-selection
                             %viewer-set-repl-history-modifier
-                            %viewer-set-repl-submit-modifier)
+                            %viewer-set-repl-submit-modifier
+                            %viewer-post-event-delayed
+                            %viewer-set-import-status)
                          old-syms))
          (setf (symbol-function '%viewer-post-event) (lambda (vwr) (declare (ignore vwr)))
                (symbol-function '%viewer-sync-shapes)
@@ -119,8 +122,10 @@
                (symbol-function '%viewer-set-mouse-selection-scheme) (lambda (vwr key scheme) (declare (ignore vwr key scheme)))
                 (symbol-function '%viewer-sync-tree-selection) (lambda (vwr) (declare (ignore vwr)))
                 (symbol-function '%viewer-set-repl-history-modifier) (lambda (vwr mod) (declare (ignore vwr mod)))
-                (symbol-function '%viewer-set-repl-submit-modifier) (lambda (vwr mod) (declare (ignore vwr mod))))
-          (unwind-protect
+                 (symbol-function '%viewer-set-repl-submit-modifier) (lambda (vwr mod) (declare (ignore vwr mod)))
+                 (symbol-function '%viewer-post-event-delayed) (lambda (vwr ms) (declare (ignore vwr ms)))
+                 (symbol-function '%viewer-set-import-status) (lambda (vwr show cur tot) (declare (ignore vwr show cur tot))))
+           (unwind-protect
               (progn ,@body)
             (setf (symbol-function '%viewer-post-event) ,(nth 0 old-syms)
                   (symbol-function '%viewer-sync-shapes) ,(nth 1 old-syms)
@@ -149,7 +154,9 @@
                    (symbol-function '%viewer-set-mouse-selection-scheme) ,(nth 24 old-syms)
                     (symbol-function '%viewer-sync-tree-selection) ,(nth 25 old-syms)
                     (symbol-function '%viewer-set-repl-history-modifier) ,(nth 26 old-syms)
-                    (symbol-function '%viewer-set-repl-submit-modifier) ,(nth 27 old-syms)))))))
+                     (symbol-function '%viewer-set-repl-submit-modifier) ,(nth 27 old-syms)
+                     (symbol-function '%viewer-post-event-delayed) ,(nth 28 old-syms)
+                     (symbol-function '%viewer-set-import-status) ,(nth 29 old-syms)))))))
 
 ;; --- Queue tests ---
 
@@ -745,6 +752,138 @@
 (deftest file-op-dispatch-import-stl
   (assert-equal 3 3 "import stl op code"))
 
+;; --- Lisp import/export tests ---
+
+(deftest import-tick-processes-one-form
+  (with-mocked-viewer
+    (setf *repl-log* nil
+          *import-forms* '((+ 1 2) (* 3 4) (- 10 5))
+          *import-total* 3
+          *import-done* 0
+          *import-cancelled* nil)
+    (process-import-tick)
+    (assert-equal 2 (length *import-forms*)
+                  "one form should be consumed")
+    (assert-equal 1 (length *repl-log*)
+                  "one entry should be added to repl-log")
+    (let ((entry (car *repl-log*)))
+      (assert-true (search "3" (cdr entry) :test 'char=)
+                   "result of (+ 1 2) should be in log"))))
+
+(deftest import-tick-cancelled-stops
+  (with-mocked-viewer
+    (setf *repl-log* nil
+          *import-forms* '((+ 1 2))
+          *import-total* 1
+          *import-done* 0
+          *import-cancelled* t)
+    (process-import-tick)
+    (assert-true (null *repl-log*)
+                 "no form should be evaluated when cancelled")
+    (assert-true (null *import-forms*)
+                 "import-forms should be cleaned up after cancel")))
+
+(deftest import-tick-error-continues
+  (with-mocked-viewer
+    (setf *repl-log* nil
+          *import-forms* '((error "oops") (+ 1 2))
+          *import-total* 2
+          *import-done* 0
+          *import-cancelled* nil)
+    (process-import-tick)
+    (assert-equal 1 (length *repl-log*))
+    (assert-true (search "Error: oops" (cdar *repl-log*) :test 'char=)
+                 "error form should be logged with error message")
+    (process-import-tick)
+    (assert-equal 2 (length *repl-log*))
+    (assert-true (null *import-forms*)
+                 "all forms should be consumed")
+    (assert-true (search "3" (cdar *repl-log*) :test 'char=)
+                 "valid form after error should still produce result")))
+
+(deftest repl-log-captures-manual
+  (with-mocked-viewer
+    (setf *repl-log* nil)
+    (let* ((code "(+ 1 2)")
+           (values (multiple-value-list (eval '(+ 1 2))))
+           (output (with-output-to-string (s)
+                     (dolist (v values)
+                       (format s "~S~%" v)))))
+      (push (cons code output) *repl-log*))
+    (assert-equal 1 (length *repl-log*)
+                  "direct push should add to repl-log")
+    (assert-true (string= "(+ 1 2)" (caar *repl-log*))
+                 "log should capture input code")
+    (assert-true (search "3" (cdar *repl-log*) :test 'char=)
+                 "log should capture output")))
+
+(deftest export-repl-history-clean
+  (with-mocked-viewer
+    (setf *repl-log* '(("(def :s (make-sphere 5))" . "NIL\n") ("(show :s)" . "T\n"))
+          *export-with-output* nil)
+    (let ((path (format nil "/tmp/test-export-clean-~D.lisp" (get-universal-time))))
+      (unwind-protect
+           (progn
+             (export-repl-history path)
+             (with-open-file (f path)
+               (let ((line1 (read-line f nil nil))
+                     (line2 (read-line f nil nil)))
+                 (assert-true (and (stringp line1) (stringp line2))
+                              "file should have two non-empty lines")
+                  ;; export-repl-history reverses the log so newest entries appear first
+                  (assert-true (string= "(show :s)" line1)
+                               "first line should be newest entry's code")
+                  (assert-true (string= "(def :s (make-sphere 5))" line2)
+                               "second line should be oldest entry's code")))))
+      (ignore-errors (delete-file path)))))
+
+(deftest export-repl-history-debug
+  (with-mocked-viewer
+    (setf *repl-log* '(("(def :s (make-sphere 5))" . "NIL\n") ("(show :s)" . "T\n"))
+          *export-with-output* t)
+    (let ((path (format nil "/tmp/test-export-debug-~D.lisp" (get-universal-time))))
+      (unwind-protect
+           (progn
+             (export-repl-history path)
+             (with-open-file (f path)
+               (let* ((content (make-string 200))
+                      (nbytes (read-sequence content f)))
+                 (assert-true (> nbytes 0) "file should be non-empty")
+                 (assert-true (search "(show :s)" content :test 'char=)
+                              "debug: should contain newest code")
+                 (assert-true (search "; T" content :test 'char=)
+                              "debug: should contain newest output as comment")
+                 (assert-true (search "(def :s (make-sphere 5))" content :test 'char=)
+                              "debug: should contain oldest code")
+                 (assert-true (search "; NIL" content :test 'char=)
+                               "debug: should contain oldest output as comment"))))
+       (ignore-errors (delete-file path))))))
+
+(deftest replay-speed-sets-variable
+  (with-mocked-viewer
+    (replay-speed 500)
+    (assert-equal 500 *import-speed*
+                  "replay-speed 500 should set *import-speed* to 500")
+    (replay-speed nil)
+    (assert-nil *import-speed*
+                "replay-speed nil should set *import-speed* to nil")))
+
+(deftest cancel-import-noop-when-idle
+  (with-mocked-viewer
+    (setf *import-forms* nil *import-cancelled* nil)
+    (cancel-import)
+    ;; should not error - just a no-op
+    (assert-nil *import-forms*)))
+
+(deftest result-export-toggles
+  (with-mocked-viewer
+    (result-export t)
+    (assert-true *export-with-output*
+                 "result-export t should set *export-with-output* to t")
+    (result-export nil)
+    (assert-nil *export-with-output*
+                "result-export nil should set *export-with-output* to nil")))
+
 ;; --- Registration tests ---
 
 (deftest register-viewer-callbacks-sets-viewer
@@ -1163,8 +1302,17 @@
                 deselect-removes-one clear-selection-empties
                 selected-shapes-returns-list
                 select-pushes-sync-selection
-                deselect-pushes-sync-selection
-                clear-selection-pushes-sync-selection))
+                 deselect-pushes-sync-selection
+                 clear-selection-pushes-sync-selection
+                 import-tick-processes-one-form
+                 import-tick-cancelled-stops
+                 import-tick-error-continues
+                 repl-log-captures-manual
+                 export-repl-history-clean
+                 export-repl-history-debug
+                 replay-speed-sets-variable
+                 cancel-import-noop-when-idle
+                 result-export-toggles))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"
             (test-result-pass *test-result*)

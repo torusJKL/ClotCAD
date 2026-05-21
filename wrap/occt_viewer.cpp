@@ -23,6 +23,10 @@
 #include <QEvent>
 #include <QCoreApplication>
 #include <QFileDialog>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QStyleHints>
+#include <QTimer>
 #include <QDockWidget>
 #include <QStyleHints>
 #include <map>
@@ -143,6 +147,60 @@ occt_viewer viewer_create(const char* title, int width, int height)
     }
   });
 
+  QObject::connect(win->importLispAction(), &QAction::triggered, [s]() {
+    if (!s->file_op_callback) return;
+    QFileDialog dialog(s->window, "Import Lisp", QString(), "Lisp Files (*.lisp *.LISP)");
+    dialog.setFileMode(QFileDialog::ExistingFile);
+    dialog.setAcceptMode(QFileDialog::AcceptOpen);
+    dialog.setOption(QFileDialog::DontUseNativeDialog);
+    if (dialog.exec() == QDialog::Accepted)
+    {
+      QString path = dialog.selectedFiles().value(0);
+      if (!path.isEmpty())
+      {
+        QMessageBox warning(s->window);
+        warning.setIcon(QMessageBox::Warning);
+        warning.setWindowTitle(QStringLiteral("DANGEROUS: Importing Lisp Code"));
+        warning.setText(QStringLiteral(
+          "DANGEROUS: Importing Lisp Code\n\n"
+          "You are about to execute arbitrary Lisp code from an external file. "
+          "This code can perform malicious actions on your system, even if "
+          "the file appears harmless or comes from a seemingly trustworthy source. "
+          "Lisp code has full access to your system including:\n\n"
+          "  \u2022 Reading, modifying, or deleting files\n"
+          "  \u2022 Network access to send data\n"
+          "  \u2022 Running shell commands\n\n"
+          "You should only run code that you trust and whose contents "
+          "you have verified. When in doubt, cancel."));
+        warning.setStandardButtons(QMessageBox::Cancel | QMessageBox::Ignore);
+        warning.setDefaultButton(QMessageBox::Cancel);
+        warning.button(QMessageBox::Ignore)->setText(QStringLiteral("I understand the risk, import anyway"));
+        if (warning.exec() == QMessageBox::Ignore)
+          s->file_op_callback(path.toUtf8().constData(), 4);
+      }
+    }
+  });
+
+  QObject::connect(win->exportReplHistoryAction(), &QAction::triggered, [s]() {
+    if (!s->file_op_callback) return;
+    QFileDialog dialog(s->window, "Export REPL History", QString(), "Lisp Files (*.lisp *.LISP)");
+    dialog.setFileMode(QFileDialog::AnyFile);
+    dialog.setAcceptMode(QFileDialog::AcceptSave);
+    dialog.setOption(QFileDialog::DontUseNativeDialog);
+    if (dialog.exec() == QDialog::Accepted)
+    {
+      QString path = dialog.selectedFiles().value(0);
+      if (!path.isEmpty())
+        s->file_op_callback(path.toUtf8().constData(), 5);
+    }
+  });
+
+  // Cancel import via status bar label click or Ctrl+G
+  QObject::connect(win, &ViewerWindow::importCancelRequested, [s]() {
+    if (s->file_op_callback)
+      s->file_op_callback("", 99);
+  });
+
   // Wire View menu actions
   QObject::connect(win->axisAction(), &QAction::toggled, [s](bool checked) {
     viewer_show_axis(s, checked ? 1 : 0);
@@ -223,6 +281,15 @@ void viewer_post_event(occt_viewer vwr)
   auto* s = (ViewerState*)vwr;
   if (s->window)
     QCoreApplication::postEvent(s->window, new WakeEvent());
+}
+
+void viewer_post_event_delayed(occt_viewer vwr, int ms)
+{
+  auto* s = (ViewerState*)vwr;
+  if (s->window)
+    QTimer::singleShot(ms, [s]() {
+      QCoreApplication::postEvent(s->window, new WakeEvent());
+    });
 }
 
 void viewer_redraw(occt_viewer vwr)
@@ -543,6 +610,23 @@ void viewer_set_status_text(occt_viewer vwr, const char* text)
   auto* s = (ViewerState*)vwr;
   if (s->window && text)
     s->window->setStatusText(text);
+}
+
+void viewer_set_import_status(occt_viewer vwr, int show, int current, int total)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s->window) return;
+  auto* label = s->window->importStatusLabel();
+  if (!label) return;
+  if (show)
+  {
+    label->setText(QString("Importing %1/%2...").arg(current).arg(total));
+    label->setVisible(true);
+  }
+  else
+  {
+    label->setVisible(false);
+  }
 }
 
 void viewer_set_visibility_callback(occt_viewer vwr, visibility_fn fn)

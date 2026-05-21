@@ -26,6 +26,7 @@ int         viewer_is_running(occt_viewer vwr);
 
 // --- Inter-thread wake ---
 void viewer_post_event(occt_viewer vwr);
+void viewer_post_event_delayed(occt_viewer vwr, int ms);
 void viewer_redraw(occt_viewer vwr);
 
 // --- Shapes ---
@@ -52,6 +53,7 @@ void viewer_set_visibility_callback(occt_viewer vwr, visibility_fn fn);
 
 // --- Status bar ---
 void viewer_set_status_text(occt_viewer vwr, const char* text);
+void viewer_set_import_status(occt_viewer vwr, int show, int current, int total);
 
 // --- Grid ---
 void viewer_show_grid(occt_viewer vwr, int show);

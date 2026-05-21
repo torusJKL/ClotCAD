@@ -2,6 +2,10 @@
 
 (defvar *repl-accumulator* ""
   "Accumulates incomplete REPL input for multiline support.")
+(defvar *repl-log* '()
+  "List of (input-string . output-string) pairs from REPL and import evaluations.")
+(defvar *export-with-output* nil
+  "When t, export-repl-history includes results as comments. When nil, code only.")
 
 (defvar *repl-eof-sentinel* (gensym "REPL-EOF")
   "Sentinel value for read-from-string eof-value.")
@@ -9,6 +13,53 @@
 (defvar *qt-no-modifier* #x00000000)
 (defvar *qt-control-modifier* #x04000000)
 (defvar *qt-alt-modifier* #x08000000)
+
+;; --- Lisp file import state ---
+(defvar *import-forms* nil
+  "List of remaining forms to evaluate during Lisp file import.")
+(defvar *import-cancelled* nil
+  "When t, the current import will stop after the current form.")
+(defvar *import-speed* nil
+  "Delay in ms between imported forms. nil = no delay, integer = ms delay.")
+(defvar *import-total* 0
+  "Total number of forms in the current import.")
+(defvar *import-done* 0
+  "Number of forms completed in the current import.")
+
+(defun process-import-tick ()
+  (when (or *import-cancelled* (null *import-forms*))
+    (setf *import-forms* nil *import-cancelled* nil
+          *import-total* 0 *import-done* 0)
+    (%viewer-set-import-status *viewer* 0 0 0)
+    (return-from process-import-tick nil))
+  (let ((form (car *import-forms*)))
+    (setf *import-forms* (cdr *import-forms*))
+    (incf *import-done*)
+    (let ((form-text (with-output-to-string (s) (format s "~S" form))))
+      (%viewer-append-repl-output *viewer* (format nil "> ~A~%" form-text))
+      (multiple-value-bind (values errorp)
+          (handler-case (multiple-value-list (eval form))
+            (error (e) (values (list (format nil "Error: ~A" e)) t)))
+        (let ((output (with-output-to-string (s)
+                        (dolist (v values)
+                          (format s "~S~%" v)))))
+          (%viewer-append-repl-output *viewer* output)
+          (push (cons form-text output) *repl-log*))))
+    (%viewer-set-import-status *viewer* 1 *import-done* *import-total*)
+    (if *import-forms*
+        (if *import-speed*
+            (%viewer-post-event-delayed *viewer* *import-speed*)
+            (%viewer-post-event *viewer*))
+        (progn
+          (setf *import-forms* nil *import-cancelled* nil
+                *import-total* 0 *import-done* 0)
+          (%viewer-set-import-status *viewer* 0 0 0)))))
+
+(defun cancel-import ()
+  (setf *import-cancelled* t))
+
+(defun replay-speed (ms)
+  (setf *import-speed* ms))
 
 (cffi:defcallback eval-string :void ((code :string) (result :pointer) (maxlen :int))
   (handler-case
@@ -36,6 +87,7 @@
                         outputs)
                   (setf pos next-pos)))))
         (let ((output (apply #'concatenate 'string (nreverse outputs))))
+          (push (cons full-code output) *repl-log*)
           (cffi:foreign-funcall "snprintf" :pointer result :int maxlen
                                :string output :int (min (length output) (1- maxlen)) :void)))
     (error (e)
@@ -71,6 +123,21 @@
       (cl-occt.impl:%xde-free-doc doc))
     t))
 
+(defun export-repl-history (path)
+  (with-open-file (f path :direction :output :if-exists :supersede)
+    (dolist (entry (reverse *repl-log*))
+      (destructuring-bind (code . output) entry
+        (format f "~A~%" code)
+        (when *export-with-output*
+          (with-input-from-string (s output)
+            (loop for line = (read-line s nil nil)
+                  while line
+                  do (format f "; ~A~%" line)))))))
+  t)
+
+(defun result-export (flag)
+  (setf *export-with-output* flag))
+
 (defun export-all-stl (path)
   (when (zerop (hash-table-count *displayed-models*))
     (warn "No shapes to export")
@@ -101,7 +168,24 @@
            (when shape
              (let ((name (format nil "imported-~A" (pathname-name path))))
                (display name shape)
-               (%viewer-fit-all *viewer*))))))
+               (%viewer-fit-all *viewer*)))))
+        (4  ;; import Lisp file
+         (with-open-file (f path :direction :input)
+           (let ((*read-eval* nil)
+                 (forms '()))
+             (loop for form = (read f nil *viewer*)
+                   until (eq form *viewer*)
+                   do (push form forms))
+             (setf *import-forms* (nreverse forms)
+                   *import-total* (length forms)
+                   *import-done* 0
+                   *import-cancelled* nil)
+             (when *import-forms*
+               (%viewer-post-event *viewer*)))))
+        (5  ;; export REPL history
+         (export-repl-history path))
+        (99 ;; cancel import
+         (cancel-import)))
     (error (e)
       (format *error-output* "~&File operation error: ~A~%" e))))
 
