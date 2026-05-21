@@ -8,4 +8,4 @@
 ## 2. Verify
 
 - [x] 2.1 Build the project with `just viewer` and confirm no compilation errors
-- [ ] 2.2 Launch the viewer with `just start` and test each import/export dialog opens correctly
+- [x] 2.2 Launch the viewer with `just start` and test each import/export dialog opens correctly

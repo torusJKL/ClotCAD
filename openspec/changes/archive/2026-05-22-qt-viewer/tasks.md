@@ -89,7 +89,7 @@
 - [x] 10.1 Rewrite `package.lisp`
 - [x] 10.2 Rewrite `bindings.lisp`
 - [x] 10.3 Update `queue.lisp` — `%viewer-wake` → `%viewer-post-event`, DAG bridge
-- [ ] 10.4 Verify: Lisp can load the system and call `%viewer-create` without errors
+- [x] 10.4 Verify: Lisp can load the system and call `%viewer-create` without errors
 
 ## 11. Lisp lifecycle — threading and integration
 
