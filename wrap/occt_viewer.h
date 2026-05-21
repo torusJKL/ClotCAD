@@ -77,6 +77,7 @@ typedef void (*color_scheme_fn)(int scheme);
 void viewer_set_color_scheme_callback(occt_viewer vwr, color_scheme_fn fn);
 void* viewer_get_view(occt_viewer vwr);
 void* viewer_get_trihedron(occt_viewer vwr);
+void viewer_set_trihedron_text_color(occt_viewer vwr, int part, double r, double g, double b);
 void viewer_set_placeholder_color(occt_viewer vwr, int r, int g, int b);
 
 // --- Selection ---

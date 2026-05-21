@@ -12,6 +12,7 @@
 #include <Graphic3d_TransModeFlags.hxx>
 #include <Aspect_TypeOfTriedronPosition.hxx>
 #include <Prs3d_DatumMode.hxx>
+#include <Prs3d_DatumParts.hxx>
 #include <gp.hxx>
 #include <TopoDS_Shape.hxx>
 #include <V3d_View.hxx>
@@ -757,6 +758,19 @@ void* viewer_get_trihedron(occt_viewer vwr)
   if (!s->axisTrihedron.IsNull())
     return (void*)&s->axisTrihedron;
   return nullptr;
+}
+
+void viewer_set_trihedron_text_color(occt_viewer vwr, int part, double r, double g, double b)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s || s->axisTrihedron.IsNull()) return;
+  if (part < 0 || part > 2) return;
+  static const Prs3d_DatumParts parts[] = {
+    Prs3d_DatumParts_XAxis,
+    Prs3d_DatumParts_YAxis,
+    Prs3d_DatumParts_ZAxis
+  };
+  s->axisTrihedron->SetTextColor(parts[part], Quantity_Color(r, g, b, Quantity_TOC_RGB));
 }
 
 void viewer_set_status_text(occt_viewer vwr, const char* text)

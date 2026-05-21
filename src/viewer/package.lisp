@@ -43,8 +43,9 @@
      :%viewer-color-scheme
     :%viewer-set-color-scheme-callback
     :%viewer-get-view
-    :%viewer-get-trihedron
-    :%viewer-set-placeholder-color
+     :%viewer-get-trihedron
+     :%viewer-set-trihedron-text-color
+     :%viewer-set-placeholder-color
     :%viewer-set-status-text
 :%viewer-set-import-status
      :%viewer-set-visibility-callback

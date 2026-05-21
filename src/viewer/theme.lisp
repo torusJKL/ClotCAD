@@ -491,19 +491,20 @@ Falls back to :light if system scheme is unknown or unavailable."
 
 (defun %apply-axis-colors (palette-alist)
   "Set the trihedron axis colors from the palette."
-  (let ((tri (%viewer-get-trihedron *viewer*)))
-    (when tri
-      (dolist (pair '((:axis-x-color . 0)
-                      (:axis-y-color . 1)
-                      (:axis-z-color . 2)))
-        (let ((hex (cdr (assoc (car pair) palette-alist))))
-          (when hex
-            (multiple-value-bind (r g b) (%hex-to-rgb hex)
-              (cl-occt.impl:%ais-trihedron-set-datum-part-color
-               tri (cdr pair)
-               (coerce (/ r 255.0) 'double-float)
-               (coerce (/ g 255.0) 'double-float)
-               (coerce (/ b 255.0) 'double-float)))))))))
+  (dolist (pair '((:axis-x-color . 0)
+                  (:axis-y-color . 1)
+                  (:axis-z-color . 2)))
+    (let ((hex (cdr (assoc (car pair) palette-alist))))
+      (when hex
+        (multiple-value-bind (r g b) (%hex-to-rgb hex)
+          (let ((rf (coerce (/ r 255.0) 'double-float))
+                (gf (coerce (/ g 255.0) 'double-float))
+                (bf (coerce (/ b 255.0) 'double-float)))
+            (%viewer-set-trihedron-text-color *viewer* (cdr pair) rf gf bf)
+            (let ((tri (%viewer-get-trihedron *viewer*)))
+              (when tri
+                (cl-occt.impl:%ais-trihedron-set-datum-part-color
+                 tri (cdr pair) rf gf bf)))))))))
 
 (defun %apply-placeholder-color (palette-alist)
   "Set the placeholder text color from the palette."

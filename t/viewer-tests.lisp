@@ -46,10 +46,10 @@
 
 (defmacro with-mocked-viewer (&body body)
   (let ((old-syms (mapcar (lambda (s) (gensym))
-                              '(%vp %ss %fa %sg %sa %aa %sec %sfoc %ar %sd %igv %iav
-                                %ss2 %cs %cscc %gv %gt %spc %sst %svc
-                                %gc %gao %ssc %stc %smsc %vst %vrh %vrs
-                                 %vpd %sis %sip))))
+                               '(%vp %ss %fa %sg %sa %aa %sec %sfoc %ar %sd %igv %iav
+                                 %ss2 %cs %cscc %gv %gt %spc %sst %svc
+                                 %gc %gao %ssc %stc %smsc %vst %vrh %vrs
+                                  %vpd %sis %sip %sttc))))
     `(let ((*viewer* (make-array 1))
            (*viewer-queue* nil)
            (*displayed-models* (make-hash-table :test 'equal))
@@ -80,8 +80,9 @@
                           %viewer-set-color-scheme-callback
                            %viewer-get-view
                            %viewer-get-trihedron
-                           %viewer-set-placeholder-color
-                           %viewer-set-status-text
+                            %viewer-set-placeholder-color
+                            %viewer-set-trihedron-text-color
+                            %viewer-set-status-text
                            %viewer-set-visibility-callback
                            %viewer-get-context
                            %viewer-get-ais-object
@@ -113,8 +114,9 @@
                (symbol-function '%viewer-set-color-scheme-callback) (lambda (vwr fn) (declare (ignore vwr fn)))
                (symbol-function '%viewer-get-view) (lambda (vwr) (declare (ignore vwr)) (cffi:null-pointer))
                (symbol-function '%viewer-get-trihedron) (lambda (vwr) (declare (ignore vwr)) (cffi:null-pointer))
-               (symbol-function '%viewer-set-placeholder-color) (lambda (vwr r g b) (declare (ignore vwr r g b)))
-               (symbol-function '%viewer-set-status-text) (lambda (vwr text) (declare (ignore vwr text)))
+                (symbol-function '%viewer-set-placeholder-color) (lambda (vwr r g b) (declare (ignore vwr r g b)))
+                (symbol-function '%viewer-set-trihedron-text-color) (lambda (vwr part r g b) (declare (ignore vwr part r g b)))
+                (symbol-function '%viewer-set-status-text) (lambda (vwr text) (declare (ignore vwr text)))
                (symbol-function '%viewer-set-visibility-callback) (lambda (vwr fn) (declare (ignore vwr fn)))
                (symbol-function '%viewer-get-context) (lambda (vwr) (declare (ignore vwr)) (cffi:null-pointer))
                (symbol-function '%viewer-get-ais-object) (lambda (vwr name) (declare (ignore vwr name)) (cffi:null-pointer))
@@ -147,19 +149,20 @@
                   (symbol-function '%viewer-get-view) ,(nth 15 old-syms)
                   (symbol-function '%viewer-get-trihedron) ,(nth 16 old-syms)
                   (symbol-function '%viewer-set-placeholder-color) ,(nth 17 old-syms)
-                  (symbol-function '%viewer-set-status-text) ,(nth 18 old-syms)
-                   (symbol-function '%viewer-set-visibility-callback) ,(nth 19 old-syms)
-                   (symbol-function '%viewer-get-context) ,(nth 20 old-syms)
-                   (symbol-function '%viewer-get-ais-object) ,(nth 21 old-syms)
-                   (symbol-function '%viewer-set-selection-callback) ,(nth 22 old-syms)
-                   (symbol-function '%viewer-set-tree-selection-callback) ,(nth 23 old-syms)
-                   (symbol-function '%viewer-set-mouse-selection-scheme) ,(nth 24 old-syms)
-                    (symbol-function '%viewer-sync-tree-selection) ,(nth 25 old-syms)
-                    (symbol-function '%viewer-set-repl-history-modifier) ,(nth 26 old-syms)
-                     (symbol-function '%viewer-set-repl-submit-modifier) ,(nth 27 old-syms)
-                     (symbol-function '%viewer-post-event-delayed) ,(nth 28 old-syms)
-                      (symbol-function '%viewer-set-import-status) ,(nth 29 old-syms)
-                      (symbol-function '%viewer-set-icon-palette) ,(nth 30 old-syms)))))))
+                  (symbol-function '%viewer-set-trihedron-text-color) ,(nth 18 old-syms)
+                  (symbol-function '%viewer-set-status-text) ,(nth 19 old-syms)
+                    (symbol-function '%viewer-set-visibility-callback) ,(nth 20 old-syms)
+                    (symbol-function '%viewer-get-context) ,(nth 21 old-syms)
+                    (symbol-function '%viewer-get-ais-object) ,(nth 22 old-syms)
+                    (symbol-function '%viewer-set-selection-callback) ,(nth 23 old-syms)
+                    (symbol-function '%viewer-set-tree-selection-callback) ,(nth 24 old-syms)
+                    (symbol-function '%viewer-set-mouse-selection-scheme) ,(nth 25 old-syms)
+                     (symbol-function '%viewer-sync-tree-selection) ,(nth 26 old-syms)
+                     (symbol-function '%viewer-set-repl-history-modifier) ,(nth 27 old-syms)
+                      (symbol-function '%viewer-set-repl-submit-modifier) ,(nth 28 old-syms)
+                      (symbol-function '%viewer-post-event-delayed) ,(nth 29 old-syms)
+                       (symbol-function '%viewer-set-import-status) ,(nth 30 old-syms)
+                       (symbol-function '%viewer-set-icon-palette) ,(nth 31 old-syms)))))))
 
 ;; --- Queue tests ---
 
@@ -1109,7 +1112,7 @@
         (show-axis-args nil)
         (show-grid-args nil)
         (set-aa-args nil))
-    (let ((old-axis (symbol-function '%viewer-show-axis))
+        (let ((old-axis (symbol-function '%viewer-show-axis))
           (old-grid (symbol-function '%viewer-show-grid))
           (old-aa (symbol-function '%viewer-set-antialiasing))
           (old-ss (symbol-function '%viewer-set-stylesheet))
@@ -1118,6 +1121,7 @@
           (old-gv (symbol-function '%viewer-get-view))
           (old-gt (symbol-function '%viewer-get-trihedron))
           (old-spc (symbol-function '%viewer-set-placeholder-color))
+          (old-sttc (symbol-function '%viewer-set-trihedron-text-color))
           (old-msms (symbol-function '%viewer-set-mouse-selection-scheme))
           (old-vst (symbol-function '%viewer-sync-tree-selection))
            (old-sip (symbol-function '%viewer-set-icon-palette)))
@@ -1141,6 +1145,8 @@
             (lambda (vwr) (declare (ignore vwr)) (cffi:null-pointer))
             (symbol-function '%viewer-set-placeholder-color)
             (lambda (vwr r g b) (declare (ignore vwr r g b)))
+            (symbol-function '%viewer-set-trihedron-text-color)
+            (lambda (vwr part r g b) (declare (ignore vwr part r g b)))
             (symbol-function '%viewer-set-mouse-selection-scheme)
             (lambda (vwr key scheme) (declare (ignore vwr key scheme)))
             (symbol-function '%viewer-sync-tree-selection)
@@ -1162,9 +1168,10 @@
               (symbol-function '%viewer-color-scheme) old-cs
               (symbol-function '%viewer-set-color-scheme-callback) old-csc
               (symbol-function '%viewer-get-view) old-gv
-              (symbol-function '%viewer-get-trihedron) old-gt
-              (symbol-function '%viewer-set-placeholder-color) old-spc
-              (symbol-function '%viewer-set-mouse-selection-scheme) old-msms
+               (symbol-function '%viewer-get-trihedron) old-gt
+               (symbol-function '%viewer-set-placeholder-color) old-spc
+               (symbol-function '%viewer-set-trihedron-text-color) old-sttc
+               (symbol-function '%viewer-set-mouse-selection-scheme) old-msms
               (symbol-function '%viewer-sync-tree-selection) old-vst)))))
 
 ;; --- Selection tests ---

@@ -127,6 +127,9 @@
 (defcfun (%viewer-get-trihedron "viewer_get_trihedron") :pointer
   (vwr :pointer))
 
+(defcfun (%viewer-set-trihedron-text-color "viewer_set_trihedron_text_color") :void
+  (vwr :pointer) (part :int) (r :double) (g :double) (b :double))
+
 (defcfun (%viewer-set-placeholder-color "viewer_set_placeholder_color") :void
   (vwr :pointer) (r :int) (g :int) (b :int))
 
