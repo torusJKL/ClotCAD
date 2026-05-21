@@ -359,6 +359,24 @@ void viewer_append_repl_output(occt_viewer vwr, const char* text)
     QMetaObject::invokeMethod(dock, "appendOutputSafe", Qt::QueuedConnection, Q_ARG(QString, qtext));
 }
 
+void viewer_set_repl_history_modifier(occt_viewer vwr, int mod)
+{
+  if (!vwr) return;
+  auto* s = (ViewerState*)vwr;
+  auto docks = s->window->findChildren<REPLPanel*>();
+  for (auto* dock : docks)
+    dock->setHistoryModifier(mod);
+}
+
+void viewer_set_repl_submit_modifier(occt_viewer vwr, int mod)
+{
+  if (!vwr) return;
+  auto* s = (ViewerState*)vwr;
+  auto docks = s->window->findChildren<REPLPanel*>();
+  for (auto* dock : docks)
+    dock->setSubmitModifier(mod);
+}
+
 void viewer_set_shape_visible(occt_viewer vwr, const char* name, int visible)
 {
   auto* s = (ViewerState*)vwr;

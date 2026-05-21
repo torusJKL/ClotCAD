@@ -67,6 +67,12 @@
 (defcfun (%viewer-append-repl-output "viewer_append_repl_output") :void
   (vwr :pointer) (text :string))
 
+(defcfun (%viewer-set-repl-history-modifier "viewer_set_repl_history_modifier") :void
+  (vwr :pointer) (mod :int))
+
+(defcfun (%viewer-set-repl-submit-modifier "viewer_set_repl_submit_modifier") :void
+  (vwr :pointer) (mod :int))
+
 ;; --- Scene tree ---
 
 (defcfun (%viewer-set-shape-visible "viewer_set_shape_visible") :void

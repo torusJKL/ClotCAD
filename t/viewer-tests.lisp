@@ -46,9 +46,9 @@
 
 (defmacro with-mocked-viewer (&body body)
   (let ((old-syms (mapcar (lambda (s) (gensym))
-                            '(%vp %ss %fa %sg %sa %aa %sec %sfoc %ar %sd %igv %iav
-                              %ss2 %cs %cscc %gv %gt %spc %sst %svc
-                              %gc %gao %ssc %stc %smsc %vst))))
+                             '(%vp %ss %fa %sg %sa %aa %sec %sfoc %ar %sd %igv %iav
+                               %ss2 %cs %cscc %gv %gt %spc %sst %svc
+                               %gc %gao %ssc %stc %smsc %vst %vrh %vrs))))
     `(let ((*viewer* (make-array 1))
            (*viewer-queue* nil)
            (*displayed-models* (make-hash-table :test 'equal))
@@ -86,8 +86,10 @@
                            %viewer-get-ais-object
                            %viewer-set-selection-callback
                            %viewer-set-tree-selection-callback
-                           %viewer-set-mouse-selection-scheme
-                           %viewer-sync-tree-selection)
+                            %viewer-set-mouse-selection-scheme
+                            %viewer-sync-tree-selection
+                            %viewer-set-repl-history-modifier
+                            %viewer-set-repl-submit-modifier)
                          old-syms))
          (setf (symbol-function '%viewer-post-event) (lambda (vwr) (declare (ignore vwr)))
                (symbol-function '%viewer-sync-shapes)
@@ -115,7 +117,9 @@
                (symbol-function '%viewer-set-selection-callback) (lambda (vwr fn) (declare (ignore vwr fn)))
                (symbol-function '%viewer-set-tree-selection-callback) (lambda (vwr fn) (declare (ignore vwr fn)))
                (symbol-function '%viewer-set-mouse-selection-scheme) (lambda (vwr key scheme) (declare (ignore vwr key scheme)))
-               (symbol-function '%viewer-sync-tree-selection) (lambda (vwr) (declare (ignore vwr))))
+                (symbol-function '%viewer-sync-tree-selection) (lambda (vwr) (declare (ignore vwr)))
+                (symbol-function '%viewer-set-repl-history-modifier) (lambda (vwr mod) (declare (ignore vwr mod)))
+                (symbol-function '%viewer-set-repl-submit-modifier) (lambda (vwr mod) (declare (ignore vwr mod))))
           (unwind-protect
               (progn ,@body)
             (setf (symbol-function '%viewer-post-event) ,(nth 0 old-syms)
@@ -143,7 +147,9 @@
                    (symbol-function '%viewer-set-selection-callback) ,(nth 22 old-syms)
                    (symbol-function '%viewer-set-tree-selection-callback) ,(nth 23 old-syms)
                    (symbol-function '%viewer-set-mouse-selection-scheme) ,(nth 24 old-syms)
-                   (symbol-function '%viewer-sync-tree-selection) ,(nth 25 old-syms)))))))
+                    (symbol-function '%viewer-sync-tree-selection) ,(nth 25 old-syms)
+                    (symbol-function '%viewer-set-repl-history-modifier) ,(nth 26 old-syms)
+                    (symbol-function '%viewer-set-repl-submit-modifier) ,(nth 27 old-syms)))))))
 
 ;; --- Queue tests ---
 
@@ -584,8 +590,9 @@
                    (format nil "~A should be fbound in cl-occt-user" sym)))))
 
 (deftest cl-occt-user-has-viewer-symbols
-  (dolist (sym '("DISPLAY" "UNDISPLAY" "CLEAR-ALL" "SHOW-GRID" "FIT-VIEW"
-                 "SET-VIEW-AA" "DEF" "SHOW" "HIDE" "TOGGLE"
+    (dolist (sym '("DISPLAY" "UNDISPLAY" "CLEAR-ALL" "SHOW-GRID" "FIT-VIEW"
+                  "SET-VIEW-AA" "SET-REPL-HISTORY-KEY" "SET-REPL-SUBMIT-KEY"
+                  "DEF" "SHOW" "HIDE" "TOGGLE"
                  "SHOW-DEFS" "TOGGLE-DEFS" "RESOLVE-SHAPE"
                  "CUT" "FUSE" "COMMON" "SECTION"
                  "TRANSLATE" "ROTATE"
@@ -606,6 +613,72 @@
 
 (deftest repl-eof-sentinel-is-gensym
   (assert-true (symbolp *repl-eof-sentinel*)))
+
+;; --- Multi-form eval tests ---
+
+(defun call-eval-string (code)
+  "Helper: simulate the eval-string callback and return what snprintf would write."
+  (let* ((buf (cffi:foreign-alloc :char :count 4096))
+         (result (unwind-protect
+                     (progn
+                       (cffi:callback eval-string) code buf 4096
+                       (cffi:foreign-string-to-lisp buf))
+                  (cffi:foreign-free buf))))
+    result))
+
+(deftest single-form-works
+  (with-mocked-viewer
+    (setf *repl-accumulator* "")
+    (let ((output (call-eval-string "(+ 1 2)")))
+      (assert-true (search "3" output :test 'char=)
+                   "single form should evaluate")
+      (assert-true (search "3" output :test 'char=)
+                   "single form should produce 3"))))
+
+(deftest multiple-simple-forms-evaluated
+  (with-mocked-viewer
+    (setf *repl-accumulator* "")
+    (let ((output (call-eval-string "(+ 1 2) (+ 3 4)")))
+      (assert-true (search "3" output :test 'char=)
+                   "first form should produce 3")
+      (assert-true (search "7" output :test 'char=)
+                   "second form should produce 7"))))
+
+(deftest incomplete-form-still-accumulates
+  (with-mocked-viewer
+    (setf *repl-accumulator* "")
+    (let ((output (call-eval-string "(+ 1 2) (+ 3")))
+      (assert-true (search "3" output :test 'char=)
+                   "complete first form should produce 3")
+      (assert-true (string= *repl-accumulator* "(+ 3")
+                   "incomplete form should be stored in accumulator"))))
+
+(deftest accumulator-prepends-to-next-input
+  (with-mocked-viewer
+    (setf *repl-accumulator* "(+ 3")
+    (let ((output (call-eval-string " 4)")))
+      (assert-true (search "7" output :test 'char=)
+                   "accumulator + next input should eval (+ 3 4)")
+      (assert-true (string= *repl-accumulator* "")
+                   "accumulator should be cleared after complete eval"))))
+
+(deftest error-in-one-form-does-not-block-others
+  (with-mocked-viewer
+    (setf *repl-accumulator* "")
+    (let ((output (call-eval-string "(+ 1 2) (error \"oops\") (+ 3 4)")))
+      (assert-true (search "3" output :test 'char=)
+                   "first form should produce 3")
+      (assert-true (search "Error: oops" output :test 'char=)
+                   "error should be reported")
+      (assert-true (search "7" output :test 'char=)
+                   "third form should produce 7"))))
+
+(deftest empty-input-produces-no-output
+  (with-mocked-viewer
+    (setf *repl-accumulator* "")
+    (let ((output (call-eval-string "    ")))
+      (assert-true (string= output "")
+                   "whitespace-only input should produce empty output"))))
 
 ;; --- Edge case tests ---
 

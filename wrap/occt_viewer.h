@@ -42,6 +42,8 @@ void viewer_set_drain_callback(occt_viewer vwr, drain_fn fn);
 
 // --- REPL ---
 void viewer_append_repl_output(occt_viewer vwr, const char* text);
+void viewer_set_repl_history_modifier(occt_viewer vwr, int mod);
+void viewer_set_repl_submit_modifier(occt_viewer vwr, int mod);
 
 // --- Scene tree ---
 void viewer_set_shape_visible(occt_viewer vwr, const char* name, int visible);

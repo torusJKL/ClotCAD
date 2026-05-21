@@ -1,4 +1,5 @@
 #include "repl_panel.h"
+#include <QApplication>
 
 static const int MAX_OUTPUT_LINES = 10000;
 
@@ -13,22 +14,30 @@ REPLPanel::REPLPanel(QWidget* parent)
   QWidget* container = new QWidget(this);
   QVBoxLayout* layout = new QVBoxLayout(container);
   layout->setContentsMargins(4, 4, 4, 4);
-  layout->setSpacing(4);
+  layout->setSpacing(0);
 
   myOutput = new QPlainTextEdit(container);
   myOutput->setReadOnly(true);
   myOutput->setFont(QFont("Courier New", 10));
   myOutput->setMaximumBlockCount(MAX_OUTPUT_LINES);
   myOutput->setLineWrapMode(QPlainTextEdit::NoWrap);
-  layout->addWidget(myOutput, 1);
 
-  myInput = new QLineEdit(container);
+  myInput = new QPlainTextEdit(container);
   myInput->setPlaceholderText(">  (enter Lisp expression)");
   myInput->setFont(QFont("Courier New", 10));
-  layout->addWidget(myInput);
+  myInput->setMaximumBlockCount(100);
+  myInput->setTabChangesFocus(false);
+  myInput->installEventFilter(this);
+
+  QSplitter* splitter = new QSplitter(Qt::Vertical, container);
+  splitter->addWidget(myOutput);
+  splitter->addWidget(myInput);
+  splitter->setStretchFactor(0, 1);
+  splitter->setStretchFactor(1, 0);
+  splitter->setSizes({300, myInput->fontMetrics().lineSpacing() * 3 + 4});
+  layout->addWidget(splitter);
 
   setWidget(container);
-  connect(myInput, &QLineEdit::returnPressed, this, &REPLPanel::onInputSubmitted);
 }
 
 void REPLPanel::appendOutput(const QString& text)
@@ -43,10 +52,86 @@ void REPLPanel::appendOutputSafe(const QString& text)
   appendOutput(text);
 }
 
+bool REPLPanel::eventFilter(QObject* obj, QEvent* event)
+{
+  if (obj == myInput && event->type() == QEvent::KeyPress)
+  {
+    QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+
+    if (keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter)
+    {
+      Qt::KeyboardModifiers mods = keyEvent->modifiers();
+
+      if (mods == Qt::ShiftModifier)
+      {
+        QTextCursor cursor = myInput->textCursor();
+        cursor.insertText("\n");
+        event->accept();
+        return true;
+      }
+
+      if (mods == static_cast<Qt::KeyboardModifier>(mySubmitModifier))
+      {
+        onInputSubmitted();
+        event->accept();
+        return true;
+      }
+
+      return false;
+    }
+
+    if (keyEvent->key() == Qt::Key_Up &&
+        keyEvent->modifiers() == static_cast<Qt::KeyboardModifier>(myHistoryModifier))
+    {
+      if (!myHistory.isEmpty() && myHistoryIndex > 0)
+      {
+        myHistoryIndex--;
+        myInput->setPlainText(myHistory[myHistoryIndex]);
+        myInput->moveCursor(QTextCursor::End);
+      }
+      event->accept();
+      return true;
+    }
+
+    if (keyEvent->key() == Qt::Key_Down &&
+        keyEvent->modifiers() == static_cast<Qt::KeyboardModifier>(myHistoryModifier))
+    {
+      if (myHistoryIndex < myHistory.size() - 1)
+      {
+        myHistoryIndex++;
+        myInput->setPlainText(myHistory[myHistoryIndex]);
+        myInput->moveCursor(QTextCursor::End);
+      }
+      else
+      {
+        myHistoryIndex = myHistory.size();
+        myInput->clear();
+      }
+      event->accept();
+      return true;
+    }
+
+    if (keyEvent->key() == Qt::Key_Tab)
+    {
+      QTextCursor cursor = myInput->textCursor();
+      cursor.insertText("  ");
+      event->accept();
+      return true;
+    }
+  }
+
+  return QDockWidget::eventFilter(obj, event);
+}
+
+void REPLPanel::keyPressEvent(QKeyEvent* event)
+{
+  QDockWidget::keyPressEvent(event);
+}
+
 void REPLPanel::onInputSubmitted()
 {
-  QString code = myInput->text();
-  if (code.isEmpty())
+  QString code = myInput->toPlainText();
+  if (code.trimmed().isEmpty())
     return;
 
   myHistory.append(code);
@@ -67,34 +152,4 @@ void REPLPanel::onInputSubmitted()
   }
 
   myInput->clear();
-}
-
-void REPLPanel::keyPressEvent(QKeyEvent* event)
-{
-  if (event->key() == Qt::Key_Up && myInput->hasFocus())
-  {
-    if (!myHistory.isEmpty() && myHistoryIndex > 0)
-    {
-      myHistoryIndex--;
-      myInput->setText(myHistory[myHistoryIndex]);
-    }
-    event->accept();
-    return;
-  }
-  if (event->key() == Qt::Key_Down && myInput->hasFocus())
-  {
-    if (myHistoryIndex < myHistory.size() - 1)
-    {
-      myHistoryIndex++;
-      myInput->setText(myHistory[myHistoryIndex]);
-    }
-    else
-    {
-      myHistoryIndex = myHistory.size();
-      myInput->clear();
-    }
-    event->accept();
-    return;
-  }
-  QDockWidget::keyPressEvent(event);
 }

@@ -6,26 +6,42 @@
 (defvar *repl-eof-sentinel* (gensym "REPL-EOF")
   "Sentinel value for read-from-string eof-value.")
 
+(defvar *qt-no-modifier* #x00000000)
+(defvar *qt-control-modifier* #x04000000)
+(defvar *qt-alt-modifier* #x08000000)
+
 (cffi:defcallback eval-string :void ((code :string) (result :pointer) (maxlen :int))
   (handler-case
       (let* ((full-code (if (string= *repl-accumulator* "")
                             code
-                            (concatenate 'string *repl-accumulator* code))))
-        (multiple-value-bind (form pos)
-            (read-from-string full-code nil *repl-eof-sentinel*)
-          (if (eq form *repl-eof-sentinel*)
-              (progn
-                (setf *repl-accumulator* full-code)
-                (cffi:foreign-funcall "snprintf" :pointer result :int maxlen :string "" :int 0 :void))
-              (let ((values (multiple-value-list (eval form))))
-                (setf *repl-accumulator* "")
-                (let ((output (with-output-to-string (s)
-                                (dolist (v values)
-                                  (format s "~S~%" v)))))
-                  (cffi:foreign-funcall "snprintf" :pointer result :int maxlen :string output :int (min (length output) (1- maxlen)) :void))))))
+                            (concatenate 'string *repl-accumulator* code)))
+             (len (length full-code))
+             (pos 0)
+             (outputs '()))
+        (setf *repl-accumulator* "")
+        (loop
+          (when (>= pos len) (return))
+          (multiple-value-bind (form next-pos)
+              (read-from-string full-code nil *repl-eof-sentinel* :start pos)
+            (if (eq form *repl-eof-sentinel*)
+                (progn
+                  (when (< pos len)
+                    (setf *repl-accumulator* (subseq full-code pos)))
+                  (return))
+                (let ((values (handler-case (multiple-value-list (eval form))
+                                (error (e) (list (format nil "Error: ~A" e))))))
+                  (push (with-output-to-string (s)
+                          (dolist (v values)
+                            (format s "~S~%" v)))
+                        outputs)
+                  (setf pos next-pos)))))
+        (let ((output (apply #'concatenate 'string (nreverse outputs))))
+          (cffi:foreign-funcall "snprintf" :pointer result :int maxlen
+                               :string output :int (min (length output) (1- maxlen)) :void)))
     (error (e)
       (setf *repl-accumulator* "")
-      (cffi:foreign-funcall "snprintf" :pointer result :int maxlen :string (format nil "Error: ~A~%" e) :int 0 :void))))
+      (cffi:foreign-funcall "snprintf" :pointer result :int maxlen
+                           :string (format nil "Error: ~A~%" e) :int 0 :void))))
 
 (defun get-displayed-names ()
   (loop for k being the hash-keys of *displayed-models* collect k))
@@ -92,10 +108,34 @@
 (cffi:defcallback drain-queue-callback :void ()
   (drain-queue *viewer*))
 
+(cffi:defcallback %on-tree-selection :void ((names :pointer) (count :int))
+  "Called from C++ when scene tree selection changes."
+  (let ((new (make-hash-table :test 'equal)))
+    (loop for i below count
+          for name = (cffi:mem-aref names :string i)
+          do (setf (gethash name new) t))
+    (setf *selected* new))
+  (sync-selection-to-occt))
+
+(defun set-repl-history-key (modifier)
+  (%viewer-set-repl-history-modifier *viewer*
+    (ecase modifier
+      (:ctrl  *qt-control-modifier*)
+      (:none  *qt-no-modifier*)
+      (:alt   *qt-alt-modifier*))))
+
+(defun set-repl-submit-key (modifier)
+  (%viewer-set-repl-submit-modifier *viewer*
+    (ecase modifier
+      (:none  *qt-no-modifier*)
+      (:ctrl  *qt-control-modifier*)
+      (:alt   *qt-alt-modifier*))))
+
 (defun register-viewer-callbacks (vwr)
   (setf *viewer* vwr)
   (cl-occt-viewer.impl:%viewer-set-eval-callback vwr (cffi:callback eval-string))
   (cl-occt-viewer.impl:%viewer-set-file-op-callback vwr (cffi:callback handle-file-op))
   (cl-occt-viewer.impl:%viewer-set-drain-callback vwr (cffi:callback drain-queue-callback))
   (register-shape-visibility-callback)
+  (%viewer-set-tree-selection-callback vwr (cffi:callback %on-tree-selection))
   (register-selection-callback))

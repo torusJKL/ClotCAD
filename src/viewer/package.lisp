@@ -20,8 +20,10 @@
    :%viewer-set-eval-callback
    :%viewer-set-file-op-callback
    :%viewer-set-drain-callback
-   ;; REPL
-   :%viewer-append-repl-output
+    ;; REPL
+    :%viewer-append-repl-output
+    :%viewer-set-repl-history-modifier
+    :%viewer-set-repl-submit-modifier
      ;; Scene tree
      :%viewer-set-shape-visible
    ;; Grid
@@ -120,8 +122,10 @@
     :toggle-scene-tree
      :set-view-aa
      :fit-view
-     :run-tests
-     :apply-theme
+      :run-tests
+      :set-repl-history-key
+      :set-repl-submit-key
+      :apply-theme
      :set-accent
      :theme-dark
      :theme-light

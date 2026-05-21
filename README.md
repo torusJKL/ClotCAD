@@ -83,6 +83,40 @@ for qualified access, or use the package nicknames `:cad-user` / `:occt-user`:
 (in-package :cad-user)   ; same as CL-OCCT-USER
 ```
 
+### REPL
+
+The in-window REPL supports multi-line input (paste any amount of code) and
+multi-form evaluation — all complete S-expressions entered at once are
+evaluated:
+
+```lisp
+> (+ 1 2) (+ 3 4)            ; two forms → "3" and "7"
+> (def :b1 (make-box 10 10 10))
+  (def :s1 (make-sphere 10))  ; multi-line input, both def'd
+```
+
+**Key bindings** (default, configurable at runtime):
+
+| Key | Action |
+|-----|--------|
+| **Enter** | Submit expression |
+| **Shift+Enter** | Insert newline |
+| **Ctrl+Up** | Previous history entry |
+| **Ctrl+Down** | Next history entry |
+| **Tab** | Insert 2-space indent |
+
+To change the modifiers from Lisp:
+
+```lisp
+;; Use plain Up/Down arrow for history (no Ctrl needed)
+(set-repl-history-key :none)
+
+;; Use Ctrl+Enter to submit, plain Enter for newlines
+(set-repl-submit-key :ctrl)
+```
+
+Accepts `:ctrl`, `:none`, and `:alt` for each modifier.
+
 ## Workspace Package
 
 The system provides `:cl-occt-user` — a convenience workspace package
@@ -107,7 +141,9 @@ From a SLIME REPL, type `(in-package :cad-user)` to switch.
 │ │ ☑ :box   │       ┌──┐ axis     │ > :box ... │ │
 │ │ ☑ :sphere│       │╳ │          │ > (+ 1 2)  │ │
 │ │          │       └──┘          │ 3          │ │
-│ │          │       Grid          │            │ │
+│ │          │       Grid          │ > (def :b  │ │
+│ │          │                     │     (make  │ │
+│ │          │                     │      :box)) │ │
 │ └──────────┴──────────────────────┴────────────┘ │
 │ Displaying N shapes         FPS: 60               │
 └──────────────────────────────────────────────────┘
@@ -132,7 +168,7 @@ symbol-based export:
 | **Menu Bar** (top) | File (Import/Export STEP/STL) and View (REPL, Scene Tree, Axis, Grid toggles) |
 | **3D Viewport** (center) | QOpenGLWidget with OCCT AIS rendering. Orbit (LMB), pan (MMB), zoom (RMB/scroll) |
 | **Scene Tree** (left) | Shape list with visibility checkboxes. Click to select, Ctrl+click to toggle, Shift+click for range |
-| **REPL** (right) | In-window Lisp REPL with input/output history |
+| **REPL** (right) | In-window Lisp REPL with multi-line input, multi-form evaluation, input/output history, and configurable key bindings |
 | **Status Bar** (bottom) | Shape count and FPS labels |
 
 ## Architecture
@@ -145,6 +181,7 @@ Main Thread (Qt)               Worker Thread (Swank)
 │     Menu Bar            │    │                      │
 │       File→Import/Export│    │ Qt REPL eval:        │
 │       View→Axis/Grid/.. │    │   eval_string cb     │
+│                         │    │   → loop over forms   │
 │     ViewerWidget        │    │   → snprintf result  │
 │       paintGL()         │◀───│ display() → push q   │
 │         OCCT redraw     │    │ → postEvent()        │
@@ -264,10 +301,11 @@ just test
 ```
 
 Tests cover queue operations, display/undisplay/clear, UI state management
-(grid/axis visibility toggles), callback registration, and the full set of
-new operations: `def`, `show`, `hide`, `toggle`, `show-defs`, `toggle-defs`,
-`resolve-shape`, selection (`select`, `deselect`, `clear-selection`), and all
-wrapper functions. CFFI functions are mocked via `with-mocked-viewer`.
+(grid/axis visibility toggles), callback registration, multi-form REPL
+evaluation, and the full set of operations: `def`, `show`, `hide`, `toggle`,
+`show-defs`, `toggle-defs`, `resolve-shape`, selection (`select`, `deselect`,
+`clear-selection`), and all wrapper functions. CFFI functions are mocked
+via `with-mocked-viewer`.
 
 To run from a Lisp REPL:
 

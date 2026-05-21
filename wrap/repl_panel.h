@@ -4,11 +4,10 @@
 #include <Standard_WarningsDisable.hxx>
 #include <QDockWidget>
 #include <QPlainTextEdit>
-#include <QLineEdit>
 #include <QVBoxLayout>
+#include <QSplitter>
 #include <QStringList>
 #include <QKeyEvent>
-#include <QTimer>
 #include <QTextCursor>
 #include <Standard_WarningsRestore.hxx>
 
@@ -21,12 +20,15 @@ public:
   REPLPanel(QWidget* parent = nullptr);
 
   void setEvalCallback(eval_fn fn) { myEvalCallback = fn; }
+  void setHistoryModifier(int mod) { myHistoryModifier = mod; }
+  void setSubmitModifier(int mod) { mySubmitModifier = mod; }
   void appendOutput(const QString& text);
 
 public slots:
   void appendOutputSafe(const QString& text);
 
 protected:
+  bool eventFilter(QObject* obj, QEvent* event) override;
   void keyPressEvent(QKeyEvent* event) override;
 
 private slots:
@@ -34,9 +36,11 @@ private slots:
 
 private:
   QPlainTextEdit* myOutput;
-  QLineEdit* myInput;
+  QPlainTextEdit* myInput;
   QStringList myHistory;
   int myHistoryIndex = -1;
+  int myHistoryModifier = Qt::ControlModifier;
+  int mySubmitModifier = Qt::NoModifier;
   eval_fn myEvalCallback = nullptr;
 };
 
