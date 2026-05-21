@@ -97,4 +97,5 @@
   (cl-occt-viewer.impl:%viewer-set-eval-callback vwr (cffi:callback eval-string))
   (cl-occt-viewer.impl:%viewer-set-file-op-callback vwr (cffi:callback handle-file-op))
   (cl-occt-viewer.impl:%viewer-set-drain-callback vwr (cffi:callback drain-queue-callback))
-  (register-shape-visibility-callback))
+  (register-shape-visibility-callback)
+  (register-selection-callback))

@@ -42,8 +42,17 @@
     :%viewer-get-trihedron
     :%viewer-set-placeholder-color
     :%viewer-set-status-text
-    :%viewer-set-visibility-callback
-    ;; Exported Lisp variables and functions
+     :%viewer-set-visibility-callback
+     ;; Selection
+     :%viewer-get-context
+     :%viewer-get-ais-object
+     :%viewer-set-selection-callback
+     :%viewer-set-tree-selection-callback
+     :%viewer-set-mouse-selection-scheme
+     :%viewer-sync-tree-selection
+     :%viewer-select-names
+     :%viewer-is-shape-selected
+     ;; Exported Lisp variables and functions
    :*viewer*
    :*viewer-queue*
    :*queue-lock*
@@ -70,7 +79,11 @@
 
 (defpackage :cl-occt-viewer
   (:use :cl :cl-occt-viewer.impl)
-  (:import-from :cl-occt :shape :shape-p)
+  (:import-from :cl-occt :shape :shape-p
+               :ais-clear-selected :ais-set-selected
+               :ais-add-or-remove-selected
+               :ais-hilight-selected :ais-is-selected
+               :*selection-scheme-map*)
    (:export
     :*show-defs-in-tree*
     :resolve-shape
@@ -114,9 +127,16 @@
      :theme-light
      :theme-auto
      :set-font-size
-      :*theme-mode*
-      :*accent-color*
-      :*font-size*))
+       :*theme-mode*
+       :*accent-color*
+       :*font-size*
+       ;; Selection
+       :*selected*
+       :select
+       :deselect
+       :clear-selection
+       :selected-shapes
+       :apply-selection-schemes))
 
 (defpackage :cl-occt-user
   (:use :cl :cl-occt :cl-occt-viewer)

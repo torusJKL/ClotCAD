@@ -64,6 +64,7 @@
         (viewer (or vwr *viewer*)))
     (sb-thread:with-mutex (*queue-lock*)
       (rotatef items *viewer-queue*))
+    ;; Phase 1: process all messages that update Lisp state
     (dolist (msg items)
       (destructuring-bind (type name &optional shape visible show-in-tree) msg
         (case type
@@ -76,10 +77,18 @@
            (remhash name *displayed-models*))
           (:clear
            (clrhash *displayed-models*))
-          (:sync
-           nil))))
+          (:sync nil)
+          (:sync-selection nil))))
+    ;; Sync shapes to C++ (ensures shapes map is populated)
     (when viewer
       (sync-viewer viewer))
+    ;; Phase 2: process selection syncs (after shapes are in C++)
+    (dolist (msg items)
+      (destructuring-bind (type name &optional shape visible show-in-tree) msg
+        (declare (ignore name shape visible show-in-tree))
+        (when (eql type :sync-selection)
+          (sync-selection-to-occt viewer)
+          (%viewer-sync-tree-selection viewer))))
     (update-shape-count)))
 
 (defun display (name shape &key (visible t) (show-in-tree t) (origin :display))

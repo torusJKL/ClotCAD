@@ -6,6 +6,8 @@
 #include <V3d_Viewer.hxx>
 #include <V3d_View.hxx>
 
+#include "viewer_state.h"
+
 #include <Standard_WarningsDisable.hxx>
 #include <QOpenGLWidget>
 #include <QMouseEvent>
@@ -18,6 +20,8 @@ class ViewerWidget : public QOpenGLWidget, public AIS_ViewController
 public:
   ViewerWidget(QWidget* parent = nullptr);
   ~ViewerWidget();
+
+  void setViewerState(ViewerState* state) { myViewerState = state; }
 
   const Handle(V3d_Viewer)& Viewer() const { return myViewer; }
   const Handle(V3d_View)& View() const { return myView; }
@@ -39,9 +43,18 @@ protected:
   void handleViewRedraw(const Handle(AIS_InteractiveContext)& ctx,
                         const Handle(V3d_View)& view) override;
 
+  bool UpdateMouseClick(const NCollection_Vec2<int>& thePoint,
+                        Aspect_VKeyMouse theButton,
+                        Aspect_VKeyFlags theModifiers,
+                        bool theIsDoubleClick) override;
+
+  void OnSelectionChanged(const Handle(AIS_InteractiveContext)& theCtx,
+                          const Handle(V3d_View)& theView) override;
+
 private:
   void updateView();
 
+  ViewerState* myViewerState = nullptr;
   Handle(V3d_Viewer) myViewer;
   Handle(V3d_View) myView;
   Handle(AIS_InteractiveContext) myContext;

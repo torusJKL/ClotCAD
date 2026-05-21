@@ -10,7 +10,11 @@
 #include <QString>
 #include <Standard_WarningsRestore.hxx>
 
+#include "viewer_state.h"
+
 #include <AIS_InteractiveContext.hxx>
+#include <set>
+#include <string>
 
 class SceneTreePanel : public QDockWidget
 {
@@ -18,7 +22,10 @@ class SceneTreePanel : public QDockWidget
 public:
   SceneTreePanel(QWidget* parent = nullptr);
 
+  void setViewerState(ViewerState* state) { myViewerState = state; }
   void setContext(const Handle(AIS_InteractiveContext)& ctx) { myContext = ctx; }
+
+  void syncSelection(const std::set<std::string>& selected);
 
 signals:
   void visibilityChanged(const QString& name, bool visible);
@@ -34,10 +41,12 @@ public slots:
 
 private slots:
   void onItemChanged(QTreeWidgetItem* item, int column);
+  void onTreeSelectionChanged();
 
 private:
   QTreeWidget* myTree;
   Handle(AIS_InteractiveContext) myContext;
+  ViewerState* myViewerState = nullptr;
 };
 
 #endif

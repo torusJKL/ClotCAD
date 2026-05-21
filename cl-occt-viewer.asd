@@ -13,6 +13,7 @@
          (:file "bindings")
          (:file "queue")
          (:file "ops")
+         (:file "select")
          (:file "repl")
         (:file "ui")
         (:file "theme")

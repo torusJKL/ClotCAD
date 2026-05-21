@@ -1,13 +1,12 @@
 #include "occt_viewer.h"
+#include "viewer_state.h"
 #include "viewer_window.h"
 #include "viewer_widget.h"
 #include "repl_panel.h"
 #include "scene_tree_panel.h"
 #include "OcctQtTools.h"
 
-#include <AIS_Shape.hxx>
 #include <AIS_Trihedron.hxx>
-#include <AIS_InteractiveContext.hxx>
 #include <Geom_Axis2Placement.hxx>
 #include <Graphic3d_TransformPers.hxx>
 #include <Graphic3d_TransModeFlags.hxx>
@@ -40,28 +39,6 @@ class WakeEvent : public QEvent
 {
 public:
   WakeEvent() : QEvent(WakeEventType) {}
-};
-
-struct ViewerState {
-  ViewerWindow* window = nullptr;
-  ViewerWidget* widget = nullptr;
-
-  Handle(AIS_InteractiveContext) context;
-
-  std::map<std::string, Handle(AIS_Shape), std::less<>> shapes;
-  std::vector<std::string> shape_names;
-
-  Handle(AIS_Trihedron) axisTrihedron;
-
-  // Callbacks
-  eval_fn eval_callback = nullptr;
-  file_op_fn file_op_callback = nullptr;
-  drain_fn drain_callback = nullptr;
-  color_scheme_fn color_scheme_callback = nullptr;
-  visibility_fn visibility_callback = nullptr;
-
-  // Running state
-  bool running = false;
 };
 
 static QApplication* theApp = nullptr;
@@ -106,6 +83,7 @@ occt_viewer viewer_create(const char* title, int width, int height)
   auto* win = new ViewerWindow(title, width, height);
   s->window = win;
   s->widget = win->viewport();
+  s->widget->setViewerState(s);
   s->context = win->viewport()->Context();
 
   // Wire File menu actions
@@ -169,10 +147,11 @@ occt_viewer viewer_create(const char* title, int width, int height)
     viewer_show_grid(s, checked ? 1 : 0);
   });
 
-  // Wire scene tree context
+  // Wire scene tree
   SceneTreePanel* st = win->sceneTree();
   if (st)
   {
+    st->setViewerState(s);
     st->setContext(s->context);
     QObject::connect(st, &SceneTreePanel::visibilityChanged, [s](const QString& name, bool visible) {
       viewer_set_shape_visible(s, name.toUtf8().constData(), visible ? 1 : 0);
@@ -270,6 +249,7 @@ void viewer_sync_shapes(occt_viewer vwr, ShapeSyncItem* items, int count)
     auto it = s->shapes.find(name);
     if (it != s->shapes.end())
     {
+      s->obj_to_name.erase(it->second.get());
       s->context->Remove(it->second, false);
       s->shapes.erase(it);
     }
@@ -289,12 +269,17 @@ void viewer_sync_shapes(occt_viewer vwr, ShapeSyncItem* items, int count)
       // Shape exists — recreate AIS only if geometry changed
       if (item.shape_changed)
       {
+        s->obj_to_name.erase(it->second.get());
         auto* shape = static_cast<TopoDS_Shape*>(item.shape_ptr);
         s->context->Remove(it->second, false);
         Handle(AIS_Shape) ais_shape = new AIS_Shape(*shape);
         if (item.checked)
+        {
           s->context->Display(ais_shape, false);
+          s->context->Activate(ais_shape, 0);
+        }
         it->second = ais_shape;
+        s->obj_to_name[ais_shape.get()] = item.name;
       }
       else
       {
@@ -312,8 +297,12 @@ void viewer_sync_shapes(occt_viewer vwr, ShapeSyncItem* items, int count)
       auto* shape = static_cast<TopoDS_Shape*>(item.shape_ptr);
       Handle(AIS_Shape) ais_shape = new AIS_Shape(*shape);
       if (item.checked)
+      {
         s->context->Display(ais_shape, false);
+        s->context->Activate(ais_shape, 0);
+      }
       s->shapes[item.name] = ais_shape;
+      s->obj_to_name[ais_shape.get()] = item.name;
       s->shape_names.push_back(item.name);
       for (auto* dock : docks)
         dock->addShape(QString::fromUtf8(item.name));
@@ -538,4 +527,82 @@ void viewer_set_visibility_callback(occt_viewer vwr, visibility_fn fn)
 {
   auto* s = (ViewerState*)vwr;
   s->visibility_callback = fn;
+}
+
+// ========== Selection API ==========
+
+void* viewer_get_context(occt_viewer vwr)
+{
+  auto* s = (ViewerState*)vwr;
+  return (void*)&s->context;
+}
+
+void* viewer_get_ais_object(occt_viewer vwr, const char* name)
+{
+  auto* s = (ViewerState*)vwr;
+  auto it = s->shapes.find(name);
+  if (it != s->shapes.end())
+    return (void*)&it->second;
+  return nullptr;
+}
+
+void viewer_set_selection_callback(occt_viewer vwr, selection_changed_fn fn)
+{
+  auto* s = (ViewerState*)vwr;
+  s->selection_callback = fn;
+}
+
+void viewer_set_tree_selection_callback(occt_viewer vwr, tree_selection_fn fn)
+{
+  auto* s = (ViewerState*)vwr;
+  s->tree_callback = fn;
+}
+
+void viewer_set_mouse_selection_scheme(occt_viewer vwr, int key, int scheme)
+{
+  auto* s = (ViewerState*)vwr;
+  s->mouse_schemes[key] = scheme;
+}
+
+int viewer_is_shape_selected(occt_viewer vwr, const char* name)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s || !name) return 0;
+  auto it = s->shapes.find(name);
+  if (it == s->shapes.end()) return 0;
+  return s->context->IsSelected(it->second) ? 1 : 0;
+}
+
+void viewer_select_names(occt_viewer vwr, const char** names, int count)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s) return;
+
+  s->context->ClearSelected(false);
+  for (int i = 0; i < count; i++)
+  {
+    auto it = s->shapes.find(names[i]);
+    if (it != s->shapes.end())
+      s->context->AddOrRemoveSelected(it->second, false);
+  }
+  s->context->HilightSelected(true);
+}
+
+void viewer_sync_tree_selection(occt_viewer vwr)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s || !s->window) return;
+
+  std::set<std::string> selected;
+  for (s->context->InitSelected(); s->context->MoreSelected(); s->context->NextSelected())
+  {
+    auto obj = s->context->SelectedInteractive();
+    auto it = s->obj_to_name.find(obj.get());
+    if (it != s->obj_to_name.end())
+      selected.insert(it->second);
+  }
+
+  auto docks = s->window->findChildren<SceneTreePanel*>();
+  for (auto* dock : docks)
+    dock->syncSelection(selected);
 }

@@ -123,3 +123,29 @@
 
 (defcfun (%viewer-set-visibility-callback "viewer_set_visibility_callback") :void
   (vwr :pointer) (fn :pointer))
+
+;; --- Selection ---
+
+(defcfun (%viewer-get-context "viewer_get_context") :pointer
+  (vwr :pointer))
+
+(defcfun (%viewer-get-ais-object "viewer_get_ais_object") :pointer
+  (vwr :pointer) (name :string))
+
+(defcfun (%viewer-set-selection-callback "viewer_set_selection_callback") :void
+  (vwr :pointer) (fn :pointer))
+
+(defcfun (%viewer-set-tree-selection-callback "viewer_set_tree_selection_callback") :void
+  (vwr :pointer) (fn :pointer))
+
+(defcfun (%viewer-set-mouse-selection-scheme "viewer_set_mouse_selection_scheme") :void
+  (vwr :pointer) (key :int) (scheme :int))
+
+(defcfun (%viewer-sync-tree-selection "viewer_sync_tree_selection") :void
+  (vwr :pointer))
+
+(defcfun (%viewer-select-names "viewer_select_names") :void
+  (vwr :pointer) (names :pointer) (count :int))
+
+(defcfun (%viewer-is-shape-selected "viewer_is_shape_selected") :int
+  (vwr :pointer) (name :string))

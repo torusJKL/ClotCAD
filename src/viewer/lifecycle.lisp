@@ -5,7 +5,8 @@
   (%viewer-show-grid vwr 1)
   (%viewer-set-antialiasing vwr 1)
   (apply-theme *theme-mode*)
-  (register-color-scheme-callback))
+  (register-color-scheme-callback)
+  (apply-selection-schemes))
 
 (defun start-viewer (&key (width 1024) (height 768) (title "ClotCAD"))
   (when *viewer*

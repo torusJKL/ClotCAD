@@ -46,8 +46,9 @@
 
 (defmacro with-mocked-viewer (&body body)
   (let ((old-syms (mapcar (lambda (s) (gensym))
-                           '(%vp %ss %fa %sg %sa %aa %sec %sfoc %ar %sd %igv %iav
-                             %ss2 %cs %cscc %gv %gt %spc %sst %svc))))
+                            '(%vp %ss %fa %sg %sa %aa %sec %sfoc %ar %sd %igv %iav
+                              %ss2 %cs %cscc %gv %gt %spc %sst %svc
+                              %gc %gao %ssc %stc %smsc %vst))))
     `(let ((*viewer* (make-array 1))
            (*viewer-queue* nil)
            (*displayed-models* (make-hash-table :test 'equal))
@@ -76,12 +77,18 @@
                           %viewer-set-stylesheet
                           %viewer-color-scheme
                           %viewer-set-color-scheme-callback
-                          %viewer-get-view
-                          %viewer-get-trihedron
-                          %viewer-set-placeholder-color
-                          %viewer-set-status-text
-                          %viewer-set-visibility-callback)
-                        old-syms))
+                           %viewer-get-view
+                           %viewer-get-trihedron
+                           %viewer-set-placeholder-color
+                           %viewer-set-status-text
+                           %viewer-set-visibility-callback
+                           %viewer-get-context
+                           %viewer-get-ais-object
+                           %viewer-set-selection-callback
+                           %viewer-set-tree-selection-callback
+                           %viewer-set-mouse-selection-scheme
+                           %viewer-sync-tree-selection)
+                         old-syms))
          (setf (symbol-function '%viewer-post-event) (lambda (vwr) (declare (ignore vwr)))
                (symbol-function '%viewer-sync-shapes)
                (lambda (vwr items count) (declare (ignore vwr items count)))
@@ -102,7 +109,13 @@
                (symbol-function '%viewer-get-trihedron) (lambda (vwr) (declare (ignore vwr)) (cffi:null-pointer))
                (symbol-function '%viewer-set-placeholder-color) (lambda (vwr r g b) (declare (ignore vwr r g b)))
                (symbol-function '%viewer-set-status-text) (lambda (vwr text) (declare (ignore vwr text)))
-               (symbol-function '%viewer-set-visibility-callback) (lambda (vwr fn) (declare (ignore vwr fn))))
+               (symbol-function '%viewer-set-visibility-callback) (lambda (vwr fn) (declare (ignore vwr fn)))
+               (symbol-function '%viewer-get-context) (lambda (vwr) (declare (ignore vwr)) (cffi:null-pointer))
+               (symbol-function '%viewer-get-ais-object) (lambda (vwr name) (declare (ignore vwr name)) (cffi:null-pointer))
+               (symbol-function '%viewer-set-selection-callback) (lambda (vwr fn) (declare (ignore vwr fn)))
+               (symbol-function '%viewer-set-tree-selection-callback) (lambda (vwr fn) (declare (ignore vwr fn)))
+               (symbol-function '%viewer-set-mouse-selection-scheme) (lambda (vwr key scheme) (declare (ignore vwr key scheme)))
+               (symbol-function '%viewer-sync-tree-selection) (lambda (vwr) (declare (ignore vwr))))
           (unwind-protect
               (progn ,@body)
             (setf (symbol-function '%viewer-post-event) ,(nth 0 old-syms)
@@ -124,7 +137,13 @@
                   (symbol-function '%viewer-get-trihedron) ,(nth 16 old-syms)
                   (symbol-function '%viewer-set-placeholder-color) ,(nth 17 old-syms)
                   (symbol-function '%viewer-set-status-text) ,(nth 18 old-syms)
-                  (symbol-function '%viewer-set-visibility-callback) ,(nth 19 old-syms)))))))
+                   (symbol-function '%viewer-set-visibility-callback) ,(nth 19 old-syms)
+                   (symbol-function '%viewer-get-context) ,(nth 20 old-syms)
+                   (symbol-function '%viewer-get-ais-object) ,(nth 21 old-syms)
+                   (symbol-function '%viewer-set-selection-callback) ,(nth 22 old-syms)
+                   (symbol-function '%viewer-set-tree-selection-callback) ,(nth 23 old-syms)
+                   (symbol-function '%viewer-set-mouse-selection-scheme) ,(nth 24 old-syms)
+                   (symbol-function '%viewer-sync-tree-selection) ,(nth 25 old-syms)))))))
 
 ;; --- Queue tests ---
 
@@ -572,7 +591,9 @@
                  "TRANSLATE" "ROTATE"
                  "MAKE-PRISM" "MAKE-REVOL"
                  "MAKE-COMPOUND" "MAKE-PART"
-                 "WRITE-STEP" "WRITE-STL"))
+                 "WRITE-STEP" "WRITE-STL"
+                 "SELECT" "DESELECT" "CLEAR-SELECTION" "SELECTED-SHAPES"
+                 "APPLY-SELECTION-SCHEMES"))
     (let ((found (find-symbol sym :cl-occt-user)))
       (assert-true found (format nil "~A should be accessible in cl-occt-user" sym))
       (assert-true (fboundp found)
@@ -881,7 +902,9 @@
           (old-csc (symbol-function '%viewer-set-color-scheme-callback))
           (old-gv (symbol-function '%viewer-get-view))
           (old-gt (symbol-function '%viewer-get-trihedron))
-          (old-spc (symbol-function '%viewer-set-placeholder-color)))
+          (old-spc (symbol-function '%viewer-set-placeholder-color))
+          (old-msms (symbol-function '%viewer-set-mouse-selection-scheme))
+          (old-vst (symbol-function '%viewer-sync-tree-selection)))
       (setf (symbol-function '%viewer-show-axis)
             (lambda (vwr show) (declare (ignore vwr)) (push show show-axis-args))
             (symbol-function '%viewer-show-grid)
@@ -899,7 +922,11 @@
             (symbol-function '%viewer-get-trihedron)
             (lambda (vwr) (declare (ignore vwr)) (cffi:null-pointer))
             (symbol-function '%viewer-set-placeholder-color)
-            (lambda (vwr r g b) (declare (ignore vwr r g b))))
+            (lambda (vwr r g b) (declare (ignore vwr r g b)))
+            (symbol-function '%viewer-set-mouse-selection-scheme)
+            (lambda (vwr key scheme) (declare (ignore vwr key scheme)))
+            (symbol-function '%viewer-sync-tree-selection)
+            (lambda (vwr) (declare (ignore vwr))))
       (unwind-protect
            (progn
              (initialize-viewer *viewer*)
@@ -917,7 +944,75 @@
               (symbol-function '%viewer-set-color-scheme-callback) old-csc
               (symbol-function '%viewer-get-view) old-gv
               (symbol-function '%viewer-get-trihedron) old-gt
-              (symbol-function '%viewer-set-placeholder-color) old-spc)))))
+              (symbol-function '%viewer-set-placeholder-color) old-spc
+              (symbol-function '%viewer-set-mouse-selection-scheme) old-msms
+              (symbol-function '%viewer-sync-tree-selection) old-vst)))))
+
+;; --- Selection tests ---
+
+(deftest selection-starts-empty
+  (with-mocked-viewer
+    (assert-true (zerop (hash-table-count *selected*))
+                 "*selected* should be empty initially")))
+
+(deftest select-adds-names
+  (with-mocked-viewer
+    (select :a :b)
+    (assert-equal 2 (hash-table-count *selected*))
+    (assert-true (gethash "A" *selected*))
+    (assert-true (gethash "B" *selected*))))
+
+(deftest select-with-no-args-clears
+  (with-mocked-viewer
+    (select :a)
+    (select)
+    (assert-true (zerop (hash-table-count *selected*))
+                 "*selected* should be empty after (select)")))
+
+(deftest select-replaces-previous
+  (with-mocked-viewer
+    (select :a :b)
+    (select :c)
+    (assert-equal 1 (hash-table-count *selected*))
+    (assert-true (gethash "C" *selected*))))
+
+(deftest deselect-removes-one
+  (with-mocked-viewer
+    (select :a :b :c)
+    (deselect :a)
+    (assert-equal 2 (hash-table-count *selected*))
+    (assert-nil (gethash "A" *selected*))))
+
+(deftest clear-selection-empties
+  (with-mocked-viewer
+    (select :a :b)
+    (clear-selection)
+    (assert-true (zerop (hash-table-count *selected*)))))
+
+(deftest selected-shapes-returns-list
+  (with-mocked-viewer
+    (select :a :b)
+    (let ((shapes (selected-shapes)))
+      (assert-equal 2 (length shapes))
+      (assert-true (member "A" shapes :test 'string=))
+      (assert-true (member "B" shapes :test 'string=)))))
+
+(deftest select-pushes-sync-selection
+  (with-mocked-viewer
+    (select :a)
+    (assert-equal :sync-selection (first (first *viewer-queue*)))))
+
+(deftest deselect-pushes-sync-selection
+  (with-mocked-viewer
+    (select :a :b)
+    (setf *viewer-queue* nil)
+    (deselect :a)
+    (assert-equal :sync-selection (first (first *viewer-queue*)))))
+
+(deftest clear-selection-pushes-sync-selection
+  (with-mocked-viewer
+    (clear-selection)
+    (assert-equal :sync-selection (first (first *viewer-queue*)))))
 
 ;; --- Test runner ---
 
@@ -988,8 +1083,15 @@
                resolve-mode-auto-dark resolve-mode-auto-light
                resolve-mode-auto-unknown resolve-mode-explicit-dark
                resolve-mode-explicit-light
-               palette-has-axis-colors palette-has-placeholder-color
-               palette-font-size-uses-variable set-font-size-updates-and-reapplies))
+                palette-has-axis-colors palette-has-placeholder-color
+                palette-font-size-uses-variable set-font-size-updates-and-reapplies
+                selection-starts-empty select-adds-names
+                select-with-no-args-clears select-replaces-previous
+                deselect-removes-one clear-selection-empties
+                selected-shapes-returns-list
+                select-pushes-sync-selection
+                deselect-pushes-sync-selection
+                clear-selection-pushes-sync-selection))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"
             (test-result-pass *test-result*)

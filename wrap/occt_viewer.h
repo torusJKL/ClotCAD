@@ -74,6 +74,18 @@ void* viewer_get_view(occt_viewer vwr);
 void* viewer_get_trihedron(occt_viewer vwr);
 void viewer_set_placeholder_color(occt_viewer vwr, int r, int g, int b);
 
+// --- Selection ---
+void* viewer_get_context(occt_viewer vwr);
+void* viewer_get_ais_object(occt_viewer vwr, const char* name);
+typedef void (*selection_changed_fn)(void);
+void viewer_set_selection_callback(occt_viewer vwr, selection_changed_fn fn);
+typedef void (*tree_selection_fn)(const char** names, int count);
+void viewer_set_tree_selection_callback(occt_viewer vwr, tree_selection_fn fn);
+void viewer_set_mouse_selection_scheme(occt_viewer vwr, int key, int scheme);
+void viewer_sync_tree_selection(occt_viewer vwr);
+void viewer_select_names(occt_viewer vwr, const char** names, int count);
+int  viewer_is_shape_selected(occt_viewer vwr, const char* name);
+
 #ifdef __cplusplus
 }
 #endif

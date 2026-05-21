@@ -47,6 +47,18 @@ unqualified access to all modeling and viewer commands:
 ;; Explicit shape resolution (symbols and strings):
 (cut (resolve-shape :s) (resolve-shape :b))
 (cut (resolve-shape :s) (resolve-shape "box2"))
+
+;; Selection (three synchronized paths):
+(select :box :sphere)               ; select shapes — replaces any previous
+(select "box2")                     ; string names also work
+(select)                            ; deselect all
+(deselect :sphere)                  ; remove from selection
+(clear-selection)                   ; deselect all
+(selected-shapes)                   ; → ("BOX" "SPHERE")
+
+;; Mouse selection scheme (configurable from Lisp):
+(apply-selection-schemes)           ; default: ReplaceExtra, Ctrl=Add, Shift=XOR
+(apply-selection-schemes :click :add :ctrl-click :xor)
 ```
 
 Wrapper functions (`cut`, `fuse`, `common`, `section`, `translate`, `rotate`,
@@ -119,7 +131,7 @@ symbol-based export:
 |-----------|-------------|
 | **Menu Bar** (top) | File (Import/Export STEP/STL) and View (REPL, Scene Tree, Axis, Grid toggles) |
 | **3D Viewport** (center) | QOpenGLWidget with OCCT AIS rendering. Orbit (LMB), pan (MMB), zoom (RMB/scroll) |
-| **Scene Tree** (left) | Shape list with visibility checkboxes |
+| **Scene Tree** (left) | Shape list with visibility checkboxes. Click to select, Ctrl+click to toggle, Shift+click for range |
 | **REPL** (right) | In-window Lisp REPL with input/output history |
 | **Status Bar** (bottom) | Shape count and FPS labels |
 
@@ -146,7 +158,9 @@ Main Thread (Qt)               Worker Thread (Swank)
 │   ui.lisp    — state    │    │   queue.lisp—dispatch│
 │   render.lisp— redraw   │    │   repl.lisp—callbacks│
 │   queue.lisp — dispatch │    │                      │
-│   repl.lisp  — callbacks│    │  Menu actions wire:  │
+│   repl.lisp  — callbacks│    │   select.lisp—sel stt│
+│   select.lisp— selection│    │                      │
+│  Menu actions wire:     │    │  Menu actions wire:  │
 │                         │    │  File→file_op_cb     │
 │                         │    │  View→show_axis/grid │
 └─────────────────────────┘    └──────────────────────┘
@@ -169,6 +183,7 @@ src/viewer/
 ├── bindings.lisp            CFFI bindings
 ├── queue.lisp               Event queue + full-state sync
 ├── ops.lisp                 def, show, hide, toggle, resolve-shape, wrappers
+├── select.lisp              *selected*, select, deselect, clear-selection
 ├── repl.lisp                Drain callback registration
 ├── ui.lisp                  Viewer state management
 ├── render.lisp              Periodic redraw loop
@@ -251,8 +266,8 @@ just test
 Tests cover queue operations, display/undisplay/clear, UI state management
 (grid/axis visibility toggles), callback registration, and the full set of
 new operations: `def`, `show`, `hide`, `toggle`, `show-defs`, `toggle-defs`,
-`resolve-shape`, and all wrapper functions. CFFI functions are mocked via
-`with-mocked-viewer`.
+`resolve-shape`, selection (`select`, `deselect`, `clear-selection`), and all
+wrapper functions. CFFI functions are mocked via `with-mocked-viewer`.
 
 To run from a Lisp REPL:
 

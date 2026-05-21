@@ -58,3 +58,19 @@
 (defun register-shape-visibility-callback ()
   (when *viewer*
     (%viewer-set-visibility-callback *viewer* (cffi:callback %on-shape-visibility))))
+
+(cffi:defcallback %on-selection-changed :void ()
+  "Called from C++ when selection changes (3D view or scene tree).
+Reads OCCT context and updates *selected* to match."
+  (let ((vwr *viewer*)
+        (new (make-hash-table :test 'equal)))
+    (when vwr
+      (maphash (lambda (name _)
+                 (when (not (zerop (%viewer-is-shape-selected vwr name)))
+                   (setf (gethash name new) t)))
+               *displayed-models*)
+      (setf *selected* new))))
+
+(defun register-selection-callback ()
+  (when *viewer*
+    (%viewer-set-selection-callback *viewer* (cffi:callback %on-selection-changed))))

@@ -1,12 +1,18 @@
 #include "viewer_widget.h"
+#include "occt_viewer.h"
+#include "viewer_window.h"
+#include "scene_tree_panel.h"
 #include "OcctGlTools.h"
 #include "OcctQtTools.h"
 
 #include <AIS_DisplayMode.hxx>
+#include <AIS_SelectionScheme.hxx>
 #include <Aspect_DisplayConnection.hxx>
 #include <OpenGl_GraphicDriver.hxx>
 #include <OpenGl_Context.hxx>
 #include <Quantity_Color.hxx>
+
+#include <set>
 
 ViewerWidget::ViewerWidget(QWidget* parent)
   : QOpenGLWidget(parent)
@@ -140,6 +146,49 @@ void ViewerWidget::handleViewRedraw(const Handle(AIS_InteractiveContext)& ctx,
   AIS_ViewController::handleViewRedraw(ctx, view);
   if (myToAskNextFrame)
     updateView();
+}
+
+bool ViewerWidget::UpdateMouseClick(const NCollection_Vec2<int>& thePoint,
+                                     Aspect_VKeyMouse theButton,
+                                     Aspect_VKeyFlags theModifiers,
+                                     bool theIsDoubleClick)
+{
+  if (theIsDoubleClick) return false;
+  unsigned int key = (unsigned int)theButton | ((unsigned int)theModifiers << 16);
+  AIS_SelectionScheme scheme = AIS_SelectionScheme_Replace;
+  if (myViewerState)
+  {
+    auto it = myViewerState->mouse_schemes.find(key);
+    if (it != myViewerState->mouse_schemes.end())
+      scheme = (AIS_SelectionScheme)it->second;
+  }
+  SelectInViewer(thePoint, scheme);
+  return true;
+}
+
+void ViewerWidget::OnSelectionChanged(const Handle(AIS_InteractiveContext)& theCtx,
+                                       const Handle(V3d_View)&)
+{
+  if (!myViewerState) return;
+
+  // Build set of selected shape names from OCCT context
+  std::set<std::string> selected;
+  for (theCtx->InitSelected(); theCtx->MoreSelected(); theCtx->NextSelected())
+  {
+    auto obj = theCtx->SelectedInteractive();
+    auto it = myViewerState->obj_to_name.find(obj.get());
+    if (it != myViewerState->obj_to_name.end())
+      selected.insert(it->second);
+  }
+
+  // Sync scene tree selection (with blockSignals — prevents re-entrancy)
+  auto docks = myViewerState->window->findChildren<SceneTreePanel*>();
+  for (auto* dock : docks)
+    dock->syncSelection(selected);
+
+  // Fire Lisp callback
+  if (myViewerState->selection_callback)
+    myViewerState->selection_callback();
 }
 
 void ViewerWidget::updateView()
