@@ -29,6 +29,10 @@ Without this, the C++ library and OCCT won't load.
   - C++: `wrap/viewer_window.cpp` → `QMainWindow`
   - Lisp: `src/viewer/lifecycle.lisp` → `start-viewer`
 
+## Design Decisions
+
+- **File dialogs**: We use `QFileDialog::DontUseNativeDialog` for all import/export dialogs (STEP/STL) because the system-native dialog crashes the application on some configurations. See `wrap/occt_viewer.cpp` for the 4 dialog sites.
+
 ## Testing
 
 Tests are in `t/` directory, loaded via `:cl-occt-viewer/tests` ASDF system. Run with `just test` (uses mocked CFFI, no display needed).

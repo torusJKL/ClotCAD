@@ -92,6 +92,7 @@ occt_viewer viewer_create(const char* title, int width, int height)
     QFileDialog dialog(s->window, "Import STEP", QString(), "STEP Files (*.step *.STEP)");
     dialog.setFileMode(QFileDialog::ExistingFile);
     dialog.setAcceptMode(QFileDialog::AcceptOpen);
+    dialog.setOption(QFileDialog::DontUseNativeDialog);
     if (dialog.exec() == QDialog::Accepted)
     {
       QString path = dialog.selectedFiles().value(0);
@@ -105,6 +106,7 @@ occt_viewer viewer_create(const char* title, int width, int height)
     QFileDialog dialog(s->window, "Import STL", QString(), "STL Files (*.stl *.STL)");
     dialog.setFileMode(QFileDialog::ExistingFile);
     dialog.setAcceptMode(QFileDialog::AcceptOpen);
+    dialog.setOption(QFileDialog::DontUseNativeDialog);
     if (dialog.exec() == QDialog::Accepted)
     {
       QString path = dialog.selectedFiles().value(0);
@@ -118,6 +120,7 @@ occt_viewer viewer_create(const char* title, int width, int height)
     QFileDialog dialog(s->window, "Export STEP", QString(), "STEP Files (*.step *.STEP)");
     dialog.setFileMode(QFileDialog::AnyFile);
     dialog.setAcceptMode(QFileDialog::AcceptSave);
+    dialog.setOption(QFileDialog::DontUseNativeDialog);
     if (dialog.exec() == QDialog::Accepted)
     {
       QString path = dialog.selectedFiles().value(0);
@@ -131,6 +134,7 @@ occt_viewer viewer_create(const char* title, int width, int height)
     QFileDialog dialog(s->window, "Export STL", QString(), "STL Files (*.stl *.STL)");
     dialog.setFileMode(QFileDialog::AnyFile);
     dialog.setAcceptMode(QFileDialog::AcceptSave);
+    dialog.setOption(QFileDialog::DontUseNativeDialog);
     if (dialog.exec() == QDialog::Accepted)
     {
       QString path = dialog.selectedFiles().value(0);
