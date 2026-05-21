@@ -18,12 +18,41 @@ The viewer starts in the `CL-OCCT-USER` package, which gives you
 unqualified access to all modeling and viewer commands:
 
 ```lisp
+;; Classic display workflow:
 (display :box (make-box 10 20 30))
 (display :sphere (make-sphere 25))
 (undisplay :box)
 (clear-all)
 (fit-view)                ; fit all shapes to viewport
+
+;; Named shape workflow (def → show):
+(def :s (make-sphere 20))           ; define, hidden from view
+(def :b (make-box 10 20 30))        ; define, hidden from view
+(def :result (cut :s :b))           ; operate by symbol
+(show :result)                      ; show just the result
+
+;; String names also work (def with string, operate by string):
+(def "box2" (make-box 20 20 40))    ; define with string name
+(cut :s "box2")                     ; operate using string designator
+
+;; Visibility control:
+(hide :result)                      ; hide from 3D view
+(show :result)                      ; show again
+(toggle :result)                    ; toggle visibility
+
+;; Scene Tree control:
+(show-defs nil)                     ; hide all def-ined shapes from tree
+(toggle-defs)                       ; toggle tree visibility for def shapes
+
+;; Explicit shape resolution (symbols and strings):
+(cut (resolve-shape :s) (resolve-shape :b))
+(cut (resolve-shape :s) (resolve-shape "box2"))
 ```
+
+Wrapper functions (`cut`, `fuse`, `common`, `section`, `translate`, `rotate`,
+`make-prism`, `make-revol`, `make-compound`, `make-part`, `write-step`,
+`write-stl`) accept symbols, strings, and raw shapes. Use symbols or strings to
+reference def-ined or displayed shapes; pass raw shapes for ad-hoc geometry.
 
 All viewer settings are changeable at runtime from either REPL:
 
@@ -75,22 +104,13 @@ From a SLIME REPL, type `(in-package :cad-user)` to switch.
 ## Export
 
 Use **File > Export STEP/STL** from the menu (opens a save dialog), or
-export directly from the REPL:
+export directly from the REPL using either the classic API or the new
+symbol-based export:
 
 ```lisp
-;; Export all displayed shapes as STEP
-(let ((compound (apply #'cl-occt:make-compound
-                       (loop for k being the hash-keys of *displayed-models*
-                             collect (gethash k *displayed-models*)))))
-  (cl-occt:write-step compound "export.step"))
-```
-
-```lisp
-;; Export all displayed shapes as STL
-(let ((compound (apply #'cl-occt:make-compound
-                       (loop for k being the hash-keys of *displayed-models*
-                             collect (gethash k *displayed-models*)))))
-  (cl-occt:write-stl compound "export.stl"))
+;; Export a specific shape:
+(write-step :result "output.step")
+(write-stl :s "output.stl")
 ```
 
 ## Interface
@@ -147,7 +167,8 @@ wrap/
 src/viewer/
 ├── package.lisp             Package exports (cl-occt-viewer, cl-occt-user)
 ├── bindings.lisp            CFFI bindings
-├── queue.lisp               Event queue + DAG bridge
+├── queue.lisp               Event queue + full-state sync
+├── ops.lisp                 def, show, hide, toggle, resolve-shape, wrappers
 ├── repl.lisp                Drain callback registration
 ├── ui.lisp                  Viewer state management
 ├── render.lisp              Periodic redraw loop
@@ -227,7 +248,11 @@ Run the Lisp unit test suite (no display required):
 just test
 ```
 
-Tests cover queue operations, display/undisplay/clear, UI state management (grid/axis visibility toggles), and callback registration. CFFI functions are mocked via `with-mocked-viewer`.
+Tests cover queue operations, display/undisplay/clear, UI state management
+(grid/axis visibility toggles), callback registration, and the full set of
+new operations: `def`, `show`, `hide`, `toggle`, `show-defs`, `toggle-defs`,
+`resolve-shape`, and all wrapper functions. CFFI functions are mocked via
+`with-mocked-viewer`.
 
 To run from a Lisp REPL:
 

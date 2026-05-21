@@ -39,15 +39,16 @@
       (error "Failed to create XDE document"))
     (unwind-protect
          (progn
-           (maphash (lambda (name shape)
-                      (let ((buf (cffi:foreign-alloc :char :count 256)))
-                        (unwind-protect
-                             (cl-occt.impl:%xde-add-part
-                              doc "" (cl-occt::%ptr shape) name
-                              -1 0d0 0d0 0d0 0d0
-                              (cffi:null-pointer) buf 256)
-                          (cffi:foreign-free buf))))
-                    *displayed-models*)
+            (maphash (lambda (name entry)
+                       (let* ((shape (first entry))
+                              (buf (cffi:foreign-alloc :char :count 256)))
+                         (unwind-protect
+                              (cl-occt.impl:%xde-add-part
+                               doc "" (cl-occt::%ptr shape) name
+                               -1 0d0 0d0 0d0 0d0
+                               (cffi:null-pointer) buf 256)
+                           (cffi:foreign-free buf))))
+                     *displayed-models*)
            (let ((result (cl-occt.impl:%xde-write-step doc path)))
              (when (zerop result)
                (error "STEP write failed"))))
@@ -59,9 +60,9 @@
     (warn "No shapes to export")
     (return-from export-all-stl nil))
   (let ((shapes '()))
-    (maphash (lambda (name shape)
+    (maphash (lambda (name entry)
                (declare (ignore name))
-               (push shape shapes))
+               (push (first entry) shapes))
              *displayed-models*)
     (let ((compound (cl-occt:make-compound shapes)))
       (cl-occt:write-stl compound path :deflection 0.1))))

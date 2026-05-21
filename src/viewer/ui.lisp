@@ -36,10 +36,11 @@
   (%viewer-fit-all *viewer*))
 
 (defun update-shape-count ()
-  "Query shape counts from C++ and update the status bar."
+  "Read shape counts from *displayed-models* and update the status bar."
   (when *viewer*
-    (let* ((total (%viewer-get-shape-count *viewer*))
-           (visible (%viewer-get-visible-shape-count *viewer*))
+    (let* ((total (hash-table-count *displayed-models*))
+           (visible (loop for v being the hash-values of *displayed-models*
+                          count (second v)))
            (text (cond ((zerop total) "No shapes")
                        ((= visible 1) "Displaying 1 shape")
                        (t (format nil "Displaying ~D shapes" visible)))))
@@ -49,7 +50,9 @@
       (%viewer-set-status-text *viewer* text))))
 
 (cffi:defcallback %on-shape-visibility :void ((name :string) (visible :int))
-  (declare (ignore name visible))
+  (let ((entry (gethash name *displayed-models*)))
+    (when entry
+      (setf (second entry) (not (zerop visible)))))
   (update-shape-count))
 
 (defun register-shape-visibility-callback ()

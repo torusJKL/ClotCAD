@@ -9,10 +9,11 @@
   :components
    ((:module "viewer"
      :components
-       ((:file "package")
-        (:file "bindings")
-        (:file "queue")
-        (:file "repl")
+        ((:file "package")
+         (:file "bindings")
+         (:file "queue")
+         (:file "ops")
+         (:file "repl")
         (:file "ui")
         (:file "theme")
         (:file "render")

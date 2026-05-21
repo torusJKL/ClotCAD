@@ -19,11 +19,12 @@ SceneTreePanel::SceneTreePanel(QWidget* parent)
 
 void SceneTreePanel::addShape(const QString& name)
 {
+  myTree->blockSignals(true);
   QTreeWidgetItem* item = new QTreeWidgetItem(myTree);
   item->setText(0, name);
   item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
   item->setCheckState(0, Qt::Checked);
-  myTree->addTopLevelItem(item);
+  myTree->blockSignals(false);
 }
 
 void SceneTreePanel::removeShape(const QString& name)
@@ -41,6 +42,34 @@ void SceneTreePanel::removeShape(const QString& name)
 void SceneTreePanel::clearAll()
 {
   myTree->clear();
+}
+
+void SceneTreePanel::setShapeCheckState(const QString& name, bool checked)
+{
+  for (int i = 0; i < myTree->topLevelItemCount(); ++i)
+  {
+    QTreeWidgetItem* item = myTree->topLevelItem(i);
+    if (item->text(0) == name)
+    {
+      myTree->blockSignals(true);
+      item->setCheckState(0, checked ? Qt::Checked : Qt::Unchecked);
+      myTree->blockSignals(false);
+      return;
+    }
+  }
+}
+
+void SceneTreePanel::setShapeTreeVisible(const QString& name, bool visible)
+{
+  for (int i = 0; i < myTree->topLevelItemCount(); ++i)
+  {
+    QTreeWidgetItem* item = myTree->topLevelItem(i);
+    if (item->text(0) == name)
+    {
+      item->setHidden(!visible);
+      return;
+    }
+  }
 }
 
 void SceneTreePanel::onItemChanged(QTreeWidgetItem* item, int /*column*/)

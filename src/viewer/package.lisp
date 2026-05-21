@@ -12,24 +12,18 @@
    ;; Inter-thread wake
    :%viewer-post-event
    :%viewer-redraw
-   ;; Shapes
-   :%viewer-put-shape
-   :%viewer-remove-shape
-   :%viewer-clear
-   :%viewer-fit-all
+    ;; Shapes
+    :%viewer-sync-shapes
+    :%viewer-fit-all
+    :shape-sync-item
    ;; Callbacks
    :%viewer-set-eval-callback
    :%viewer-set-file-op-callback
    :%viewer-set-drain-callback
    ;; REPL
    :%viewer-append-repl-output
-    ;; Scene tree
-    :%viewer-get-shape-count
-    :%viewer-get-visible-shape-count
-    :%viewer-get-shape-name
-    :%viewer-set-shape-visible
-    :%viewer-is-shape-visible
-    :%viewer-notify-shape-change
+     ;; Scene tree
+     :%viewer-set-shape-visible
    ;; Grid
    :%viewer-show-grid
    :%viewer-is-grid-visible
@@ -58,11 +52,12 @@
    :*axis-visible*
    :start-viewer
    :stop-viewer
-   :display
-   :undisplay
-   :clear-all
-   :register-viewer-callbacks
-   :drain-queue
+    :sync-viewer
+    :display
+    :undisplay
+    :clear-all
+    :register-viewer-callbacks
+    :drain-queue
    :show-grid
    :show-axis
    :toggle-grid
@@ -76,33 +71,57 @@
 (defpackage :cl-occt-viewer
   (:use :cl :cl-occt-viewer.impl)
   (:import-from :cl-occt :shape :shape-p)
-  (:export
-   :start-viewer
-   :stop-viewer
-   :display
-   :undisplay
-   :clear-all
-   :show-grid
-   :show-axis
-   :toggle-grid
-   :toggle-axis
-   :show-repl
-   :show-scene-tree
-   :toggle-repl
-   :toggle-scene-tree
-    :set-view-aa
-    :fit-view
-    :run-tests
-    :apply-theme
-    :set-accent
-    :theme-dark
-    :theme-light
-    :theme-auto
-    :set-font-size
-     :*theme-mode*
-     :*accent-color*
-     :*font-size*))
+   (:export
+    :*show-defs-in-tree*
+    :resolve-shape
+    :def
+    :show
+    :hide
+    :toggle
+    :show-defs
+    :toggle-defs
+    :cut
+    :fuse
+    :common
+    :section
+    :translate
+    :rotate
+    :make-prism
+    :make-revol
+    :make-compound
+    :make-part
+    :write-step
+    :write-stl
+    :start-viewer
+    :stop-viewer
+    :display
+    :undisplay
+    :clear-all
+    :show-grid
+    :show-axis
+    :toggle-grid
+    :toggle-axis
+    :show-repl
+    :show-scene-tree
+    :toggle-repl
+    :toggle-scene-tree
+     :set-view-aa
+     :fit-view
+     :run-tests
+     :apply-theme
+     :set-accent
+     :theme-dark
+     :theme-light
+     :theme-auto
+     :set-font-size
+      :*theme-mode*
+      :*accent-color*
+      :*font-size*))
 
 (defpackage :cl-occt-user
   (:use :cl :cl-occt :cl-occt-viewer)
+  (:shadowing-import-from :cl-occt-viewer
+   :cut :fuse :common :section :translate :rotate
+   :make-prism :make-revol :make-compound :make-part
+   :write-step :write-stl)
   (:nicknames :cad-user :occt-user))

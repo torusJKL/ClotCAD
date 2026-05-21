@@ -31,6 +31,7 @@
 #include <vector>
 #include <cstring>
 #include <algorithm>
+#include <set>
 #include <Standard_WarningsRestore.hxx>
 
 static const QEvent::Type WakeEventType = static_cast<QEvent::Type>(QEvent::User + 1);
@@ -42,18 +43,11 @@ public:
 };
 
 struct ViewerState {
-  int visibleShapeCount() const {
-    int n = 0;
-    for (auto& [name, shape] : shapes)
-      if (context->IsDisplayed(shape)) n++;
-    return n;
-  }
   ViewerWindow* window = nullptr;
   ViewerWidget* widget = nullptr;
 
   Handle(AIS_InteractiveContext) context;
 
-  // Transient name->AIS_Shape cache (for name-based erase/lookup in OCCT calls)
   std::map<std::string, Handle(AIS_Shape), std::less<>> shapes;
   std::vector<std::string> shape_names;
 
@@ -65,9 +59,6 @@ struct ViewerState {
   drain_fn drain_callback = nullptr;
   color_scheme_fn color_scheme_callback = nullptr;
   visibility_fn visibility_callback = nullptr;
-
-  // Cache for viewer_get_shape_name
-  mutable std::string name_cache;
 
   // Running state
   bool running = false;
@@ -258,62 +249,86 @@ void viewer_redraw(occt_viewer vwr)
     s->widget->update();
 }
 
-void viewer_put_shape(occt_viewer vwr, occt_shape shape_ptr, const char* name)
-{
-  if (!vwr || !shape_ptr || !name) return;
-  auto* s = (ViewerState*)vwr;
-  auto* shape = static_cast<TopoDS_Shape*>(shape_ptr);
-
-  Handle(AIS_Shape) ais_shape = new AIS_Shape(*shape);
-  s->context->Display(ais_shape, false);
-
-  auto it = s->shapes.find(name);
-  if (it != s->shapes.end())
-  {
-    s->context->Remove(it->second, false);
-    it->second = ais_shape;
-  }
-  else
-  {
-    s->shapes[name] = ais_shape;
-    s->shape_names.push_back(name);
-    auto docks = s->window->findChildren<SceneTreePanel*>();
-    for (auto* dock : docks)
-      dock->addShape(QString::fromUtf8(name));
-  }
-
-  if (!s->widget->View()->Window().IsNull())
-    s->widget->View()->FitAll();
-}
-
-void viewer_remove_shape(occt_viewer vwr, const char* name)
-{
-  if (!vwr || !name) return;
-  auto* s = (ViewerState*)vwr;
-  auto it = s->shapes.find(name);
-  if (it != s->shapes.end())
-  {
-    s->context->Remove(it->second, false);
-    s->shapes.erase(it);
-    auto& names = s->shape_names;
-    names.erase(std::remove(names.begin(), names.end(), name), names.end());
-    auto docks = s->window->findChildren<SceneTreePanel*>();
-    for (auto* dock : docks)
-      dock->removeShape(QString::fromUtf8(name));
-  }
-}
-
-void viewer_clear(occt_viewer vwr)
+void viewer_sync_shapes(occt_viewer vwr, ShapeSyncItem* items, int count)
 {
   if (!vwr) return;
   auto* s = (ViewerState*)vwr;
-  for (auto& [name, shape] : s->shapes)
-    s->context->Remove(shape, false);
-  s->shapes.clear();
-  s->shape_names.clear();
+
+  // Build set of incoming names
+  std::set<std::string> incoming;
+  for (int i = 0; i < count; i++)
+    incoming.insert(items[i].name);
+
+  // Remove shapes not in incoming set
+  std::vector<std::string> to_remove;
+  for (auto& [name, ais] : s->shapes)
+    if (!incoming.count(name))
+      to_remove.push_back(name);
   auto docks = s->window->findChildren<SceneTreePanel*>();
-  for (auto* dock : docks)
-    dock->clearAll();
+  for (auto& name : to_remove)
+  {
+    auto it = s->shapes.find(name);
+    if (it != s->shapes.end())
+    {
+      s->context->Remove(it->second, false);
+      s->shapes.erase(it);
+    }
+    s->shape_names.erase(std::remove(s->shape_names.begin(), s->shape_names.end(), name), s->shape_names.end());
+    for (auto* dock : docks)
+      dock->removeShape(QString::fromUtf8(name.c_str()));
+  }
+
+  // Add/update shapes in incoming set
+  for (int i = 0; i < count; i++)
+  {
+    auto& item = items[i];
+    auto it = s->shapes.find(item.name);
+
+    if (it != s->shapes.end())
+    {
+      // Shape exists — recreate AIS only if geometry changed
+      if (item.shape_changed)
+      {
+        auto* shape = static_cast<TopoDS_Shape*>(item.shape_ptr);
+        s->context->Remove(it->second, false);
+        Handle(AIS_Shape) ais_shape = new AIS_Shape(*shape);
+        if (item.checked)
+          s->context->Display(ais_shape, false);
+        it->second = ais_shape;
+      }
+      else
+      {
+        // Geometry unchanged — just sync visibility
+        auto& ais = s->shapes[item.name];
+        if (item.checked)
+          s->context->Display(ais, false);
+        else
+          s->context->Erase(ais, false);
+      }
+    }
+    else
+    {
+      // New shape
+      auto* shape = static_cast<TopoDS_Shape*>(item.shape_ptr);
+      Handle(AIS_Shape) ais_shape = new AIS_Shape(*shape);
+      if (item.checked)
+        s->context->Display(ais_shape, false);
+      s->shapes[item.name] = ais_shape;
+      s->shape_names.push_back(item.name);
+      for (auto* dock : docks)
+        dock->addShape(QString::fromUtf8(item.name));
+    }
+
+    // Sync tree checkbox and row visibility
+    for (auto* dock : docks)
+    {
+      dock->setShapeCheckState(QString::fromUtf8(item.name), item.checked);
+      dock->setShapeTreeVisible(QString::fromUtf8(item.name), item.show_in_tree);
+    }
+  }
+
+  if (count > 0 && !s->widget->View()->Window().IsNull())
+    s->widget->View()->FitAll();
 }
 
 void viewer_fit_all(occt_viewer vwr)
@@ -351,20 +366,6 @@ void viewer_append_repl_output(occt_viewer vwr, const char* text)
     QMetaObject::invokeMethod(dock, "appendOutputSafe", Qt::QueuedConnection, Q_ARG(QString, qtext));
 }
 
-int viewer_get_shape_count(occt_viewer vwr)
-{
-  return (int)((ViewerState*)vwr)->shapes.size();
-}
-
-const char* viewer_get_shape_name(occt_viewer vwr, int idx)
-{
-  auto* s = (ViewerState*)vwr;
-  if (idx < 0 || idx >= (int)s->shape_names.size())
-    return nullptr;
-  s->name_cache = s->shape_names[idx];
-  return s->name_cache.c_str();
-}
-
 void viewer_set_shape_visible(occt_viewer vwr, const char* name, int visible)
 {
   auto* s = (ViewerState*)vwr;
@@ -378,20 +379,6 @@ void viewer_set_shape_visible(occt_viewer vwr, const char* name, int visible)
     if (s->visibility_callback)
       s->visibility_callback(name, visible);
   }
-}
-
-int viewer_is_shape_visible(occt_viewer vwr, const char* name)
-{
-  auto* s = (ViewerState*)vwr;
-  auto it = s->shapes.find(name);
-  if (it != s->shapes.end())
-    return s->context->IsDisplayed(it->second) ? 1 : 0;
-  return 0;
-}
-
-void viewer_notify_shape_change(occt_viewer vwr)
-{
-  viewer_redraw(vwr);
 }
 
 void viewer_show_grid(occt_viewer vwr, int show)
@@ -538,12 +525,6 @@ void* viewer_get_trihedron(occt_viewer vwr)
   if (!s->axisTrihedron.IsNull())
     return (void*)&s->axisTrihedron;
   return nullptr;
-}
-
-int viewer_get_visible_shape_count(occt_viewer vwr)
-{
-  auto* s = (ViewerState*)vwr;
-  return s->visibleShapeCount();
 }
 
 void viewer_set_status_text(occt_viewer vwr, const char* text)

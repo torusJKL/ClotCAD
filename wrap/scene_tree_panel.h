@@ -23,6 +23,10 @@ public:
 signals:
   void visibilityChanged(const QString& name, bool visible);
 
+public:
+  void setShapeCheckState(const QString& name, bool checked);
+  void setShapeTreeVisible(const QString& name, bool visible);
+
 public slots:
   void addShape(const QString& name);
   void removeShape(const QString& name);

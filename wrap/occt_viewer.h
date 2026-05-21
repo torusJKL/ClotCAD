@@ -8,6 +8,14 @@ extern "C" {
 typedef void* occt_viewer;
 typedef void* occt_shape;
 
+typedef struct {
+  const char* name;
+  void* shape_ptr;
+  int checked;
+  int show_in_tree;
+  int shape_changed;
+} ShapeSyncItem;
+
 // --- Lifecycle ---
 occt_viewer viewer_create(const char* title, int width, int height);
 void        viewer_destroy(occt_viewer vwr);
@@ -21,9 +29,7 @@ void viewer_post_event(occt_viewer vwr);
 void viewer_redraw(occt_viewer vwr);
 
 // --- Shapes ---
-void viewer_put_shape(occt_viewer vwr, occt_shape shape_ptr, const char* name);
-void viewer_remove_shape(occt_viewer vwr, const char* name);
-void viewer_clear(occt_viewer vwr);
+void viewer_sync_shapes(occt_viewer vwr, ShapeSyncItem* items, int count);
 void viewer_fit_all(occt_viewer vwr);
 
 // --- Callbacks ---
@@ -38,12 +44,7 @@ void viewer_set_drain_callback(occt_viewer vwr, drain_fn fn);
 void viewer_append_repl_output(occt_viewer vwr, const char* text);
 
 // --- Scene tree ---
-int  viewer_get_shape_count(occt_viewer vwr);
-int  viewer_get_visible_shape_count(occt_viewer vwr);
-const char* viewer_get_shape_name(occt_viewer vwr, int idx);
 void viewer_set_shape_visible(occt_viewer vwr, const char* name, int visible);
-int  viewer_is_shape_visible(occt_viewer vwr, const char* name);
-void viewer_notify_shape_change(occt_viewer vwr);
 typedef void (*visibility_fn)(const char* name, int visible);
 void viewer_set_visibility_callback(occt_viewer vwr, visibility_fn fn);
 

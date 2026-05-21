@@ -36,16 +36,17 @@
 (defcfun (%viewer-redraw "viewer_redraw") :void
   (vwr :pointer))
 
-;; --- Shapes ---
+;; --- Shape sync ---
 
-(defcfun (%viewer-put-shape "viewer_put_shape") :void
-  (vwr :pointer) (shape :pointer) (name :string))
+(cffi:defcstruct shape-sync-item
+  (:name :pointer)
+  (:shape-ptr :pointer)
+  (:checked :int)
+  (:show-in-tree :int)
+  (:shape-changed :int))
 
-(defcfun (%viewer-remove-shape "viewer_remove_shape") :void
-  (vwr :pointer) (name :string))
-
-(defcfun (%viewer-clear "viewer_clear") :void
-  (vwr :pointer))
+(defcfun (%viewer-sync-shapes "viewer_sync_shapes") :void
+  (vwr :pointer) (items :pointer) (count :int))
 
 (defcfun (%viewer-fit-all "viewer_fit_all") :void
   (vwr :pointer))
@@ -68,23 +69,8 @@
 
 ;; --- Scene tree ---
 
-(defcfun (%viewer-get-shape-count "viewer_get_shape_count") :int
-  (vwr :pointer))
-
-(defcfun (%viewer-get-visible-shape-count "viewer_get_visible_shape_count") :int
-  (vwr :pointer))
-
-(defcfun (%viewer-get-shape-name "viewer_get_shape_name") :string
-  (vwr :pointer) (idx :int))
-
 (defcfun (%viewer-set-shape-visible "viewer_set_shape_visible") :void
   (vwr :pointer) (name :string) (visible :int))
-
-(defcfun (%viewer-is-shape-visible "viewer_is_shape_visible") :int
-  (vwr :pointer) (name :string))
-
-(defcfun (%viewer-notify-shape-change "viewer_notify_shape_change") :void
-  (vwr :pointer))
 
 ;; --- Grid ---
 
