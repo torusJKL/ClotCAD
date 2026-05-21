@@ -17,6 +17,7 @@
 #include <TopoDS_Shape.hxx>
 #include <V3d_View.hxx>
 
+
 #include <Standard_WarningsDisable.hxx>
 #include <QApplication>
 #include <QObject>
@@ -24,6 +25,7 @@
 #include <QCoreApplication>
 #include <QFileDialog>
 #include <QDockWidget>
+#include <QStyleHints>
 #include <map>
 #include <string>
 #include <vector>
@@ -40,6 +42,12 @@ public:
 };
 
 struct ViewerState {
+  int visibleShapeCount() const {
+    int n = 0;
+    for (auto& [name, shape] : shapes)
+      if (context->IsDisplayed(shape)) n++;
+    return n;
+  }
   ViewerWindow* window = nullptr;
   ViewerWidget* widget = nullptr;
 
@@ -55,6 +63,8 @@ struct ViewerState {
   eval_fn eval_callback = nullptr;
   file_op_fn file_op_callback = nullptr;
   drain_fn drain_callback = nullptr;
+  color_scheme_fn color_scheme_callback = nullptr;
+  visibility_fn visibility_callback = nullptr;
 
   // Cache for viewer_get_shape_name
   mutable std::string name_cache;
@@ -182,6 +192,15 @@ occt_viewer viewer_create(const char* title, int width, int height)
   auto* receiver = new WakeReceiver(s);
   s->window->installEventFilter(receiver);
   QObject::connect(receiver, &QObject::destroyed, receiver, &QObject::deleteLater);
+
+  // System color scheme change callback
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+  QObject::connect(QApplication::styleHints(), &QStyleHints::colorSchemeChanged,
+                   [s](Qt::ColorScheme scheme) {
+                     if (s->color_scheme_callback)
+                       s->color_scheme_callback(static_cast<int>(scheme));
+                   });
+#endif
 
   return s;
 }
@@ -356,6 +375,8 @@ void viewer_set_shape_visible(occt_viewer vwr, const char* name, int visible)
       s->context->Display(it->second, false);
     else
       s->context->Erase(it->second, false);
+    if (s->visibility_callback)
+      s->visibility_callback(name, visible);
   }
 }
 
@@ -467,4 +488,73 @@ void viewer_set_antialiasing(occt_viewer vwr, int enable)
     s->widget->View()->ChangeRenderingParams().IsAntialiasingEnabled = enable;
     s->widget->View()->ChangeRenderingParams().NbMsaaSamples = enable ? 4 : 0;
   }
+}
+
+void viewer_set_stylesheet(occt_viewer vwr, const char* qss)
+{
+  (void)vwr;
+  if (theApp && qss)
+    theApp->setStyleSheet(QString::fromUtf8(qss));
+}
+
+int viewer_color_scheme(occt_viewer vwr)
+{
+  (void)vwr;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+  return static_cast<int>(QApplication::styleHints()->colorScheme());
+#else
+  return 0;
+#endif
+}
+
+void viewer_set_color_scheme_callback(occt_viewer vwr, color_scheme_fn fn)
+{
+  auto* s = (ViewerState*)vwr;
+  s->color_scheme_callback = fn;
+}
+
+void viewer_set_placeholder_color(occt_viewer vwr, int r, int g, int b)
+{
+  (void)vwr;
+  if (theApp)
+  {
+    QPalette pal = theApp->palette();
+    pal.setColor(QPalette::PlaceholderText, QColor(r, g, b));
+    theApp->setPalette(pal);
+  }
+}
+
+void* viewer_get_view(occt_viewer vwr)
+{
+  auto* s = (ViewerState*)vwr;
+  if (s->widget && !s->widget->View().IsNull())
+    return (void*)&s->widget->View();
+  return nullptr;
+}
+
+void* viewer_get_trihedron(occt_viewer vwr)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s->axisTrihedron.IsNull())
+    return (void*)&s->axisTrihedron;
+  return nullptr;
+}
+
+int viewer_get_visible_shape_count(occt_viewer vwr)
+{
+  auto* s = (ViewerState*)vwr;
+  return s->visibleShapeCount();
+}
+
+void viewer_set_status_text(occt_viewer vwr, const char* text)
+{
+  auto* s = (ViewerState*)vwr;
+  if (s->window && text)
+    s->window->setStatusText(text);
+}
+
+void viewer_set_visibility_callback(occt_viewer vwr, visibility_fn fn)
+{
+  auto* s = (ViewerState*)vwr;
+  s->visibility_callback = fn;
 }

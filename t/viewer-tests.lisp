@@ -39,15 +39,21 @@
 
 (defmacro with-mocked-viewer (&body body)
   (let ((old-syms (mapcar (lambda (s) (gensym))
-                          '(%vp %ps %rs %cl %fa %sg %sa %aa %sec %sfoc %ar %sd %igv %iav))))
+                           '(%vp %ps %rs %cl %fa %sg %sa %aa %sec %sfoc %ar %sd %igv %iav
+                             %ss %gs %cs %cscc %gv %gt %spc %svsc %sst %svc))))
     `       (let ((*viewer* (make-array 1))
            (*viewer-queue* nil)
            (*displayed-models* (make-hash-table :test 'equal))
            (*queue-lock* (sb-thread:make-mutex))
            (*grid-visible* t)
            (*axis-visible* t)
+           (*theme-mode* :dark)
+           (*accent-color* "#0078d4")
+           (*color-scheme-callback-registered* nil)
            (mock-grid-state 1)
-           (mock-axis-state 1))
+           (mock-axis-state 1)
+           (mock-stylesheet nil)
+           (mock-color-scheme 0))
        (let (,@(mapcar (lambda (s sym)
                           `(,sym (symbol-function (quote ,s))))
                         '(%viewer-post-event %viewer-put-shape
@@ -59,7 +65,17 @@
                           %viewer-append-repl-output
                           %viewer-show-dock
                           %viewer-is-grid-visible
-                          %viewer-is-axis-visible)
+                          %viewer-is-axis-visible
+                          %viewer-set-stylesheet
+                          %viewer-get-shape-count
+                          %viewer-color-scheme
+                          %viewer-set-color-scheme-callback
+                          %viewer-get-view
+                          %viewer-get-trihedron
+                          %viewer-set-placeholder-color
+                          %viewer-get-visible-shape-count
+                          %viewer-set-status-text
+                          %viewer-set-visibility-callback)
                         old-syms))
          (setf (symbol-function '%viewer-post-event) (lambda (vwr) (declare (ignore vwr)))
                (symbol-function '%viewer-put-shape) (lambda (vwr s n) (declare (ignore vwr s n)))
@@ -74,7 +90,17 @@
                (symbol-function '%viewer-append-repl-output) (lambda (vwr text) (declare (ignore vwr text)))
                (symbol-function '%viewer-show-dock) (lambda (vwr dn s) (declare (ignore vwr dn s)))
                (symbol-function '%viewer-is-grid-visible) (lambda (vwr) (declare (ignore vwr)) mock-grid-state)
-               (symbol-function '%viewer-is-axis-visible) (lambda (vwr) (declare (ignore vwr)) mock-axis-state))
+               (symbol-function '%viewer-is-axis-visible) (lambda (vwr) (declare (ignore vwr)) mock-axis-state)
+               (symbol-function '%viewer-set-stylesheet) (lambda (vwr qss) (declare (ignore vwr)) (setf mock-stylesheet qss))
+               (symbol-function '%viewer-get-shape-count) (lambda (vwr) (declare (ignore vwr)) 0)
+               (symbol-function '%viewer-color-scheme) (lambda (vwr) (declare (ignore vwr)) mock-color-scheme)
+               (symbol-function '%viewer-set-color-scheme-callback) (lambda (vwr fn) (declare (ignore vwr fn)))
+               (symbol-function '%viewer-get-view) (lambda (vwr) (declare (ignore vwr)) (cffi:null-pointer))
+               (symbol-function '%viewer-get-trihedron) (lambda (vwr) (declare (ignore vwr)) (cffi:null-pointer))
+               (symbol-function '%viewer-set-placeholder-color) (lambda (vwr r g b) (declare (ignore vwr r g b)))
+               (symbol-function '%viewer-get-visible-shape-count) (lambda (vwr) (declare (ignore vwr)) 0)
+               (symbol-function '%viewer-set-status-text) (lambda (vwr text) (declare (ignore vwr text)))
+               (symbol-function '%viewer-set-visibility-callback) (lambda (vwr fn) (declare (ignore vwr fn))))
          (unwind-protect
              (progn ,@body)
            (setf (symbol-function '%viewer-post-event) ,(nth 0 old-syms)
@@ -90,7 +116,17 @@
                  (symbol-function '%viewer-append-repl-output) ,(nth 10 old-syms)
                  (symbol-function '%viewer-show-dock) ,(nth 11 old-syms)
                  (symbol-function '%viewer-is-grid-visible) ,(nth 12 old-syms)
-                 (symbol-function '%viewer-is-axis-visible) ,(nth 13 old-syms)))))))
+                 (symbol-function '%viewer-is-axis-visible) ,(nth 13 old-syms)
+                 (symbol-function '%viewer-set-stylesheet) ,(nth 14 old-syms)
+                 (symbol-function '%viewer-get-shape-count) ,(nth 15 old-syms)
+                 (symbol-function '%viewer-color-scheme) ,(nth 16 old-syms)
+                 (symbol-function '%viewer-set-color-scheme-callback) ,(nth 17 old-syms)
+                 (symbol-function '%viewer-get-view) ,(nth 18 old-syms)
+                 (symbol-function '%viewer-get-trihedron) ,(nth 19 old-syms)
+                 (symbol-function '%viewer-set-placeholder-color) ,(nth 20 old-syms)
+                 (symbol-function '%viewer-get-visible-shape-count) ,(nth 21 old-syms)
+                 (symbol-function '%viewer-set-status-text) ,(nth 22 old-syms)
+                 (symbol-function '%viewer-set-visibility-callback) ,(nth 23 old-syms)))))))
 
 ;; --- Queue tests ---
 
@@ -218,30 +254,57 @@
   (let ((*viewer* (make-array 1))
         (*grid-visible* t)
         (*axis-visible* t)
+        (*theme-mode* :dark)
+        (*accent-color* "#0078d4")
+        (*color-scheme-callback-registered* nil)
         (show-axis-args nil)
         (show-grid-args nil)
         (set-aa-args nil))
     (let ((old-axis (symbol-function '%viewer-show-axis))
           (old-grid (symbol-function '%viewer-show-grid))
-          (old-aa (symbol-function '%viewer-set-antialiasing)))
+          (old-aa (symbol-function '%viewer-set-antialiasing))
+          (old-ss (symbol-function '%viewer-set-stylesheet))
+          (old-cs (symbol-function '%viewer-color-scheme))
+          (old-csc (symbol-function '%viewer-set-color-scheme-callback))
+          (old-gv (symbol-function '%viewer-get-view))
+          (old-gt (symbol-function '%viewer-get-trihedron))
+          (old-spc (symbol-function '%viewer-set-placeholder-color)))
       (setf (symbol-function '%viewer-show-axis)
             (lambda (vwr show) (declare (ignore vwr)) (push show show-axis-args))
             (symbol-function '%viewer-show-grid)
             (lambda (vwr show) (declare (ignore vwr)) (push show show-grid-args))
             (symbol-function '%viewer-set-antialiasing)
-            (lambda (vwr enable) (declare (ignore vwr)) (push enable set-aa-args)))
+            (lambda (vwr enable) (declare (ignore vwr)) (push enable set-aa-args))
+            (symbol-function '%viewer-set-stylesheet)
+            (lambda (vwr qss) (declare (ignore vwr qss)))
+            (symbol-function '%viewer-color-scheme)
+            (lambda (vwr) (declare (ignore vwr)) 0)
+            (symbol-function '%viewer-set-color-scheme-callback)
+            (lambda (vwr fn) (declare (ignore vwr fn)))
+            (symbol-function '%viewer-get-view)
+            (lambda (vwr) (declare (ignore vwr)) (cffi:null-pointer))
+            (symbol-function '%viewer-get-trihedron)
+            (lambda (vwr) (declare (ignore vwr)) (cffi:null-pointer))
+            (symbol-function '%viewer-set-placeholder-color)
+            (lambda (vwr r g b) (declare (ignore vwr r g b))))
       (unwind-protect
-          (progn
-            (initialize-viewer *viewer*)
-            (assert-equal '(1) (nreverse show-axis-args)
-                          "%viewer-show-axis should be called with show=1")
-            (assert-equal '(1) (nreverse show-grid-args)
-                          "%viewer-show-grid should be called with show=1")
-            (assert-equal '(1) (nreverse set-aa-args)
-                          "%viewer-set-antialiasing should be called with enable=1"))
+           (progn
+             (initialize-viewer *viewer*)
+             (assert-equal '(1) (nreverse show-axis-args)
+                           "%viewer-show-axis should be called with show=1")
+             (assert-equal '(1) (nreverse show-grid-args)
+                           "%viewer-show-grid should be called with show=1")
+             (assert-equal '(1) (nreverse set-aa-args)
+                           "%viewer-set-antialiasing should be called with enable=1"))
         (setf (symbol-function '%viewer-show-axis) old-axis
               (symbol-function '%viewer-show-grid) old-grid
-              (symbol-function '%viewer-set-antialiasing) old-aa)))))
+              (symbol-function '%viewer-set-antialiasing) old-aa
+              (symbol-function '%viewer-set-stylesheet) old-ss
+              (symbol-function '%viewer-color-scheme) old-cs
+              (symbol-function '%viewer-set-color-scheme-callback) old-csc
+              (symbol-function '%viewer-get-view) old-gv
+              (symbol-function '%viewer-get-trihedron) old-gt
+              (symbol-function '%viewer-set-placeholder-color) old-spc)))))
 
 ;; --- set-antialiasing / fit-all tests ---
 
@@ -418,6 +481,191 @@
                 (symbol-function '%viewer-set-file-op-callback) old-file-op
                 (symbol-function '%viewer-set-drain-callback) old-drain))))))
 
+;; --- Theme tests ---
+
+(deftest subst-replaces-single-token
+  (let ((result (cl-occt-viewer::%subst "hello {{name}}" '(("name" . "world")))))
+    (assert-true (search "hello world" result :test 'char=)
+                 "should replace {{name}} with world")))
+
+(deftest subst-replaces-multiple-tokens
+  (let* ((color-alist '(("fg" . "#ffffff") ("bg" . "#000000")))
+         (result (cl-occt-viewer::%subst "color: {{fg}}; background: {{bg}};" color-alist)))
+    (assert-true (search "#ffffff" result :test 'char=) "should contain fg color")
+    (assert-true (search "#000000" result :test 'char=) "should contain bg color")))
+
+(deftest subst-handles-symbol-keys
+  (let ((result (cl-occt-viewer::%subst "color: {{fg}};" '((:fg . "#ff0000")))))
+    (assert-true (search "#ff0000" result :test 'char=))))
+
+(deftest subst-leaves-unknown-tokens
+  (let ((result (cl-occt-viewer::%subst "{{keep}}" nil)))
+    (assert-equal "{{keep}}" result "unmatched token should remain")))
+
+(deftest subst-empty-string
+  (assert-equal "" (cl-occt-viewer::%subst "" nil) "empty input should return empty"))
+
+(deftest generate-qss-returns-string
+  (let* ((*accent-color* "#0078d4")
+         (qss (generate-qss :dark)))
+    (assert-true (stringp qss) "generate-qss should return a string")
+    (assert-true (> (length qss) 100) "QSS should be substantial")
+    (assert-true (search "#1e1e1e" qss :test 'char=) "dark bg should appear")
+    (assert-true (search "#0078d4" qss :test 'char=) "accent should appear")))
+
+(deftest generate-qss-light-theme
+  (let* ((*accent-color* "#0078d4")
+         (qss (generate-qss :light)))
+    (assert-true (stringp qss))
+    (assert-true (search "#f3f3f3" qss :test 'char=) "light bg should appear")))
+
+(deftest generate-qss-custom-accent
+  (let* ((*accent-color* "#FF6600")
+         (qss (generate-qss :dark :accent "#FF6600")))
+    (assert-true (search "#FF6600" qss :test 'char=) "custom accent should appear")))
+
+(deftest apply-theme-sets-state
+  (with-mocked-viewer
+    (apply-theme :dark :accent "#0078d4")
+    (assert-eq :dark *theme-mode*)
+    (assert-equal "#0078d4" *accent-color*)))
+
+(deftest apply-theme-light-sets-state
+  (with-mocked-viewer
+    (apply-theme :light)
+    (assert-eq :light *theme-mode*)))
+
+(deftest apply-theme-calls-c-api
+  (with-mocked-viewer
+    (let ((called-with nil))
+      (let ((old (symbol-function '%viewer-set-stylesheet)))
+        (setf (symbol-function '%viewer-set-stylesheet)
+              (lambda (vwr qss) (declare (ignore vwr)) (setf called-with qss)))
+        (unwind-protect
+             (progn
+               (apply-theme :dark)
+               (assert-true (stringp called-with) "should call %viewer-set-stylesheet with a string")
+               (assert-true (> (length called-with) 100) "QSS should be non-trivial"))
+          (setf (symbol-function '%viewer-set-stylesheet) old))))))
+
+(deftest apply-theme-auto-resolves-to-dark-when-system-dark
+  (with-mocked-viewer
+    (setf mock-color-scheme 2)
+    (multiple-value-bind (mode accent)
+        (apply-theme :auto :accent "#0078d4")
+      (assert-eq :dark mode "auto should resolve to :dark when system is dark")
+      (assert-equal "#0078d4" accent))))
+
+(deftest apply-theme-auto-resolves-to-light-when-system-light
+  (with-mocked-viewer
+    (setf mock-color-scheme 1)
+    (multiple-value-bind (mode accent)
+        (apply-theme :auto :accent "#FF6600")
+      (assert-eq :light mode "auto should resolve to :light when system is light"))))
+
+(deftest apply-theme-auto-resolves-to-light-when-system-unknown
+  (with-mocked-viewer
+    (setf mock-color-scheme 0)
+    (multiple-value-bind (mode accent)
+        (apply-theme :auto)
+      (assert-eq :light mode "auto should default to :light when system is unknown"))))
+
+(deftest set-accent-updates-and-reapplies
+  (with-mocked-viewer
+    (apply-theme :dark :accent "#0078d4")
+    (set-accent "#FF6600")
+    (assert-equal "#FF6600" *accent-color* "accent color should update")
+    (assert-eq :dark *theme-mode* "theme mode should be preserved")))
+
+(deftest theme-dark-works
+  (with-mocked-viewer
+    (theme-light)
+    (theme-dark)
+    (assert-eq :dark *theme-mode*)))
+
+(deftest theme-light-works
+  (with-mocked-viewer
+    (theme-light)
+    (assert-eq :light *theme-mode*)))
+
+(deftest theme-dark-with-custom-accent
+  (with-mocked-viewer
+    (theme-dark "#FF00FF")
+    (assert-equal "#FF00FF" *accent-color*)))
+
+(deftest register-color-scheme-callback-sets-flag
+  (with-mocked-viewer
+    (register-color-scheme-callback)
+    (assert-true *color-scheme-callback-registered*)))
+
+(deftest register-color-scheme-callback-is-idempotent
+  (with-mocked-viewer
+    (register-color-scheme-callback)
+    (let ((call-count 0))
+      (let ((old (symbol-function '%viewer-set-color-scheme-callback)))
+        (setf (symbol-function '%viewer-set-color-scheme-callback)
+              (lambda (vwr fn) (declare (ignore vwr fn)) (incf call-count)))
+        (unwind-protect
+             (progn
+               (register-color-scheme-callback)
+               (assert-equal 0 call-count "second call should not re-register"))
+          (setf (symbol-function '%viewer-set-color-scheme-callback) old))))))
+
+(deftest initialize-viewer-calls-theme
+  (with-mocked-viewer
+    (initialize-viewer *viewer*)
+    (assert-true (stringp mock-stylesheet)
+                 "initialize-viewer should apply a theme")))
+
+(deftest resolve-mode-auto-dark
+  (with-mocked-viewer
+    (setf mock-color-scheme 2)
+    (assert-eq :dark (cl-occt-viewer::%resolve-mode :auto))))
+
+(deftest resolve-mode-auto-light
+  (with-mocked-viewer
+    (setf mock-color-scheme 1)
+    (assert-eq :light (cl-occt-viewer::%resolve-mode :auto))))
+
+(deftest resolve-mode-auto-unknown
+  (with-mocked-viewer
+    (setf mock-color-scheme 0)
+    (assert-eq :light (cl-occt-viewer::%resolve-mode :auto))))
+
+(deftest resolve-mode-explicit-dark
+  (assert-eq :dark (cl-occt-viewer::%resolve-mode :dark)))
+
+(deftest resolve-mode-explicit-light
+  (assert-eq :light (cl-occt-viewer::%resolve-mode :light)))
+
+(deftest palette-has-axis-colors
+  (let ((dark (cl-occt-viewer::%dark-palette "#0078d4"))
+        (light (cl-occt-viewer::%light-palette "#0078d4")))
+    (dolist (p (list dark light))
+      (assert-true (assoc :axis-x-color p) "should have axis-x-color")
+      (assert-true (assoc :axis-y-color p) "should have axis-y-color")
+      (assert-true (assoc :axis-z-color p) "should have axis-z-color"))))
+
+(deftest palette-has-placeholder-color
+  (let ((dark (cl-occt-viewer::%dark-palette "#0078d4"))
+        (light (cl-occt-viewer::%light-palette "#0078d4")))
+    (dolist (p (list dark light))
+      (assert-true (assoc :placeholder-fg p) "should have placeholder-fg"))))
+
+(deftest palette-font-size-uses-variable
+  (let ((cl-occt-viewer::*font-size* "15px"))
+    (let ((dark (cl-occt-viewer::%dark-palette "#0078d4")))
+      (assert-equal "15px" (cdr (assoc :font-size dark)))))
+  (let ((cl-occt-viewer::*font-size* "12px"))
+    (let ((light (cl-occt-viewer::%light-palette "#0078d4")))
+      (assert-equal "12px" (cdr (assoc :font-size light))))))
+
+(deftest set-font-size-updates-and-reapplies
+  (with-mocked-viewer
+    (set-font-size "15px")
+    (assert-equal "15px" *font-size*)
+    (assert-eq :dark *theme-mode* "theme mode should be preserved")))
+
 ;; --- Test runner ---
 
 (defun run-tests ()
@@ -451,7 +699,27 @@
                read-empty-string-returns-eof
                file-op-dispatch-import-step file-op-dispatch-export-step
                file-op-dispatch-export-stl file-op-dispatch-import-stl
-               register-viewer-callbacks-sets-viewer))
+                register-viewer-callbacks-sets-viewer
+                subst-replaces-single-token subst-replaces-multiple-tokens
+                subst-handles-symbol-keys subst-leaves-unknown-tokens
+                subst-empty-string
+                generate-qss-returns-string generate-qss-light-theme
+                generate-qss-custom-accent
+                apply-theme-sets-state apply-theme-light-sets-state
+                apply-theme-calls-c-api
+                apply-theme-auto-resolves-to-dark-when-system-dark
+                apply-theme-auto-resolves-to-light-when-system-light
+                apply-theme-auto-resolves-to-light-when-system-unknown
+                set-accent-updates-and-reapplies
+                theme-dark-works theme-light-works theme-dark-with-custom-accent
+                register-color-scheme-callback-sets-flag
+                register-color-scheme-callback-is-idempotent
+                initialize-viewer-calls-theme
+                resolve-mode-auto-dark resolve-mode-auto-light
+                resolve-mode-auto-unknown resolve-mode-explicit-dark
+                resolve-mode-explicit-light
+                palette-has-axis-colors palette-has-placeholder-color
+                palette-font-size-uses-variable set-font-size-updates-and-reapplies))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"
             (test-result-pass *test-result*)

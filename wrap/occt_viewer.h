@@ -39,10 +39,16 @@ void viewer_append_repl_output(occt_viewer vwr, const char* text);
 
 // --- Scene tree ---
 int  viewer_get_shape_count(occt_viewer vwr);
+int  viewer_get_visible_shape_count(occt_viewer vwr);
 const char* viewer_get_shape_name(occt_viewer vwr, int idx);
 void viewer_set_shape_visible(occt_viewer vwr, const char* name, int visible);
 int  viewer_is_shape_visible(occt_viewer vwr, const char* name);
 void viewer_notify_shape_change(occt_viewer vwr);
+typedef void (*visibility_fn)(const char* name, int visible);
+void viewer_set_visibility_callback(occt_viewer vwr, visibility_fn fn);
+
+// --- Status bar ---
+void viewer_set_status_text(occt_viewer vwr, const char* text);
 
 // --- Grid ---
 void viewer_show_grid(occt_viewer vwr, int show);
@@ -57,6 +63,15 @@ void viewer_show_dock(occt_viewer vwr, const char* dock_name, int show);
 
 // --- Quality ---
 void viewer_set_antialiasing(occt_viewer vwr, int enable);
+
+// --- Theme ---
+void viewer_set_stylesheet(occt_viewer vwr, const char* qss);
+int  viewer_color_scheme(occt_viewer vwr);
+typedef void (*color_scheme_fn)(int scheme);
+void viewer_set_color_scheme_callback(occt_viewer vwr, color_scheme_fn fn);
+void* viewer_get_view(occt_viewer vwr);
+void* viewer_get_trihedron(occt_viewer vwr);
+void viewer_set_placeholder_color(occt_viewer vwr, int r, int g, int b);
 
 #ifdef __cplusplus
 }

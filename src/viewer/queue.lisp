@@ -41,7 +41,8 @@
           (:clear
            (clrhash *displayed-models*)
            (when viewer
-             (%viewer-clear viewer))))))))
+             (%viewer-clear viewer))))))
+    (update-shape-count)))
 
 (defun display (name shape)
   (let ((sname (string name)))

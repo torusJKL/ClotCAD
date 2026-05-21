@@ -40,7 +40,7 @@ signals:
   void windowClosed();
 
 public slots:
-  void updateShapeCount(int count);
+  void setStatusText(const char* text);
   void updateFps(double fps);
 
 protected:

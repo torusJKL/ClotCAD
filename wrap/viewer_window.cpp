@@ -88,9 +88,9 @@ bool ViewerWindow::eventFilter(QObject* obj, QEvent* event)
   return QMainWindow::eventFilter(obj, event);
 }
 
-void ViewerWindow::updateShapeCount(int count)
+void ViewerWindow::setStatusText(const char* text)
 {
-  myShapeCountLabel->setText(tr("Displaying %1 shapes").arg(count));
+  myShapeCountLabel->setText(QString::fromUtf8(text));
 }
 
 void ViewerWindow::updateFps(double fps)

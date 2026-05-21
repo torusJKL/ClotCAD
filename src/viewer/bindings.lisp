@@ -71,6 +71,9 @@
 (defcfun (%viewer-get-shape-count "viewer_get_shape_count") :int
   (vwr :pointer))
 
+(defcfun (%viewer-get-visible-shape-count "viewer_get_visible_shape_count") :int
+  (vwr :pointer))
+
 (defcfun (%viewer-get-shape-name "viewer_get_shape_name") :string
   (vwr :pointer) (idx :int))
 
@@ -108,3 +111,29 @@
 
 (defcfun (%viewer-set-antialiasing "viewer_set_antialiasing") :void
   (vwr :pointer) (enable :int))
+
+;; --- Theme ---
+
+(defcfun (%viewer-set-stylesheet "viewer_set_stylesheet") :void
+  (vwr :pointer) (qss :string))
+
+(defcfun (%viewer-color-scheme "viewer_color_scheme") :int
+  (vwr :pointer))
+
+(defcfun (%viewer-set-color-scheme-callback "viewer_set_color_scheme_callback") :void
+  (vwr :pointer) (fn :pointer))
+
+(defcfun (%viewer-get-view "viewer_get_view") :pointer
+  (vwr :pointer))
+
+(defcfun (%viewer-get-trihedron "viewer_get_trihedron") :pointer
+  (vwr :pointer))
+
+(defcfun (%viewer-set-placeholder-color "viewer_set_placeholder_color") :void
+  (vwr :pointer) (r :int) (g :int) (b :int))
+
+(defcfun (%viewer-set-status-text "viewer_set_status_text") :void
+  (vwr :pointer) (text :string))
+
+(defcfun (%viewer-set-visibility-callback "viewer_set_visibility_callback") :void
+  (vwr :pointer) (fn :pointer))

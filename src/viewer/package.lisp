@@ -23,12 +23,13 @@
    :%viewer-set-drain-callback
    ;; REPL
    :%viewer-append-repl-output
-   ;; Scene tree
-   :%viewer-get-shape-count
-   :%viewer-get-shape-name
-   :%viewer-set-shape-visible
-   :%viewer-is-shape-visible
-   :%viewer-notify-shape-change
+    ;; Scene tree
+    :%viewer-get-shape-count
+    :%viewer-get-visible-shape-count
+    :%viewer-get-shape-name
+    :%viewer-set-shape-visible
+    :%viewer-is-shape-visible
+    :%viewer-notify-shape-change
    ;; Grid
    :%viewer-show-grid
    :%viewer-is-grid-visible
@@ -37,9 +38,18 @@
    :%viewer-is-axis-visible
    ;; Dock panels
    :%viewer-show-dock
-   ;; Quality
-   :%viewer-set-antialiasing
-   ;; Exported Lisp variables and functions
+    ;; Quality
+    :%viewer-set-antialiasing
+    ;; Theme
+    :%viewer-set-stylesheet
+    :%viewer-color-scheme
+    :%viewer-set-color-scheme-callback
+    :%viewer-get-view
+    :%viewer-get-trihedron
+    :%viewer-set-placeholder-color
+    :%viewer-set-status-text
+    :%viewer-set-visibility-callback
+    ;; Exported Lisp variables and functions
    :*viewer*
    :*viewer-queue*
    :*queue-lock*
@@ -80,6 +90,15 @@
    :show-scene-tree
    :toggle-repl
    :toggle-scene-tree
-   :set-antialiasing
-   :fit-all
-   :run-tests))
+    :set-antialiasing
+    :fit-all
+    :run-tests
+    :apply-theme
+    :set-accent
+    :theme-dark
+    :theme-light
+    :theme-auto
+    :set-font-size
+    :*theme-mode*
+    :*accent-color*
+    :*font-size*))

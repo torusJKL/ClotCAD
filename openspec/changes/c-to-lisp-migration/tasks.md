@@ -194,6 +194,29 @@
 - [x] 12.7 Update AGENTS.md Architecture section — mention ui.lisp, render.lisp state management (kept)
 - [x] 12.8 Update AGENTS.md Testing section — document which CFFI functions are mocked (updated)
 
+## 13. Delegate pure OCCT operations to cl-occt
+
+- [x] 13.1 Add viewer_get_view / viewer_get_trihedron getter functions
+        to occt_viewer.h/.cpp (returns V3d_View* and AIS_Trihedron*)
+- [x] 13.2 Remove viewer_set_background_color from C API — Lisp calls
+        cl-occt's %v3d-view-set-bg-color directly via viewer_get_view
+- [x] 13.3 Remove viewer_set_axis_color from C API — Lisp calls cl-occt's
+        %ais-trihedron-set-datum-part-color directly via viewer_get_trihedron
+- [x] 13.4 Remove Quantity_Color.hxx and Prs3d_DatumParts.hxx includes
+        from occt_viewer.cpp (no longer needed)
+- [x] 13.5 Move status bar logic to Lisp — update-shape-count queries
+        %viewer-get-shape-count and %viewer-get-visible-shape-count,
+        formats the string, pushes via %viewer-set-status-text
+- [x] 13.6 Add visibility callback — shape_visibility_callback in
+        ViewerState fires when scene tree toggles shape visibility;
+        Lisp's %on-shape-visibility handler calls update-shape-count
+- [x] 13.7 Wire update-shape-count into drain-queue (after processing
+        each batch) and register-shape-visibility-callback in
+        register-viewer-callbacks
+- [x] 13.8 Update tests — replace mocked %viewer-set-background-color
+        and %viewer-set-axis-color with %viewer-get-view and
+        %viewer-get-trihedron
+
 ## Task dependencies
 
 ```
