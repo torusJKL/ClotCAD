@@ -39,9 +39,9 @@ jobs:
 
       - name: Install SBCL 2.6.0
         run: |
-          wget -q https://github.com/sbcl/sbcl/archive/refs/tags/sbcl-2.6.0.tar.gz
-          tar xzf sbcl-2.6.0.tar.gz
-          echo "$PWD/sbcl-2.6.0/bin" >> $GITHUB_PATH
+          wget -q https://sourceforge.net/projects/sbcl/files/sbcl/2.6.0/sbcl-2.6.0-x86-64-linux-binary.tar.bz2/download -O sbcl.tar.bz2
+          tar xjf sbcl.tar.bz2
+          cd sbcl-2.6.0-x86-64-linux && sudo sh install.sh
 
       - name: Install Quicklisp
         run: |
