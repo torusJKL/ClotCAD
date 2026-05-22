@@ -26,7 +26,22 @@
           (sb-thread:make-thread
            (lambda ()
              (funcall create-server :port 4005 :dont-close t)
-             (loop (sleep 1)))
+             (loop
+               ;; Wrap mrepl-eval-1 once it's loaded (contrib loads on client connect)
+               (let ((sym (when (find-package :slynk-mrepl)
+                            (find-symbol "MREPL-EVAL-1" :slynk-mrepl))))
+                 (when (and sym (fboundp sym) (not (get sym :clotcad-wrapped)))
+                   (setf (get sym :clotcad-wrapped) t)
+                   (let ((orig (fdefinition sym)))
+                     (setf (fdefinition sym)
+                           (lambda (repl string)
+                             (let ((values (funcall orig repl string)))
+                               (let ((output (with-output-to-string (s)
+                                               (dolist (v values)
+                                                 (format s "~S~%" v)))))
+                                 (log-remote-eval string output))
+                               values))))))
+               (sleep 1)))
            :name "slynk")
           (format t ";; Slynk server started on port 4005~%"))))
   (error (e)
@@ -40,7 +55,8 @@
         (when start
           (sb-thread:make-thread
            (lambda ()
-             (funcall start :port 4006 :default-package "CL-OCCT-USER")
+             (funcall start :port 4006 :default-package "CL-OCCT-USER"
+                            :log-fn #'log-remote-eval)
              (loop (sleep 1)))
            :name "alive-lsp")
           (format t ";; Alive LSP server started on port 4006~%"))))
