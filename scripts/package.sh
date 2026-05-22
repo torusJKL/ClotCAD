@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(dirname "$(dirname "$(readlink -f "$0")")")"
 DIST_DIR="$ROOT_DIR/dist"
-VERSION="${VERSION:-$(git -C "$ROOT_DIR" describe --tags --dirty --always 2>/dev/null || echo "dev")}"
+VERSION="${VERSION:-$(git -C "$ROOT_DIR" describe --tags --dirty --always 2>/dev/null | sed 's/^v//' || echo "dev")}"
 
 echo "==> Assembling distribution $VERSION"
 

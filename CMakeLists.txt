@@ -38,7 +38,24 @@ set(SOURCES
     wrap/OcctGlTools.cpp
 )
 
+# Derive ClotCAD version from git tags
+execute_process(COMMAND git describe --tags --dirty --always
+                OUTPUT_VARIABLE CLOTCAD_VERSION_RAW
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+string(REGEX REPLACE "^v" "" CLOTCAD_VERSION "${CLOTCAD_VERSION_RAW}")
+
+# Get SBCL version at configure time
+execute_process(COMMAND sbcl --version
+                OUTPUT_VARIABLE SBCL_VERSION_RAW
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+string(STRIP "${SBCL_VERSION_RAW}" SBCL_VERSION)
+
 add_library(occtviewer SHARED ${SOURCES})
+
+target_compile_definitions(occtviewer PRIVATE
+    CLOTCAD_VERSION="${CLOTCAD_VERSION}"
+    SBCL_VERSION="${SBCL_VERSION}")
 
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/share/icons/ClotCAD-logo.svg PROPERTIES
     QT_RESOURCE_ALIAS "icons/ClotCAD-logo.svg"

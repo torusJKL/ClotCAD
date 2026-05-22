@@ -20,6 +20,7 @@
 #include <gp.hxx>
 #include <TopoDS_Shape.hxx>
 #include <V3d_View.hxx>
+#include <Standard_Version.hxx>
 
 
 #include <Standard_WarningsDisable.hxx>
@@ -201,7 +202,7 @@ static void showAboutDialog(QWidget* parent)
 {
   QDialog dlg(parent);
   dlg.setWindowTitle(QStringLiteral("About ClotCAD"));
-  dlg.setFixedSize(420, 360);
+  dlg.setFixedSize(420, 380);
 
   auto* layout = new QVBoxLayout(&dlg);
   layout->setAlignment(Qt::AlignCenter);
@@ -215,9 +216,20 @@ static void showAboutDialog(QWidget* parent)
   logoLabel->setAlignment(Qt::AlignCenter);
   layout->addWidget(logoLabel);
 
-  auto* nameLabel = new QLabel(QStringLiteral("<h2>ClotCAD</h2>"), &dlg);
+  auto* nameLabel = new QLabel(
+    QStringLiteral("<h2>ClotCAD %1</h2>").arg(CLOTCAD_VERSION), &dlg);
   nameLabel->setAlignment(Qt::AlignCenter);
   layout->addWidget(nameLabel);
+
+  auto* versLabel = new QLabel(
+    QStringLiteral("OCCT %1 | Qt %2 | %3")
+      .arg(OCC_VERSION_COMPLETE)
+      .arg(QT_VERSION_STR)
+      .arg(SBCL_VERSION),
+    &dlg);
+  versLabel->setAlignment(Qt::AlignCenter);
+  versLabel->setStyleSheet("QLabel { color: gray; font-size: 11px; }");
+  layout->addWidget(versLabel);
 
   auto* descLabel = new QLabel(
     QStringLiteral(
