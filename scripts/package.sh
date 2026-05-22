@@ -10,7 +10,7 @@ echo "==> Assembling distribution $VERSION"
 # Clean previous artifacts
 APPDIR="$ROOT_DIR/ClotCAD-$VERSION-x86_64.AppDir"
 rm -rf "$DIST_DIR" "$APPDIR"
-mkdir -p "$DIST_DIR"/{lib/occt,lib/qt6/plugins/platforms,sbcl/bin,share/licenses,share/icons,usr/share/applications,usr/share/icons/hicolor/256x256/apps}
+mkdir -p "$DIST_DIR"/{lib/occt,lib/plugins/platforms,sbcl/bin,share/licenses,share/icons,usr/share/applications,usr/share/icons/hicolor/256x256/apps}
 
 # 1. SBCL core + runtime
 echo "  → Core dump"
@@ -25,6 +25,15 @@ cp -L "$(which sbcl)" "$DIST_DIR/sbcl/bin/sbcl"
 if [ -d "$SBCL_HOME/lib/sbcl" ]; then
   mkdir -p "$DIST_DIR/sbcl/lib"
   cp -r "$SBCL_HOME/lib/sbcl" "$DIST_DIR/sbcl/lib/"
+  # Remove unused contrib modules to save space
+  rm -f "$DIST_DIR/sbcl/lib/sbcl/contrib/sb-simd.fasl" \
+        "$DIST_DIR/sbcl/lib/sbcl/contrib/sb-simd.asd" \
+        "$DIST_DIR/sbcl/lib/sbcl/contrib/sb-mpfr.fasl" \
+        "$DIST_DIR/sbcl/lib/sbcl/contrib/sb-mpfr.asd" \
+        "$DIST_DIR/sbcl/lib/sbcl/contrib/sb-gmp.fasl" \
+        "$DIST_DIR/sbcl/lib/sbcl/contrib/sb-gmp.asd"
+  # Remove sbcl.o object file (not needed at runtime)
+  rm -f "$DIST_DIR/sbcl/lib/sbcl/sbcl.o"
 fi
 
 # 2. C++ libraries
@@ -49,47 +58,111 @@ else
   cp -a "$ROOT_DIR"/.local/lib/libTK*.so* "$DIST_DIR/lib/occt/" 2>/dev/null || true
 fi
 
-# 4. Qt6 shared libraries
+# 4. Qt6 libraries needed by plugins (linuxdeploy handles the rest)
 echo "  → Qt6 libraries"
-QT6_LIBS="libQt6Core.so.6 libQt6Gui.so.6 libQt6Widgets.so.6 libQt6OpenGL.so.6 libQt6OpenGLWidgets.so.6 libQt6DBus.so.6 libQt6XcbQpa.so.6"
+QT6_PLUGIN_LIBS="libQt6Core.so.6 libQt6Gui.so.6 libQt6Widgets.so.6 libQt6OpenGL.so.6 libQt6OpenGLWidgets.so.6 libQt6DBus.so.6 libQt6XcbQpa.so.6 libQt6WaylandClient.so.6"
 QT_LIB_DIR="/usr/lib/x86_64-linux-gnu"
-for lib in $QT6_LIBS; do
+for lib in $QT6_PLUGIN_LIBS; do
   found=$(find "$QT_LIB_DIR" -name "$lib" 2>/dev/null | head -1)
   if [ -z "$found" ]; then
     found=$(ldconfig -p 2>/dev/null | grep "$lib" | head -1 | awk '{print $NF}')
   fi
   if [ -n "$found" ]; then
-    cp -L "$found" "$DIST_DIR/lib/qt6/"
+    cp -L "$found" "$DIST_DIR/lib/"
   else
     echo "  WARNING: $lib not found"
   fi
 done
 
-# ICU libraries (transitive Qt6Core dependencies — version-agnostic)
-ICU_LIBS="libicui18n libicuuc libicudata"
-for lib in $ICU_LIBS; do
-  found=$(find "$QT_LIB_DIR" -name "${lib}.so.*" 2>/dev/null | head -1)
+# ICU libraries — resolve exact SONAMEs from Qt6Core's NEEDED entries
+echo "  → ICU libraries"
+qt6core="$DIST_DIR/lib/libQt6Core.so.6"
+if [ -f "$qt6core" ]; then
+  ICU_LIBS=$(readelf -d "$qt6core" 2>/dev/null | grep -oP 'libicu\w+\.so\.\d+')
+  for lib in $ICU_LIBS; do
+    found=$(find "$QT_LIB_DIR" -name "$lib" 2>/dev/null | head -1)
+    [ -z "$found" ] && found=$(ldconfig -p 2>/dev/null | grep " $lib " | head -1 | awk '{print $NF}')
+    if [ -n "$found" ]; then
+      cp -L "$found" "$DIST_DIR/lib/"
+      # Check for transitive ICU deps
+      trans=$(readelf -d "$found" 2>/dev/null | grep -oP 'libicu\w+\.so\.\d+')
+      for t in $trans; do
+        [ -f "$DIST_DIR/lib/$t" ] && continue
+        tf=$(find "$QT_LIB_DIR" -name "$t" 2>/dev/null | head -1)
+        [ -z "$tf" ] && tf=$(ldconfig -p 2>/dev/null | grep " $t " | head -1 | awk '{print $NF}')
+        [ -n "$tf" ] && cp -L "$tf" "$DIST_DIR/lib/"
+      done
+    else
+      echo "  WARNING: $lib not found"
+    fi
+  done
+fi
+
+# Qt6 platform plugins
+echo "  → Qt6 platform plugins"
+for plugin in libqxcb.so libqwayland.so; do
+  found=$(find "$QT_LIB_DIR/qt6" -name "$plugin" -path "*/plugins/platforms/*" 2>/dev/null | head -1)
   if [ -z "$found" ]; then
-    found=$(ldconfig -p 2>/dev/null | grep -oP "/\S+${lib}\.so\.\d+" | head -1)
+    found=$(find /usr/lib /usr -name "$plugin" -path "*/qt6/*/platforms/*" 2>/dev/null | head -1)
   fi
   if [ -n "$found" ]; then
-    cp -L "$found" "$DIST_DIR/lib/qt6/"
+    cp -L "$found" "$DIST_DIR/lib/plugins/platforms/"
   else
-    echo "  WARNING: $lib not found"
+    echo "  WARNING: $plugin not found"
   fi
 done
 
-# Qt6 platform plugin
-echo "  → Qt6 platform plugin"
-xcb_plugin=$(find "$QT_LIB_DIR" -path "*/plugins/platforms/libqxcb.so" 2>/dev/null | head -1)
-if [ -z "$xcb_plugin" ]; then
-  xcb_plugin=$(find /usr -path "*/plugins/platforms/libqxcb.so" 2>/dev/null | head -1)
-fi
-if [ -n "$xcb_plugin" ]; then
-  cp -L "$xcb_plugin" "$DIST_DIR/lib/qt6/plugins/platforms/"
-else
-  echo "  WARNING: libqxcb.so not found"
-fi
+# xcbglintegrations plugins (required for OpenGL/GLX/EGL contexts)
+echo "  → xcbglintegrations plugins"
+for plugin in libqxcb-glx-integration.so libqxcb-egl-integration.so; do
+  found=$(find "$QT_LIB_DIR/qt6" -name "$plugin" -path "*/xcbglintegrations/*" 2>/dev/null | head -1)
+  if [ -z "$found" ]; then
+    found=$(find /usr/lib /usr -name "$plugin" -path "*/qt6/*/xcbglintegrations/*" 2>/dev/null | head -1)
+  fi
+  if [ -n "$found" ]; then
+    mkdir -p "$DIST_DIR/lib/plugins/xcbglintegrations"
+    cp -L "$found" "$DIST_DIR/lib/plugins/xcbglintegrations/"
+  else
+    echo "  WARNING: $plugin not found"
+  fi
+done
+
+# Wayland shell integration plugins
+echo "  → Wayland shell integration plugins"
+for plugin in libqt-shell.so libivi-shell.so; do
+  found=$(find "$QT_LIB_DIR/qt6" -name "$plugin" -path "*/wayland-shell-integration/*" 2>/dev/null | head -1)
+  if [ -z "$found" ]; then
+    found=$(find /usr/lib /usr -name "$plugin" -path "*/qt6/*/wayland-shell-integration/*" 2>/dev/null | head -1)
+  fi
+  if [ -n "$found" ]; then
+    mkdir -p "$DIST_DIR/lib/plugins/wayland-shell-integration"
+    cp -L "$found" "$DIST_DIR/lib/plugins/wayland-shell-integration/"
+  fi
+done
+
+# Wayland graphics integration client plugins
+echo "  → Wayland graphics integration plugins"
+for dir in wayland-graphics-integration-client; do
+  for f in /usr/lib/x86_64-linux-gnu/qt6/plugins/$dir/*.so; do
+    [ -f "$f" ] && mkdir -p "$DIST_DIR/lib/plugins/$dir" && cp -L "$f" "$DIST_DIR/lib/plugins/$dir/"
+  done 2>/dev/null || true
+done
+
+# ICU libraries will be handled by linuxdeploy when it analyzes Qt6 libraries
+
+# qt.conf — override Qt6's compiled-in plugin path to use our bundled plugins
+echo "  → qt.conf"
+cat > "$DIST_DIR/lib/qt.conf" << 'EOF'
+[Paths]
+Prefix = ..
+Plugins = lib/plugins
+EOF
+# Also place in application directory (Qt6 searches there first)
+cat > "$DIST_DIR/sbcl/bin/qt.conf" << 'EOF'
+[Paths]
+Prefix = ../../..
+Plugins = lib/plugins
+EOF
 
 # 5. Licenses
 echo "  → License files"
@@ -133,9 +206,26 @@ if command -v linuxdeploy &>/dev/null && command -v appimagetool &>/dev/null; th
 
   mv "$DIST_DIR" "$APPDIR"
   # Phase 1: deploy dependencies (creates symlinks)
-  linuxdeploy --appdir "$APPDIR"
+  # Pass --library for key binaries so linuxdeploy resolves their deps (GLX, EGL, etc.)
+  # Set LD_LIBRARY_PATH so linuxdeploy can find OCCT libs in lib/occt/
+  LINUXDEPLOY_LIB_ARGS=()
+  for lib in "$APPDIR/lib/libocctviewer.so" "$APPDIR/lib/libocctwrap.so"; do
+    [ -f "$lib" ] && LINUXDEPLOY_LIB_ARGS+=(--library "$lib")
+  done
+  LD_LIBRARY_PATH="$APPDIR/lib/occt:$APPDIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+    linuxdeploy --appdir "$APPDIR" --desktop-file "$APPDIR/ClotCAD.desktop" \
+    --exclude-library="libxkbcommon" \
+    --exclude-library="libxkbcommon-x11" \
+    --exclude-library="libTK" \
+    "${LINUXDEPLOY_LIB_ARGS[@]}"
+  # Remove bundled libxkbcommon to avoid version conflicts with system libraries
+  rm -f "$APPDIR/usr/lib/libxkbcommon.so.0" "$APPDIR/usr/lib/libxkbcommon-x11.so.0"
+  # Remove duplicate OCCT libraries from usr/lib/ (already in lib/occt/)
+  rm -f "$APPDIR/usr/lib/libTK"*.so*
   # Remove any Qt/ICU libs linuxdeploy placed in usr/lib (we bundle our own)
   rm -f "$APPDIR"/usr/lib/libQt6*.so.* "$APPDIR"/usr/lib/libicu*.so.*
+  # Remove documentation to save space
+  rm -rf "$APPDIR/usr/share/doc"
   # Replace symlinks with real files so appimagetool embeds the data
   rm -f "$APPDIR/ClotCAD.png" "$APPDIR/ClotCAD.desktop"
   cp "$ROOT_DIR/share/icons/ClotCAD-logo.png" "$APPDIR/ClotCAD.png"
