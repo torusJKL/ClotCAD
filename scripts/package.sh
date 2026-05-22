@@ -51,7 +51,7 @@ fi
 
 # 4. Qt6 shared libraries
 echo "  → Qt6 libraries"
-QT6_LIBS="libQt6Core.so.6 libQt6Gui.so.6 libQt6Widgets.so.6 libQt6OpenGL.so.6 libQt6OpenGLWidgets.so.6"
+QT6_LIBS="libQt6Core.so.6 libQt6Gui.so.6 libQt6Widgets.so.6 libQt6OpenGL.so.6 libQt6OpenGLWidgets.so.6 libQt6DBus.so.6 libQt6XcbQpa.so.6"
 QT_LIB_DIR="/usr/lib/x86_64-linux-gnu"
 for lib in $QT6_LIBS; do
   found=$(find "$QT_LIB_DIR" -name "$lib" 2>/dev/null | head -1)
@@ -65,12 +65,12 @@ for lib in $QT6_LIBS; do
   fi
 done
 
-# ICU libraries (transitive Qt6Core dependencies)
-ICU_LIBS="libicui18n.so.74 libicuuc.so.74 libicudata.so.74"
+# ICU libraries (transitive Qt6Core dependencies — version-agnostic)
+ICU_LIBS="libicui18n libicuuc libicudata"
 for lib in $ICU_LIBS; do
-  found=$(find "$QT_LIB_DIR" -name "$lib" 2>/dev/null | head -1)
+  found=$(find "$QT_LIB_DIR" -name "${lib}.so.*" 2>/dev/null | head -1)
   if [ -z "$found" ]; then
-    found=$(ldconfig -p 2>/dev/null | grep "$lib" | head -1 | awk '{print $NF}')
+    found=$(ldconfig -p 2>/dev/null | grep -oP "/\S+${lib}\.so\.\d+" | head -1)
   fi
   if [ -n "$found" ]; then
     cp -L "$found" "$DIST_DIR/lib/qt6/"
@@ -134,6 +134,8 @@ if command -v linuxdeploy &>/dev/null && command -v appimagetool &>/dev/null; th
   mv "$DIST_DIR" "$APPDIR"
   # Phase 1: deploy dependencies (creates symlinks)
   linuxdeploy --appdir "$APPDIR"
+  # Remove any Qt/ICU libs linuxdeploy placed in usr/lib (we bundle our own)
+  rm -f "$APPDIR"/usr/lib/libQt6*.so.* "$APPDIR"/usr/lib/libicu*.so.*
   # Replace symlinks with real files so appimagetool embeds the data
   rm -f "$APPDIR/ClotCAD.png" "$APPDIR/ClotCAD.desktop"
   cp "$ROOT_DIR/share/icons/ClotCAD-logo.png" "$APPDIR/ClotCAD.png"
