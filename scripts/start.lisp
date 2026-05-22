@@ -7,6 +7,8 @@
 
 (push (merge-pathnames #P"lib/cl-occt/" (truename "."))
       asdf:*central-registry*)
+(push (merge-pathnames #P"lib/alive-lsp/" (truename "."))
+      asdf:*central-registry*)
 (push (truename ".") asdf:*central-registry*)
 
 (asdf:load-system :cl-occt-viewer)
@@ -29,6 +31,21 @@
           (format t ";; Slynk server started on port 4005~%"))))
   (error (e)
     (format t ";; Warning: Could not start Slynk: ~A~%" e)))
+
+;; Start Alive LSP in background thread for LSP connectivity
+(handler-case
+    (progn
+      (ql:quickload :alive-lsp :silent t)
+      (let ((start (find-symbol "START" :alive/server)))
+        (when start
+          (sb-thread:make-thread
+           (lambda ()
+             (funcall start :port 4006 :default-package "CL-OCCT-USER")
+             (loop (sleep 1)))
+           :name "alive-lsp")
+          (format t ";; Alive LSP server started on port 4006~%"))))
+  (error (e)
+    (format t ";; Warning: Could not start Alive LSP: ~A~%" e)))
 
 ;; Start viewer (blocks main thread with Qt event loop)
 (format t ";; Starting viewer...~%")

@@ -1,16 +1,17 @@
 # cl-occt-viewer (Qt)
 
-Qt6-based 3D viewer for [cl-occt](https://github.com/torusJKL/cl-occt) using OCCT's Application Interactive Services (AIS/TKV3d). Renders shapes in a QOpenGLWidget with `AIS_ViewController` camera control, native Qt dock widgets, and Slynk/SLY connectivity.
+Qt6-based 3D viewer for [cl-occt](https://github.com/torusJKL/cl-occt) using OCCT's Application Interactive Services (AIS/TKV3d). Renders shapes in a QOpenGLWidget with `AIS_ViewController` camera control, native Qt dock widgets, Slynk/SLY connectivity, and an LSP server for VS Code and other LSP-compatible editors.
 
 ## Quickstart
 
 ```sh
 just setup         # Build OCCT + cl-occt (one-time, ~10 min)
 just viewer        # Build libocctviewer.so
-just start         # Launch viewer + Slynk server on port 4005
+just start         # Launch viewer + Slynk (4005) + Alive LSP (4006)
 ```
 
 From Emacs: `M-x sly-connect` (port 4005).
+From VS Code: connect to `localhost:4006` via the alive-lsp extension.
 
 ## Usage
 
@@ -244,7 +245,7 @@ Pre-built binaries are available for Linux:
 
 **Requirements:** glibc ≥ 2.39 (Ubuntu 24.04+, Fedora 39+, Arch, etc.).
 
-Both bundles include SBCL, OCCT, Qt6, and Slynk — zero installation steps.
+Both bundles include SBCL, OCCT, Qt6, Slynk, and Alive LSP — zero installation steps.
 
 **Source code:** https://github.com/<your-org>/clotcad (GPL-3.0)
 
@@ -302,6 +303,8 @@ Main Thread (Qt)               Worker Thread (Slynk)
 └─────────────────────────┘    └──────────────────────┘
 ```
 
+Alive LSP runs on a third worker thread on port 4006, following the same pattern as Slynk but speaking the LSP protocol instead of the Slynk protocol.
+
 ## Files
 
 ```
@@ -335,6 +338,7 @@ lib/cl-occt/
 - OCCT 8.0.0
 - SBCL + Quicklisp
 - cl-occt (included as git submodule at `lib/cl-occt/`)
+- alive-lsp (auto-cloned to `lib/alive-lsp/` by `just alive-lsp`)
 - CMake ≥ 3.16
 
 ## Build OCCT + cl-occt (one-time)
