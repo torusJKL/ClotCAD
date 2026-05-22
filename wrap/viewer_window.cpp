@@ -48,10 +48,13 @@ void ViewerWindow::setupMenus()
   viewMenu->addSeparator();
   myAxisAction = viewMenu->addAction(tr("&Axis"));
   myAxisAction->setCheckable(true);
-  myAxisAction->setChecked(true);
+  myAxisAction->setChecked(false);
   myGridAction = viewMenu->addAction(tr("&Grid"));
   myGridAction->setCheckable(true);
   myGridAction->setChecked(true);
+  myViewCubeAction = viewMenu->addAction(tr("View&Cube"));
+  myViewCubeAction->setCheckable(true);
+  myViewCubeAction->setChecked(true);
 
   QMenu* helpMenu = mb->addMenu(tr("&Help"));
   myAboutAction = helpMenu->addAction(tr("&About ClotCAD"));

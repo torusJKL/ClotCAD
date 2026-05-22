@@ -38,6 +38,7 @@ public:
   QLabel*  importStatusLabel() const { return myImportStatusLabel; }
   QAction* axisAction() const { return myAxisAction; }
   QAction* gridAction() const { return myGridAction; }
+  QAction* viewCubeAction() const { return myViewCubeAction; }
   QAction* replAction() const { return myReplAction; }
   QAction* sceneTreeAction() const { return mySceneTreeAction; }
   QAction* aboutAction() const { return myAboutAction; }
@@ -73,6 +74,7 @@ private:
   QAction* myExportReplHistoryAction = nullptr;
   QAction* myAxisAction = nullptr;
   QAction* myGridAction = nullptr;
+  QAction* myViewCubeAction = nullptr;
   QAction* myAboutAction = nullptr;
 
   QLabel* myShapeCountLabel = nullptr;

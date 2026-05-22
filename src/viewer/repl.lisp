@@ -222,4 +222,5 @@
   (cl-occt-viewer.impl:%viewer-set-drain-callback vwr (cffi:callback drain-queue-callback))
   (register-shape-visibility-callback)
   (%viewer-set-tree-selection-callback vwr (cffi:callback %on-tree-selection))
-  (register-selection-callback))
+  (register-selection-callback)
+  (register-viewcube-callback))

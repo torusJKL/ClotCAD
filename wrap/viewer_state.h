@@ -4,6 +4,7 @@
 #include <AIS_InteractiveContext.hxx>
 #include <AIS_Shape.hxx>
 #include <AIS_Trihedron.hxx>
+#include <AIS_ViewCube.hxx>
 #include <map>
 #include <set>
 #include <string>
@@ -27,6 +28,8 @@ struct ViewerState {
   std::map<Standard_Transient*, std::string> obj_to_name;
 
   Handle(AIS_Trihedron) axisTrihedron;
+  Handle(AIS_ViewCube) viewCube;
+  int currentOrientation = 0;
 
   // Callbacks
   eval_fn eval_callback = nullptr;
@@ -36,6 +39,7 @@ struct ViewerState {
   visibility_fn visibility_callback = nullptr;
   selection_changed_fn selection_callback = nullptr;
   tree_selection_fn tree_callback = nullptr;
+  viewcube_fn viewcube_callback = nullptr;
 
   // Mouse selection schemes: key = button | (flags << 16), value = AIS_SelectionScheme
   std::map<unsigned int, int> mouse_schemes;

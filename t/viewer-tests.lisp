@@ -46,10 +46,11 @@
 
 (defmacro with-mocked-viewer (&body body)
   (let ((old-syms (mapcar (lambda (s) (gensym))
-                               '(%vp %ss %fa %sg %sa %aa %sec %sfoc %ar %sd %igv %iav
-                                 %ss2 %cs %cscc %gv %gt %spc %sst %svc
-                                 %gc %gao %ssc %stc %smsc %vst %vrh %vrs
-                                  %vpd %sis %sip %sttc))))
+                                '(%vp %ss %fa %sg %sa %aa %sec %sfoc %ar %sd %igv %iav
+                                  %ss2 %cs %cscc %gv %gt %spc %sst %svc
+                                  %gc %gao %ssc %stc %smsc %vst %vrh %vrs
+                                   %vpd %sis %sip %sttc
+                                  %svc2 %ivcv %vsv %gvo %svcc %svc3 %svct %svci %svctr %svcsz %svcac %svcda %gvcda %svchc))))
     `(let ((*viewer* (make-array 1))
            (*viewer-queue* nil)
            (*displayed-models* (make-hash-table :test 'equal))
@@ -62,40 +63,57 @@
            (*color-scheme-callback-registered* nil)
            (mock-grid-state 1)
            (mock-axis-state 1)
+           (mock-viewcube-state 1)
+           (mock-view-orientation 0)
+           (mock-viewcube-callback nil)
            (mock-stylesheet nil)
            (mock-color-scheme 0))
-       (let (,@(mapcar (lambda (s sym)
-                          `(,sym (symbol-function (quote ,s))))
-                        '(%viewer-post-event %viewer-sync-shapes
-                          %viewer-fit-all %viewer-show-grid
-                          %viewer-show-axis %viewer-set-antialiasing
-                          %viewer-set-eval-callback
-                          %viewer-set-file-op-callback
-                          %viewer-append-repl-output
-                          %viewer-show-dock
-                          %viewer-is-grid-visible
-                          %viewer-is-axis-visible
-                          %viewer-set-stylesheet
-                          %viewer-color-scheme
-                          %viewer-set-color-scheme-callback
-                           %viewer-get-view
-                           %viewer-get-trihedron
-                            %viewer-set-placeholder-color
-                            %viewer-set-trihedron-text-color
-                            %viewer-set-status-text
-                           %viewer-set-visibility-callback
-                           %viewer-get-context
-                           %viewer-get-ais-object
-                           %viewer-set-selection-callback
-                           %viewer-set-tree-selection-callback
-                            %viewer-set-mouse-selection-scheme
-                            %viewer-sync-tree-selection
-                            %viewer-set-repl-history-modifier
-                            %viewer-set-repl-submit-modifier
-                            %viewer-post-event-delayed
-                             %viewer-set-import-status
-                             %viewer-set-icon-palette)
-                          old-syms))
+        (let (,@(mapcar (lambda (s sym)
+                           `(,sym (symbol-function (quote ,s))))
+                         '(%viewer-post-event %viewer-sync-shapes
+                           %viewer-fit-all %viewer-show-grid
+                           %viewer-show-axis %viewer-set-antialiasing
+                           %viewer-set-eval-callback
+                           %viewer-set-file-op-callback
+                           %viewer-append-repl-output
+                           %viewer-show-dock
+                           %viewer-is-grid-visible
+                           %viewer-is-axis-visible
+                           %viewer-set-stylesheet
+                           %viewer-color-scheme
+                           %viewer-set-color-scheme-callback
+                            %viewer-get-view
+                            %viewer-get-trihedron
+                             %viewer-set-placeholder-color
+                             %viewer-set-trihedron-text-color
+                             %viewer-set-status-text
+                            %viewer-set-visibility-callback
+                            %viewer-get-context
+                            %viewer-get-ais-object
+                            %viewer-set-selection-callback
+                            %viewer-set-tree-selection-callback
+                             %viewer-set-mouse-selection-scheme
+                             %viewer-sync-tree-selection
+                             %viewer-set-repl-history-modifier
+                             %viewer-set-repl-submit-modifier
+                             %viewer-post-event-delayed
+                              %viewer-set-import-status
+                              %viewer-set-icon-palette
+                              %viewer-show-viewcube
+                              %viewer-is-viewcube-visible
+                              %viewer-set-view
+                              %viewer-get-view-orientation
+                              %viewer-set-viewcube-callback
+                              %viewer-set-viewcube-color
+                              %viewer-set-viewcube-text-color
+                              %viewer-set-viewcube-inner-color
+                              %viewer-set-viewcube-transparency
+                              %viewer-set-viewcube-size
+                              %viewer-set-viewcube-axis-color
+                              %viewer-set-viewcube-draw-axes
+                              %viewer-get-viewcube-draw-axes
+                              %viewer-set-viewcube-hilight-color)
+                           old-syms))
          (setf (symbol-function '%viewer-post-event) (lambda (vwr) (declare (ignore vwr)))
                (symbol-function '%viewer-sync-shapes)
                (lambda (vwr items count) (declare (ignore vwr items count)))
@@ -128,7 +146,21 @@
                  (symbol-function '%viewer-set-repl-submit-modifier) (lambda (vwr mod) (declare (ignore vwr mod)))
                  (symbol-function '%viewer-post-event-delayed) (lambda (vwr ms) (declare (ignore vwr ms)))
                   (symbol-function '%viewer-set-import-status) (lambda (vwr show cur tot) (declare (ignore vwr show cur tot)))
-                  (symbol-function '%viewer-set-icon-palette) (lambda (vwr fg) (declare (ignore vwr fg))))
+                   (symbol-function '%viewer-set-icon-palette) (lambda (vwr fg) (declare (ignore vwr fg)))
+                   (symbol-function '%viewer-show-viewcube) (lambda (vwr s) (declare (ignore vwr)) (setf mock-viewcube-state s))
+                   (symbol-function '%viewer-is-viewcube-visible) (lambda (vwr) (declare (ignore vwr)) mock-viewcube-state)
+                   (symbol-function '%viewer-set-view) (lambda (vwr o) (declare (ignore vwr)) (setf mock-view-orientation o))
+                   (symbol-function '%viewer-get-view-orientation) (lambda (vwr) (declare (ignore vwr)) mock-view-orientation)
+                   (symbol-function '%viewer-set-viewcube-callback) (lambda (vwr fn) (declare (ignore vwr)) (setf mock-viewcube-callback fn))
+                   (symbol-function '%viewer-set-viewcube-color) (lambda (vwr r g b) (declare (ignore vwr r g b)))
+                   (symbol-function '%viewer-set-viewcube-text-color) (lambda (vwr r g b) (declare (ignore vwr r g b)))
+                   (symbol-function '%viewer-set-viewcube-inner-color) (lambda (vwr r g b) (declare (ignore vwr r g b)))
+                   (symbol-function '%viewer-set-viewcube-transparency) (lambda (vwr transparency) (declare (ignore vwr transparency)))
+                   (symbol-function '%viewer-set-viewcube-size) (lambda (vwr sz) (declare (ignore vwr sz)))
+                   (symbol-function '%viewer-set-viewcube-axis-color) (lambda (vwr p r g b) (declare (ignore vwr p r g b)))
+                   (symbol-function '%viewer-set-viewcube-draw-axes) (lambda (vwr s) (declare (ignore vwr s)) (setf mock-viewcube-state s))
+                   (symbol-function '%viewer-get-viewcube-draw-axes) (lambda (vwr) (declare (ignore vwr)) mock-viewcube-state)
+                   (symbol-function '%viewer-set-viewcube-hilight-color) (lambda (vwr r g b) (declare (ignore vwr r g b))))
             (unwind-protect
               (progn ,@body)
             (setf (symbol-function '%viewer-post-event) ,(nth 0 old-syms)
@@ -162,7 +194,21 @@
                       (symbol-function '%viewer-set-repl-submit-modifier) ,(nth 28 old-syms)
                       (symbol-function '%viewer-post-event-delayed) ,(nth 29 old-syms)
                        (symbol-function '%viewer-set-import-status) ,(nth 30 old-syms)
-                       (symbol-function '%viewer-set-icon-palette) ,(nth 31 old-syms)))))))
+                        (symbol-function '%viewer-set-icon-palette) ,(nth 31 old-syms)
+                        (symbol-function '%viewer-show-viewcube) ,(nth 32 old-syms)
+                        (symbol-function '%viewer-is-viewcube-visible) ,(nth 33 old-syms)
+                        (symbol-function '%viewer-set-view) ,(nth 34 old-syms)
+                        (symbol-function '%viewer-get-view-orientation) ,(nth 35 old-syms)
+                        (symbol-function '%viewer-set-viewcube-callback) ,(nth 36 old-syms)
+                        (symbol-function '%viewer-set-viewcube-color) ,(nth 37 old-syms)
+                        (symbol-function '%viewer-set-viewcube-text-color) ,(nth 38 old-syms)
+                        (symbol-function '%viewer-set-viewcube-inner-color) ,(nth 39 old-syms)
+                        (symbol-function '%viewer-set-viewcube-transparency) ,(nth 40 old-syms)
+                        (symbol-function '%viewer-set-viewcube-size) ,(nth 41 old-syms)
+                        (symbol-function '%viewer-set-viewcube-axis-color) ,(nth 42 old-syms)
+                        (symbol-function '%viewer-set-viewcube-draw-axes) ,(nth 43 old-syms)
+                        (symbol-function '%viewer-get-viewcube-draw-axes) ,(nth 44 old-syms)
+                        (symbol-function '%viewer-set-viewcube-hilight-color) ,(nth 45 old-syms)))))))
 
 ;; --- Queue tests ---
 
@@ -556,6 +602,53 @@
       (toggle-axis)
       (assert-equal (not before) *axis-visible*))))
 
+(deftest show-viewcube-sets-visible
+  (with-mocked-viewer
+    (show-viewcube t)
+    (assert-true *viewcube-visible*)
+    (show-viewcube nil)
+    (assert-nil *viewcube-visible*)))
+
+(deftest toggle-viewcube-flips
+  (with-mocked-viewer
+    (let ((before *viewcube-visible*))
+      (toggle-viewcube)
+      (assert-equal (not before) *viewcube-visible*))))
+
+(deftest set-view-top-sets-current-view
+  (with-mocked-viewer
+    (set-view :top)
+    (assert-eq :top *current-view*)))
+
+(deftest set-view-all-directions
+  (with-mocked-viewer
+    (dolist (dir '(:top :bottom :front :back :left :right :iso))
+      (set-view dir)
+      (assert-eq dir *current-view* (format nil "~S should set *current-view*" dir)))))
+
+(deftest current-view-returns-set-orientation
+  (with-mocked-viewer
+    (set-view :front)
+    (assert-eq :front (current-view))))
+
+(deftest viewcube-callback-updates-current-view
+  (with-mocked-viewer
+    ;; Register callback
+    (register-viewcube-callback)
+    (assert-true mock-viewcube-callback "callback should be registered")
+    ;; Simulate ViewCube click by invoking the callback
+    (funcall mock-viewcube-callback 1)
+    (assert-eq :front *current-view* "callback with 1 (V3d_Ypos) should set :front")))
+
+(deftest palette-has-viewcube-colors
+  (let ((dark (cl-occt-viewer::%dark-palette "#0078d4"))
+        (light (cl-occt-viewer::%light-palette "#0078d4")))
+    (dolist (p (list dark light))
+      (assert-true (assoc :viewcube-color p) "should have viewcube-color")
+      (assert-true (assoc :viewcube-text-color p) "should have viewcube-text-color")
+      (assert-true (assoc :viewcube-inner-color p) "should have viewcube-inner-color")
+      (assert-true (assoc :viewcube-transparency p) "should have viewcube-transparency"))))
+
 ;; --- Helper function tests ---
 
 (deftest get-displayed-names-empty
@@ -604,16 +697,18 @@
 
 (deftest cl-occt-user-has-viewer-symbols
     (dolist (sym '("DISPLAY" "UNDISPLAY" "CLEAR-ALL" "SHOW-GRID" "FIT-VIEW"
-                  "SET-VIEW-AA" "SET-REPL-HISTORY-KEY" "SET-REPL-SUBMIT-KEY"
-                  "DEF" "SHOW" "HIDE" "TOGGLE"
-                 "SHOW-DEFS" "TOGGLE-DEFS" "RESOLVE-SHAPE"
-                 "CUT" "FUSE" "COMMON" "SECTION"
-                 "TRANSLATE" "ROTATE"
-                 "MAKE-PRISM" "MAKE-REVOL"
-                 "MAKE-COMPOUND" "MAKE-PART"
-                 "WRITE-STEP" "WRITE-STL"
-                 "SELECT" "DESELECT" "CLEAR-SELECTION" "SELECTED-SHAPES"
-                 "APPLY-SELECTION-SCHEMES"))
+                   "SET-VIEW-AA" "SET-REPL-HISTORY-KEY" "SET-REPL-SUBMIT-KEY"
+                   "DEF" "SHOW" "HIDE" "TOGGLE"
+                  "SHOW-DEFS" "TOGGLE-DEFS" "RESOLVE-SHAPE"
+                  "CUT" "FUSE" "COMMON" "SECTION"
+                  "TRANSLATE" "ROTATE"
+                  "MAKE-PRISM" "MAKE-REVOL"
+                  "MAKE-COMPOUND" "MAKE-PART"
+                  "WRITE-STEP" "WRITE-STL"
+                  "SELECT" "DESELECT" "CLEAR-SELECTION" "SELECTED-SHAPES"
+                  "APPLY-SELECTION-SCHEMES"
+                  "SHOW-VIEWCUBE" "TOGGLE-VIEWCUBE" "SHOW-VIEWCUBE-AXES"
+                  "TOGGLE-VIEWCUBE-AXES" "SET-VIEW" "CURRENT-VIEW"))
     (let ((found (find-symbol sym :cl-occt-user)))
       (assert-true found (format nil "~A should be accessible in cl-occt-user" sym))
       (assert-true (fboundp found)
@@ -1105,6 +1200,8 @@
   (let ((*viewer* (make-array 1))
         (*grid-visible* t)
         (*axis-visible* t)
+        (*viewcube-visible* t)
+        (*current-view* nil)
         (*theme-mode* :dark)
         (*accent-color* "#0078d4")
         (*show-defs-in-tree* t)
@@ -1124,7 +1221,15 @@
           (old-sttc (symbol-function '%viewer-set-trihedron-text-color))
           (old-msms (symbol-function '%viewer-set-mouse-selection-scheme))
           (old-vst (symbol-function '%viewer-sync-tree-selection))
-           (old-sip (symbol-function '%viewer-set-icon-palette)))
+           (old-sip (symbol-function '%viewer-set-icon-palette))
+           (old-svc (symbol-function '%viewer-set-viewcube-color))
+           (old-svct (symbol-function '%viewer-set-viewcube-text-color))
+           (old-svci (symbol-function '%viewer-set-viewcube-inner-color))
+           (old-svctr (symbol-function '%viewer-set-viewcube-transparency))
+           (old-svcac (symbol-function '%viewer-set-viewcube-axis-color))
+           (old-svcda (symbol-function '%viewer-set-viewcube-draw-axes))
+           (old-gvcda (symbol-function '%viewer-get-viewcube-draw-axes))
+           (old-svchc (symbol-function '%viewer-set-viewcube-hilight-color)))
       (setf (symbol-function '%viewer-show-axis)
             (lambda (vwr show) (declare (ignore vwr)) (push show show-axis-args))
             (symbol-function '%viewer-show-grid)
@@ -1150,12 +1255,28 @@
             (symbol-function '%viewer-set-mouse-selection-scheme)
             (lambda (vwr key scheme) (declare (ignore vwr key scheme)))
             (symbol-function '%viewer-sync-tree-selection)
-            (lambda (vwr) (declare (ignore vwr))))
+            (lambda (vwr) (declare (ignore vwr)))
+            (symbol-function '%viewer-set-viewcube-color)
+            (lambda (vwr r g b) (declare (ignore vwr r g b)))
+            (symbol-function '%viewer-set-viewcube-text-color)
+            (lambda (vwr r g b) (declare (ignore vwr r g b)))
+            (symbol-function '%viewer-set-viewcube-inner-color)
+            (lambda (vwr r g b) (declare (ignore vwr r g b)))
+            (symbol-function '%viewer-set-viewcube-transparency)
+            (lambda (vwr transparency) (declare (ignore vwr transparency)))
+            (symbol-function '%viewer-set-viewcube-axis-color)
+            (lambda (vwr p r g b) (declare (ignore vwr p r g b)))
+            (symbol-function '%viewer-set-viewcube-draw-axes)
+            (lambda (vwr s) (declare (ignore vwr s)))
+            (symbol-function '%viewer-get-viewcube-draw-axes)
+            (lambda (vwr) (declare (ignore vwr)) 1)
+            (symbol-function '%viewer-set-viewcube-hilight-color)
+            (lambda (vwr r g b) (declare (ignore vwr r g b))))
       (unwind-protect
            (progn
              (initialize-viewer *viewer*)
-             (assert-equal '(1) (nreverse show-axis-args)
-                           "%viewer-show-axis should be called with show=1")
+              (assert-equal '(0) (nreverse show-axis-args)
+                            "%viewer-show-axis should be called with show=0")
              (assert-equal '(1) (nreverse show-grid-args)
                            "%viewer-show-grid should be called with show=1")
              (assert-equal '(1) (nreverse set-aa-args)
@@ -1172,7 +1293,15 @@
                (symbol-function '%viewer-set-placeholder-color) old-spc
                (symbol-function '%viewer-set-trihedron-text-color) old-sttc
                (symbol-function '%viewer-set-mouse-selection-scheme) old-msms
-              (symbol-function '%viewer-sync-tree-selection) old-vst)))))
+              (symbol-function '%viewer-sync-tree-selection) old-vst
+              (symbol-function '%viewer-set-viewcube-color) old-svc
+              (symbol-function '%viewer-set-viewcube-text-color) old-svct
+              (symbol-function '%viewer-set-viewcube-inner-color) old-svci
+              (symbol-function '%viewer-set-viewcube-transparency) old-svctr
+              (symbol-function '%viewer-set-viewcube-axis-color) old-svcac
+              (symbol-function '%viewer-set-viewcube-draw-axes) old-svcda
+              (symbol-function '%viewer-get-viewcube-draw-axes) old-gvcda
+              (symbol-function '%viewer-set-viewcube-hilight-color) old-svchc)))))
 
 ;; --- Selection tests ---
 

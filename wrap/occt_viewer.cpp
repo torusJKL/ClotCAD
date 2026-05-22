@@ -7,11 +7,14 @@
 #include "OcctQtTools.h"
 
 #include <AIS_Trihedron.hxx>
+#include <AIS_ViewCube.hxx>
+#include <V3d_TypeOfOrientation.hxx>
 #include <Geom_Axis2Placement.hxx>
 #include <Graphic3d_TransformPers.hxx>
 #include <Graphic3d_TransModeFlags.hxx>
 #include <Aspect_TypeOfTriedronPosition.hxx>
 #include <Prs3d_DatumMode.hxx>
+#include <Prs3d_DatumAspect.hxx>
 #include <Prs3d_DatumParts.hxx>
 #include <gp.hxx>
 #include <TopoDS_Shape.hxx>
@@ -95,6 +98,58 @@ public:
     }
     return QProxyStyle::standardIcon(pixmap, option, widget);
   }
+};
+
+// Map a direction vector (Vx, Vy, Vz) to the closest V3d_TypeOfOrientation.
+// Uses the Y-up convention matching our application (V3d_TypeOfOrientation_Yup_* aliases).
+static V3d_TypeOfOrientation directionToOrientation(double Vx, double Vy, double Vz)
+{
+  // Normalize
+  double len = sqrt(Vx * Vx + Vy * Vy + Vz * Vz);
+  if (len < 1e-10) return V3d_XposYposZpos;
+  Vx /= len; Vy /= len; Vz /= len;
+
+  // Find closest standard direction
+  struct Dir { double x, y, z; V3d_TypeOfOrientation orient; };
+  static const Dir dirs[] = {
+    { 1, 0, 0, V3d_Xpos }, { -1, 0, 0, V3d_Xneg },
+    { 0, 1, 0, V3d_Ypos }, { 0, -1, 0, V3d_Yneg },
+    { 0, 0, 1, V3d_Zpos }, { 0, 0, -1, V3d_Zneg },
+    { 1, 1, 1, V3d_XposYposZpos }, { 1, 1, -1, V3d_XposYposZneg },
+    { 1, -1, 1, V3d_XposYnegZpos }, { 1, -1, -1, V3d_XposYnegZneg },
+    { -1, 1, 1, V3d_XnegYposZpos }, { -1, 1, -1, V3d_XnegYposZneg },
+    { -1, -1, 1, V3d_XnegYnegZpos }, { -1, -1, -1, V3d_XnegYnegZneg },
+  };
+  int best = 0;
+  double bestDot = -2.0;
+  for (int i = 0; i < 14; i++)
+  {
+    double d = dirs[i].x * Vx + dirs[i].y * Vy + dirs[i].z * Vz;
+    double n = sqrt(dirs[i].x * dirs[i].x + dirs[i].y * dirs[i].y + dirs[i].z * dirs[i].z);
+    double dot = d / n;
+    if (dot > bestDot) { bestDot = dot; best = i; }
+  }
+  return dirs[best].orient;
+}
+
+class ViewCubeWithCallback : public AIS_ViewCube
+{
+public:
+  ViewCubeWithCallback(ViewerState* s) : AIS_ViewCube(), myState(s) {}
+protected:
+  void onAnimationFinished() override
+  {
+    if (myState && myState->viewcube_callback && myState->widget && !myState->widget->View().IsNull())
+    {
+      double Vx, Vy, Vz;
+      myState->widget->View()->Proj(Vx, Vy, Vz);
+      V3d_TypeOfOrientation orient = directionToOrientation(Vx, Vy, Vz);
+      myState->currentOrientation = static_cast<int>(orient);
+      myState->viewcube_callback(myState->currentOrientation);
+    }
+  }
+private:
+  ViewerState* myState = nullptr;
 };
 
 class WakeEvent : public QEvent
@@ -324,6 +379,21 @@ occt_viewer viewer_create(const char* title, int width, int height)
   QObject::connect(win->gridAction(), &QAction::toggled, [s](bool checked) {
     viewer_show_grid(s, checked ? 1 : 0);
   });
+  QObject::connect(win->viewCubeAction(), &QAction::toggled, [s](bool checked) {
+    viewer_show_viewcube(s, checked ? 1 : 0);
+  });
+
+  // Create and display ViewCube
+  {
+    Handle(AIS_ViewCube) viewCube = new ViewCubeWithCallback(s);
+    Handle(Graphic3d_TransformPers) tpers =
+      new Graphic3d_TransformPers(Graphic3d_TMF_TriedronPers, Aspect_TOTP_RIGHT_UPPER, NCollection_Vec2<int>(100, 100));
+    viewCube->SetTransformPersistence(tpers);
+    viewCube->SetDrawAxes(true);
+    viewCube->SetResetCamera(true);
+    s->viewCube = viewCube;
+    s->context->Display(viewCube, false);
+  }
 
   // Wire Help menu action
   QObject::connect(win->aboutAction(), &QAction::triggered, [win]() {
@@ -610,7 +680,7 @@ void viewer_show_axis(occt_viewer vwr, int show)
 
   if (s->axisTrihedron.IsNull())
   {
-    Handle(Geom_Axis2Placement) axes = new Geom_Axis2Placement(gp::Origin(), gp::DX(), gp::DY());
+    Handle(Geom_Axis2Placement) axes = new Geom_Axis2Placement(gp::Origin(), gp::DZ(), gp::DX());
     s->axisTrihedron = new AIS_Trihedron(axes);
     s->axisTrihedron->SetDatumDisplayMode(Prs3d_DM_WireFrame);
     s->axisTrihedron->SetDrawArrows(true);
@@ -618,7 +688,8 @@ void viewer_show_axis(occt_viewer vwr, int show)
     Handle(Graphic3d_TransformPers) tpers =
       new Graphic3d_TransformPers(Graphic3d_TMF_TriedronPers, Aspect_TOTP_LEFT_LOWER, NCollection_Vec2<int>(60, 60));
     s->axisTrihedron->SetTransformPersistence(tpers);
-    s->context->Display(s->axisTrihedron, false);
+    if (show)
+      s->context->Display(s->axisTrihedron, false);
     s->context->Deactivate(s->axisTrihedron);
   }
   else
@@ -639,6 +710,149 @@ int viewer_is_axis_visible(occt_viewer vwr)
   if (s->window && s->window->axisAction())
     return s->window->axisAction()->isChecked() ? 1 : 0;
   return 0;
+}
+
+// --- ViewCube ---
+
+void viewer_show_viewcube(occt_viewer vwr, int show)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s->widget || s->viewCube.IsNull()) return;
+
+  if (show)
+    s->context->Display(s->viewCube, false);
+  else
+    s->context->Erase(s->viewCube, false);
+
+  if (s->window && s->window->viewCubeAction())
+    s->window->viewCubeAction()->setChecked(show ? true : false);
+  viewer_redraw(vwr);
+}
+
+int viewer_is_viewcube_visible(occt_viewer vwr)
+{
+  auto* s = (ViewerState*)vwr;
+  if (s->window && s->window->viewCubeAction())
+    return s->window->viewCubeAction()->isChecked() ? 1 : 0;
+  return 1;
+}
+
+void viewer_set_view(occt_viewer vwr, int orientation)
+{
+  auto* s = (ViewerState*)vwr;
+  if (s->widget && !s->widget->View().IsNull())
+  {
+    s->widget->View()->SetProj(static_cast<V3d_TypeOfOrientation>(orientation));
+    // In Z-up convention, choose Up axis orthogonal to view direction:
+    //   Top/Bottom (looking along Z): Up = Y
+    //   Front/Back (looking along Y): Up = Z
+    //   Left/Right (looking along X): Up = Z
+    if (orientation == V3d_Zpos || orientation == V3d_Zneg)
+      s->widget->View()->SetUp(V3d_Ypos);
+    else
+      s->widget->View()->SetUp(V3d_Zpos);
+    s->currentOrientation = orientation;
+    if (!s->viewCube.IsNull())
+      s->viewCube->SetToUpdate();
+    viewer_redraw(vwr);
+  }
+}
+
+int viewer_get_view_orientation(occt_viewer vwr)
+{
+  auto* s = (ViewerState*)vwr;
+  return s->currentOrientation;
+}
+
+void viewer_set_viewcube_callback(occt_viewer vwr, viewcube_fn fn)
+{
+  auto* s = (ViewerState*)vwr;
+  s->viewcube_callback = fn;
+}
+
+void viewer_set_viewcube_color(occt_viewer vwr, double r, double g, double b)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s || s->viewCube.IsNull()) return;
+  s->viewCube->SetBoxColor(Quantity_Color(r, g, b, Quantity_TOC_RGB));
+}
+
+void viewer_set_viewcube_text_color(occt_viewer vwr, double r, double g, double b)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s || s->viewCube.IsNull()) return;
+  s->viewCube->SetTextColor(Quantity_Color(r, g, b, Quantity_TOC_RGB));
+}
+
+void viewer_set_viewcube_inner_color(occt_viewer vwr, double r, double g, double b)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s || s->viewCube.IsNull()) return;
+  s->viewCube->SetInnerColor(Quantity_Color(r, g, b, Quantity_TOC_RGB));
+}
+
+void viewer_set_viewcube_transparency(occt_viewer vwr, double t)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s || s->viewCube.IsNull()) return;
+  s->viewCube->SetTransparency(t);
+}
+
+void viewer_set_viewcube_size(occt_viewer vwr, double size)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s || s->viewCube.IsNull()) return;
+  s->viewCube->SetSize(size);
+}
+
+void viewer_set_viewcube_axis_color(occt_viewer vwr, int part, double r, double g, double b)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s || s->viewCube.IsNull()) return;
+  if (part < 0 || part > 2) return;
+  static const Prs3d_DatumParts parts[] = {
+    Prs3d_DatumParts_XAxis,
+    Prs3d_DatumParts_YAxis,
+    Prs3d_DatumParts_ZAxis
+  };
+  Quantity_Color col(r, g, b, Quantity_TOC_RGB);
+  s->viewCube->Attributes()->DatumAspect()
+    ->ShadingAspect(parts[part])->SetColor(col);
+  s->viewCube->Attributes()->DatumAspect()
+    ->TextAspect(parts[part])->SetColor(col);
+}
+
+void viewer_set_viewcube_draw_axes(occt_viewer vwr, int show)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s || s->viewCube.IsNull()) return;
+  if (show < 0)
+    s->viewCube->SetDrawAxes(!s->viewCube->ToDrawAxes());
+  else
+    s->viewCube->SetDrawAxes(show ? true : false);
+  s->context->Update(s->viewCube, true);
+}
+
+int viewer_get_viewcube_draw_axes(occt_viewer vwr)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s || s->viewCube.IsNull()) return 1;
+  return s->viewCube->ToDrawAxes() ? 1 : 0;
+}
+
+void viewer_set_viewcube_hilight_color(occt_viewer vwr, double r, double g, double b)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s || s->viewCube.IsNull()) return;
+  auto dynDrawer = s->viewCube->DynamicHilightAttributes();
+  if (!dynDrawer.IsNull())
+  {
+    Quantity_Color col(r, g, b, Quantity_TOC_RGB);
+    if (!dynDrawer->HasOwnShadingAspect())
+      dynDrawer->SetupOwnShadingAspect();
+    dynDrawer->ShadingAspect()->SetColor(col);
+    dynDrawer->SetColor(col);
+  }
 }
 
 void viewer_show_dock(occt_viewer vwr, const char* dock_name, int show)

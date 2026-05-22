@@ -74,6 +74,18 @@ All viewer settings are changeable at runtime from either REPL:
 (toggle-repl)            ; toggle REPL dock
 (toggle-scene-tree)      ; toggle Scene Manager
 (set-view-aa nil)        ; disable antialiasing
+(show-viewcube nil)      ; hide ViewCube
+(toggle-viewcube)        ; toggle ViewCube visibility
+(show-viewcube-axes nil) ; hide ViewCube's embedded trihedron
+(toggle-viewcube-axes)   ; toggle ViewCube's embedded trihedron
+(set-view :top)          ; look at top (+Z) face — shows X-Y plane
+(set-view :bottom)       ; look at bottom (-Z) face
+(set-view :front)        ; look in -Y direction — shows X-Z plane
+(set-view :back)         ; look in +Y direction
+(set-view :left)         ; look in -X direction — shows Y-Z plane
+(set-view :right)        ; look in +X direction
+(set-view :iso)          ; isometric view
+(current-view)           ; → :TOP (or nil if non-standard orientation)
 ```
 
 You can switch to the `cl-occt` or `cl-occt-viewer` packages directly
@@ -137,11 +149,11 @@ From a SLIME REPL, type `(in-package :cad-user)` to switch.
 │ ┌──────────┬──────────────────────┬────────────┐ │
 │ │ Scene    │     3D Viewport     │   REPL     │ │
 │ │ Tree     │     (OCCT AIS)      │   ──────── │ │
-│ │          │                     │ > (display │ │
-│ │ ☑ :box   │       ┌──┐ axis     │ > :box ... │ │
-│ │ ☑ :sphere│       │╳ │          │ > (+ 1 2)  │ │
-│ │          │       └──┘          │ 3          │ │
-│ │          │       Grid          │ > (def :b  │ │
+│ │          │           ┌──┐      │ > (display │ │
+│ │ ☑ :box   │     cube  │╳ │ axis │ > :box ... │ │
+│ │ ☑ :sphere│           └──┘      │ > (+ 1 2)  │ │
+│ │          │          Grid       │ 3          │ │
+│ │          │                     │ > (def :b  │ │
 │ │          │                     │     (make  │ │
 │ │          │                     │      :box)) │ │
 │ └──────────┴──────────────────────┴────────────┘ │
@@ -215,8 +227,8 @@ symbol-based export:
 
 | Component | Description |
 |-----------|-------------|
-| **Menu Bar** (top) | File (Import/Export STEP/STL, Import Lisp, Export REPL History) and View (REPL, Scene Tree, Axis, Grid toggles) |
-| **3D Viewport** (center) | QOpenGLWidget with OCCT AIS rendering. Orbit (LMB), pan (MMB), zoom (RMB/scroll) |
+| **Menu Bar** (top) | File (Import/Export STEP/STL, Import Lisp, Export REPL History) and View (REPL, Scene Tree, Axis, Grid, ViewCube toggles) |
+| **3D Viewport** (center) | QOpenGLWidget with OCCT AIS rendering. Orbit (LMB), pan (MMB), zoom (RMB/scroll). ViewCube in top-right corner for one-click view orientation |
 | **Scene Tree** (left) | Shape list with visibility checkboxes. Click to select, Ctrl+click to toggle, Shift+click for range |
 | **REPL** (right) | In-window Lisp REPL with multi-line input, multi-form evaluation, input/output history, and configurable key bindings |
 | **Status Bar** (bottom) | Shape count, import progress/cancel label, and FPS |
@@ -250,6 +262,10 @@ Main Thread (Qt)               Worker Thread (Swank)
 │  Menu actions wire:     │    │  Menu actions wire:  │
 │                         │    │  File→file_op_cb     │
 │                         │    │  View→show_axis/grid │
+│                         │    │       /viewcube      │
+│  ViewCube:              │    │  set-view / current  │
+│  onAnimationFinished    │    │  → %viewer-set-view  │
+│  → viewcube_cb          │    │                      │
 └─────────────────────────┘    └──────────────────────┘
 ```
 

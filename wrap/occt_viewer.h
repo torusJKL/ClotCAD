@@ -63,6 +63,23 @@ int  viewer_is_grid_visible(occt_viewer vwr);
 void viewer_show_axis(occt_viewer vwr, int show);
 int  viewer_is_axis_visible(occt_viewer vwr);
 
+// --- ViewCube ---
+void viewer_show_viewcube(occt_viewer vwr, int show);
+int  viewer_is_viewcube_visible(occt_viewer vwr);
+void viewer_set_view(occt_viewer vwr, int orientation);
+int  viewer_get_view_orientation(occt_viewer vwr);
+typedef void (*viewcube_fn)(int orientation);
+void viewer_set_viewcube_callback(occt_viewer vwr, viewcube_fn fn);
+void viewer_set_viewcube_color(occt_viewer vwr, double r, double g, double b);
+void viewer_set_viewcube_text_color(occt_viewer vwr, double r, double g, double b);
+void viewer_set_viewcube_inner_color(occt_viewer vwr, double r, double g, double b);
+void viewer_set_viewcube_transparency(occt_viewer vwr, double t);
+void viewer_set_viewcube_size(occt_viewer vwr, double size);
+void viewer_set_viewcube_axis_color(occt_viewer vwr, int part, double r, double g, double b);
+void viewer_set_viewcube_draw_axes(occt_viewer vwr, int show);
+int  viewer_get_viewcube_draw_axes(occt_viewer vwr);
+void viewer_set_viewcube_hilight_color(occt_viewer vwr, double r, double g, double b);
+
 // --- Dock panels ---
 void viewer_show_dock(occt_viewer vwr, const char* dock_name, int show);
 

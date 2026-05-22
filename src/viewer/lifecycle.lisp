@@ -1,7 +1,7 @@
 (in-package :cl-occt-viewer)
 
 (defun initialize-viewer (vwr)
-  (%viewer-show-axis vwr 1)
+  (%viewer-show-axis vwr 0)
   (%viewer-show-grid vwr 1)
   (%viewer-set-antialiasing vwr 1)
   (apply-theme *theme-mode*)

@@ -1,7 +1,9 @@
 (in-package :cl-occt-viewer)
 
 (defvar *grid-visible* t)
-(defvar *axis-visible* t)
+(defvar *axis-visible* nil)
+(defvar *viewcube-visible* t)
+(defvar *current-view* nil)
 
 (defun show-grid (&optional (show t))
   (%viewer-show-grid *viewer* (if show 1 0))
@@ -16,6 +18,62 @@
 
 (defun toggle-axis ()
   (show-axis (zerop (%viewer-is-axis-visible *viewer*))))
+
+;; --- ViewCube ---
+
+(defparameter *view-keyword-map*
+  ;; OCCT Z-up convention (ViewCube default, no SetYup):
+  ;;   Zup_Top    = V3d_Zpos  = 2  — looks at +Z face → shows X-Y plane
+  ;;   Zup_Bottom = V3d_Zneg  = 5  — looks at -Z face → shows X-Y plane
+  ;;   Zup_Front  = V3d_Yneg  = 4  — looks in -Y      → shows X-Z plane
+  ;;   Zup_Back   = V3d_Ypos  = 1  — looks in +Y      → shows X-Z plane
+  ;;   Zup_Left   = V3d_Xneg  = 3  — looks in -X      → shows Y-Z plane
+  ;;   Zup_Right  = V3d_Xpos  = 0  — looks in +X      → shows Y-Z plane
+  ;;   Zup_AxoRight = V3d_XposYnegZpos = 20
+  '((:top    . 2)   ; Zup_Top    — looking at +Z face, X-Y plane
+    (:bottom . 5)   ; Zup_Bottom — looking at -Z face
+    (:front  . 4)   ; Zup_Front  — looking in -Y, X-Z plane
+    (:back   . 1)   ; Zup_Back   — looking in +Y, X-Z plane
+    (:left   . 3)   ; Zup_Left   — looking in -X, Y-Z plane
+    (:right  . 0)   ; Zup_Right  — looking in +X, Y-Z plane
+    (:iso    . 20))) ; Zup_AxoRight
+
+(defun view-keyword->int (keyword)
+  (let ((pair (assoc keyword *view-keyword-map*)))
+    (if pair
+        (cdr pair)
+        (error "Unknown view orientation: ~S" keyword))))
+
+(defun view-int->keyword (int)
+  (let ((pair (rassoc int *view-keyword-map* :test #'=)))
+    (if pair
+        (car pair)
+        nil)))
+
+(defun show-viewcube (&optional (show t))
+  (%viewer-show-viewcube *viewer* (if show 1 0))
+  (setf *viewcube-visible* (not (zerop (%viewer-is-viewcube-visible *viewer*)))))
+
+(defun toggle-viewcube ()
+  (show-viewcube (zerop (%viewer-is-viewcube-visible *viewer*))))
+
+(defun show-viewcube-axes (&optional (show t))
+  (%viewer-set-viewcube-draw-axes *viewer* (if show 1 0)))
+
+(defun toggle-viewcube-axes ()
+  (show-viewcube-axes (zerop (%viewer-get-viewcube-draw-axes *viewer*))))
+
+(defun set-view (orientation)
+  (let ((int-val (view-keyword->int orientation)))
+    (%viewer-set-view *viewer* int-val)
+    (setf *current-view* orientation)))
+
+(defun current-view ()
+  (let ((int-val (%viewer-get-view-orientation *viewer*)))
+    (or (view-int->keyword int-val)
+        (progn
+          (setf *current-view* nil)
+          nil))))
 
 (defun show-repl (&optional (show t))
   (%viewer-show-dock *viewer* "REPLPanel" (if show 1 0)))
@@ -74,3 +132,11 @@ Reads OCCT context and updates *selected* to match."
 (defun register-selection-callback ()
   (when *viewer*
     (%viewer-set-selection-callback *viewer* (cffi:callback %on-selection-changed))))
+
+(cffi:defcallback %on-viewcube-orientation :void ((orientation :int))
+  (let ((keyword (view-int->keyword orientation)))
+    (setf *current-view* keyword)))
+
+(defun register-viewcube-callback ()
+  (when *viewer*
+    (%viewer-set-viewcube-callback *viewer* (cffi:callback %on-viewcube-orientation))))

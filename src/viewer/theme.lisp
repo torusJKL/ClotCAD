@@ -393,6 +393,11 @@ QFileDialog QToolButton:pressed {
     (:axis-x-color . "#E53935")
     (:axis-y-color . "#43A047")
     (:axis-z-color . "#1E88E5")
+    (:viewcube-color . "#5a5a5a")
+    (:viewcube-text-color . "#ffffff")
+    (:viewcube-inner-color . "#3a3a3a")
+    (:viewcube-transparency . "0.0")
+    (:viewcube-hilight-color . "#4488ff")
     (:highlight . ,accent)
     (:highlight-text . "#ffffff")
     (:button-bg . "#383838")
@@ -440,6 +445,11 @@ QFileDialog QToolButton:pressed {
     (:axis-x-color . "#E53935")
     (:axis-y-color . "#43A047")
     (:axis-z-color . "#1E88E5")
+    (:viewcube-color . "#b0b0b0")
+    (:viewcube-text-color . "#1a1a1a")
+    (:viewcube-inner-color . "#d0d0d0")
+    (:viewcube-transparency . "0.0")
+    (:viewcube-hilight-color . "#88bbff")
     (:highlight . ,accent)
     (:highlight-text . "#ffffff")
     (:button-bg . "#e0e0e0")
@@ -513,6 +523,52 @@ Falls back to :light if system scheme is unknown or unavailable."
       (multiple-value-bind (r g b) (%hex-to-rgb hex)
         (%viewer-set-placeholder-color *viewer* r g b)))))
 
+(defun %apply-viewcube-colors (palette-alist)
+  "Set the ViewCube appearance from the palette."
+  (let ((color-hex (cdr (assoc :viewcube-color palette-alist)))
+        (text-hex (cdr (assoc :viewcube-text-color palette-alist)))
+        (inner-hex (cdr (assoc :viewcube-inner-color palette-alist)))
+        (transparency-str (cdr (assoc :viewcube-transparency palette-alist))))
+    (when color-hex
+      (multiple-value-bind (r g b) (%hex-to-rgb color-hex)
+        (%viewer-set-viewcube-color *viewer*
+          (coerce (/ r 255.0) 'double-float)
+          (coerce (/ g 255.0) 'double-float)
+          (coerce (/ b 255.0) 'double-float))))
+    (when text-hex
+      (multiple-value-bind (r g b) (%hex-to-rgb text-hex)
+        (%viewer-set-viewcube-text-color *viewer*
+          (coerce (/ r 255.0) 'double-float)
+          (coerce (/ g 255.0) 'double-float)
+          (coerce (/ b 255.0) 'double-float))))
+    (when inner-hex
+      (multiple-value-bind (r g b) (%hex-to-rgb inner-hex)
+        (%viewer-set-viewcube-inner-color *viewer*
+          (coerce (/ r 255.0) 'double-float)
+          (coerce (/ g 255.0) 'double-float)
+          (coerce (/ b 255.0) 'double-float))))
+    (when transparency-str
+      (let ((t-val (read-from-string transparency-str)))
+        (%viewer-set-viewcube-transparency *viewer* (coerce t-val 'double-float))))
+    (let ((hilight-hex (cdr (assoc :viewcube-hilight-color palette-alist))))
+      (when hilight-hex
+        (multiple-value-bind (r g b) (%hex-to-rgb hilight-hex)
+          (%viewer-set-viewcube-hilight-color *viewer*
+            (coerce (/ r 255.0) 'double-float)
+            (coerce (/ g 255.0) 'double-float)
+            (coerce (/ b 255.0) 'double-float)))))
+    ;; Apply axis colors to match the corner trihedron
+    (dolist (pair '((:axis-x-color . 0)
+                    (:axis-y-color . 1)
+                    (:axis-z-color . 2)))
+      (let ((hex (cdr (assoc (car pair) palette-alist))))
+        (when hex
+          (multiple-value-bind (r g b) (%hex-to-rgb hex)
+            (%viewer-set-viewcube-axis-color *viewer* (cdr pair)
+              (coerce (/ r 255.0) 'double-float)
+              (coerce (/ g 255.0) 'double-float)
+              (coerce (/ b 255.0) 'double-float))))))))
+
 (defun apply-theme (mode &key accent)
   "Apply a theme. MODE is :dark, :light, or :auto.
 ACCENT is an optional CSS hex color string, e.g. \"#0078d4\".
@@ -528,7 +584,8 @@ Returns (values effective-mode effective-accent)."
       (%viewer-set-stylesheet *viewer* (%subst *qss-template* palette))
       (%apply-viewport-bg palette)
       (%apply-axis-colors palette)
-      (%apply-placeholder-color palette))
+      (%apply-placeholder-color palette)
+      (%apply-viewcube-colors palette))
     (values effective-mode effective-accent)))
 
 (defun set-accent (color-hex)

@@ -97,6 +97,50 @@
 (defcfun (%viewer-is-axis-visible "viewer_is_axis_visible") :int
   (vwr :pointer))
 
+;; --- ViewCube ---
+
+(defcfun (%viewer-show-viewcube "viewer_show_viewcube") :void
+  (vwr :pointer) (show :int))
+
+(defcfun (%viewer-is-viewcube-visible "viewer_is_viewcube_visible") :int
+  (vwr :pointer))
+
+(defcfun (%viewer-set-view "viewer_set_view") :void
+  (vwr :pointer) (orientation :int))
+
+(defcfun (%viewer-get-view-orientation "viewer_get_view_orientation") :int
+  (vwr :pointer))
+
+(defcfun (%viewer-set-viewcube-callback "viewer_set_viewcube_callback") :void
+  (vwr :pointer) (fn :pointer))
+
+(defcfun (%viewer-set-viewcube-color "viewer_set_viewcube_color") :void
+  (vwr :pointer) (r :double) (g :double) (b :double))
+
+(defcfun (%viewer-set-viewcube-text-color "viewer_set_viewcube_text_color") :void
+  (vwr :pointer) (r :double) (g :double) (b :double))
+
+(defcfun (%viewer-set-viewcube-inner-color "viewer_set_viewcube_inner_color") :void
+  (vwr :pointer) (r :double) (g :double) (b :double))
+
+(defcfun (%viewer-set-viewcube-transparency "viewer_set_viewcube_transparency") :void
+  (vwr :pointer) (transparency :double))
+
+(defcfun (%viewer-set-viewcube-size "viewer_set_viewcube_size") :void
+  (vwr :pointer) (size :double))
+
+(defcfun (%viewer-set-viewcube-axis-color "viewer_set_viewcube_axis_color") :void
+  (vwr :pointer) (part :int) (r :double) (g :double) (b :double))
+
+(defcfun (%viewer-set-viewcube-draw-axes "viewer_set_viewcube_draw_axes") :void
+  (vwr :pointer) (show :int))
+
+(defcfun (%viewer-get-viewcube-draw-axes "viewer_get_viewcube_draw_axes") :int
+  (vwr :pointer))
+
+(defcfun (%viewer-set-viewcube-hilight-color "viewer_set_viewcube_hilight_color") :void
+  (vwr :pointer) (r :double) (g :double) (b :double))
+
 ;; --- Dock panels ---
 
 (defcfun (%viewer-show-dock "viewer_show_dock") :void

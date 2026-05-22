@@ -27,12 +27,27 @@
     :%viewer-set-repl-submit-modifier
      ;; Scene tree
      :%viewer-set-shape-visible
-   ;; Grid
-   :%viewer-show-grid
-   :%viewer-is-grid-visible
-   ;; Axis
-   :%viewer-show-axis
-   :%viewer-is-axis-visible
+    ;; Grid
+    :%viewer-show-grid
+    :%viewer-is-grid-visible
+    ;; Axis
+    :%viewer-show-axis
+    :%viewer-is-axis-visible
+    ;; ViewCube
+    :%viewer-show-viewcube
+    :%viewer-is-viewcube-visible
+    :%viewer-set-view
+    :%viewer-get-view-orientation
+    :%viewer-set-viewcube-callback
+    :%viewer-set-viewcube-color
+    :%viewer-set-viewcube-text-color
+    :%viewer-set-viewcube-inner-color
+    :%viewer-set-viewcube-transparency
+    :%viewer-set-viewcube-size
+    :%viewer-set-viewcube-axis-color
+    :%viewer-set-viewcube-draw-axes
+    :%viewer-get-viewcube-draw-axes
+    :%viewer-set-viewcube-hilight-color
    ;; Dock panels
    :%viewer-show-dock
     ;; Quality
@@ -73,11 +88,11 @@
     :clear-all
     :register-viewer-callbacks
     :drain-queue
-   :show-grid
-   :show-axis
-   :toggle-grid
-   :toggle-axis
-    :set-view-aa
+     :show-grid
+     :show-axis
+     :toggle-grid
+     :toggle-axis
+     :set-view-aa
     :fit-view
     :run-tests
    :*repl-eof-sentinel*
@@ -119,8 +134,14 @@
     :show-grid
     :show-axis
     :toggle-grid
-    :toggle-axis
-    :show-repl
+     :toggle-axis
+     :show-viewcube
+     :toggle-viewcube
+     :show-viewcube-axes
+     :toggle-viewcube-axes
+     :set-view
+     :current-view
+     :show-repl
     :show-scene-tree
     :toggle-repl
     :toggle-scene-tree
@@ -135,9 +156,11 @@
      :theme-light
      :theme-auto
      :set-font-size
-       :*theme-mode*
-       :*accent-color*
-       :*font-size*
+        :*theme-mode*
+        :*accent-color*
+        :*font-size*
+        :*current-view*
+        :*viewcube-visible*
         ;; Selection
         :*selected*
         :select
