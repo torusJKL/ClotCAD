@@ -8,7 +8,7 @@
       asdf:*central-registry*)
 (push (truename ".") asdf:*central-registry*)
 
-(asdf:load-system :cl-occt-viewer)
+(ql:quickload :cl-occt-viewer :silent t)
 (ql:quickload :swank :silent t)
 
 (sb-ext:save-lisp-and-die "ClotCAD.core"
