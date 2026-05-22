@@ -1,16 +1,16 @@
 # cl-occt-viewer (Qt)
 
-Qt6-based 3D viewer for [cl-occt](https://github.com/torusJKL/cl-occt) using OCCT's Application Interactive Services (AIS/TKV3d). Renders shapes in a QOpenGLWidget with `AIS_ViewController` camera control, native Qt dock widgets, and Swank/SLIME connectivity.
+Qt6-based 3D viewer for [cl-occt](https://github.com/torusJKL/cl-occt) using OCCT's Application Interactive Services (AIS/TKV3d). Renders shapes in a QOpenGLWidget with `AIS_ViewController` camera control, native Qt dock widgets, and Slynk/SLY connectivity.
 
 ## Quickstart
 
 ```sh
 just setup         # Build OCCT + cl-occt (one-time, ~10 min)
 just viewer        # Build libocctviewer.so
-just start         # Launch viewer + Swank server on port 4005
+just start         # Launch viewer + Slynk server on port 4005
 ```
 
-From Emacs: `M-x slime-connect` (port 4005).
+From Emacs: `M-x sly-connect` (port 4005).
 
 ## Usage
 
@@ -140,7 +140,7 @@ commands) into a single namespace. Load it through nicknames:
 | `CL-OCCT-USER` | `CAD-USER`, `OCCT-USER` |
 
 This is the default package when starting the viewer via `just start`.
-From a SLIME REPL, type `(in-package :cad-user)` to switch.
+From a SLY REPL, type `(in-package :cad-user)` to switch.
 
 ## Layout
 
@@ -244,7 +244,7 @@ Pre-built binaries are available for Linux:
 
 **Requirements:** glibc ≥ 2.39 (Ubuntu 24.04+, Fedora 39+, Arch, etc.).
 
-Both bundles include SBCL, OCCT, Qt6, and Swank — zero installation steps.
+Both bundles include SBCL, OCCT, Qt6, and Slynk — zero installation steps.
 
 **Source code:** https://github.com/<your-org>/clotcad (GPL-3.0)
 
@@ -263,14 +263,15 @@ cd ClotCAD-*
 ./run.sh
 ```
 
-Connect from Emacs: `M-x slime-connect` (port 4005).
+Connect from Emacs: `M-x sly-connect` (port 4005).
 
 ## Architecture
 
 ```
-Main Thread (Qt)               Worker Thread (Swank)
+Main Thread (Qt)               Worker Thread (Slynk)
 ┌─────────────────────────┐    ┌──────────────────────┐
-│ QApplication::exec()    │    │ Swank :port 4005     │
+│ QApplication::exec()    │    │ Slynk :port 4005     │
+│                         │    │   └─ SLY eval        │
 │   ViewerWindow          │    │   └─ SLIME eval      │
 │     Menu Bar            │    │                      │
 │       File→Import/Export│    │ Qt REPL eval:        │

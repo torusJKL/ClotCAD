@@ -9,7 +9,7 @@
 (push (truename ".") asdf:*central-registry*)
 
 (ql:quickload :cl-occt-viewer :silent t)
-(ql:quickload :swank :silent t)
+(ql:quickload :slynk :silent t)
 
 (sb-ext:save-lisp-and-die "ClotCAD.core"
   :purify t)

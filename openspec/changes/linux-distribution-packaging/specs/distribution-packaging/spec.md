@@ -38,7 +38,7 @@ The build pipeline SHALL produce a `.tar.gz` archive with identical content layo
 
 ### Requirement: SBCL core dump
 
-The build pipeline SHALL generate a SBCL heap image (`ClotCAD.core`) via `save-lisp-and-die` that has `:cl-occt-viewer` and `:swank` pre-loaded.
+The build pipeline SHALL generate a SBCL heap image (`ClotCAD.core`) via `save-lisp-and-die` that has `:cl-occt-viewer` and `:slynk` pre-loaded.
 
 #### Scenario: Core loads without ASDF overhead
 - **WHEN** SBCL starts with `--core ClotCAD.core --eval t`
@@ -50,11 +50,11 @@ The build pipeline SHALL generate a SBCL heap image (`ClotCAD.core`) via `save-l
 
 ### Requirement: Bootstrap function
 
-The system SHALL provide a `cl-occt-viewer:bootstrap` function that starts a Swank server in a background thread on port 4005, then calls `start-viewer`.
+The system SHALL provide a `cl-occt-viewer:bootstrap` function that starts a Slynk server in a background thread on port 4005, then calls `start-viewer`.
 
-#### Scenario: Swank starts on port 4005
+#### Scenario: Slynk starts on port 4005
 - **WHEN** `bootstrap` is called
-- **THEN** a Swank server is listening on TCP port 4005 within 2 seconds
+- **THEN** a Slynk server is listening on TCP port 4005 within 2 seconds
 
 #### Scenario: Viewer window opens
 - **WHEN** `bootstrap` is called

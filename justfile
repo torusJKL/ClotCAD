@@ -17,7 +17,7 @@ default:
     @echo "  core         Build SBCL core dump → ClotCAD.core"
     @echo "  dist         Assemble distribution → dist/ + tarball + AppImage"
     @echo "  package-all  viewer + core + dist (run setup first)"
-    @echo "  start        Launch viewer + Swank SLIME server"
+    @echo "  start        Launch viewer + Slynk SLIME/SLY server"
     @echo "  test         Run Lisp test suite"
     @echo "  clean        Remove build artifacts"
 

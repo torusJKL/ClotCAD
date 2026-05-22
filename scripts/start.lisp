@@ -12,20 +12,23 @@
 (asdf:load-system :cl-occt-viewer)
 (in-package :cl-occt-user)
 
-;; Start Swank in background thread for SLIME connectivity
+;; Start Slynk in background thread for SLY connectivity
 (handler-case
     (progn
-      (ql:quickload :swank :silent t)
-      (let ((create-server (find-symbol "CREATE-SERVER" :swank)))
-        (when create-server
+      (ql:quickload :slynk :silent t)
+      (let ((bindings (find-symbol "*DEFAULT-WORKER-THREAD-BINDINGS*" :slynk))
+            (create-server (find-symbol "CREATE-SERVER" :slynk)))
+        (when (and bindings create-server)
+          (setf (symbol-value bindings)
+                `((*package* . ,(find-package :cl-occt-user))))
           (sb-thread:make-thread
            (lambda ()
              (funcall create-server :port 4005 :dont-close t)
              (loop (sleep 1)))
-           :name "cl-occt-slime")
-          (format t ";; Swank server started on port 4005~%"))))
+           :name "slynk")
+          (format t ";; Slynk server started on port 4005~%"))))
   (error (e)
-    (format t ";; Warning: Could not start Swank: ~A~%" e)))
+    (format t ";; Warning: Could not start Slynk: ~A~%" e)))
 
 ;; Start viewer (blocks main thread with Qt event loop)
 (format t ";; Starting viewer...~%")

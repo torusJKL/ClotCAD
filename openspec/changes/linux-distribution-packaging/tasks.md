@@ -1,11 +1,11 @@
 ## 1. Bootstrap Function
 
-- [x] 1.1 Add `bootstrap` function to `lifecycle.lisp` that starts Swank in a background thread (port 4005, :dont-close t), then calls `start-viewer`
+- [x] 1.1 Add `bootstrap` function to `lifecycle.lisp` that starts Slynk in a background thread (port 4005, :dont-close t), then calls `start-viewer`
 - [x] 1.2 Export `bootstrap` from both `:cl-occt-viewer.impl` and `:cl-occt-viewer` packages in `package.lisp`
 
 ## 2. SBCL Core Dump
 
-- [x] 2.1 Create `scripts/make-core.lisp` — loads `:cl-occt-viewer` via ASDF, quickloads `:swank`, calls `(save-lisp-and-die \"ClotCAD.core\")`
+- [x] 2.1 Create `scripts/make-core.lisp` — loads `:cl-occt-viewer` via ASDF, quickloads `:slynk`, calls `(save-lisp-and-die \"ClotCAD.core\")`
 - [x] 2.2 Verify core dumps cleanly (no running threads, no open streams) and loads with `sbcl --core ClotCAD.core --eval t` (requires building project first)
 
 ## 3. License Files
@@ -45,7 +45,7 @@
 
 ## 8. Unit Tests
 
-- [x] 8.1 Add test for `bootstrap` function in `t/viewer-tests.lisp`: verify it calls start-viewer even when Swank is unavailable
+- [x] 8.1 Add test for `bootstrap` function in `t/viewer-tests.lisp`: verify it calls start-viewer even when Slynk is unavailable
 - [x] 8.2 Add test for `scripts/make-core.lisp`: verify bootstrap symbol is defined after loading cl-occt-viewer (save-lisp-and-die can't be mocked due to SBCL package locks)
 
 ## 9. CI Pipeline

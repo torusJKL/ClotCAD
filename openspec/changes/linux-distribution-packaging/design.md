@@ -5,7 +5,7 @@ ClotCAD is a Qt6 + OCCT + SBCL polyglot application. Currently it runs via `just
 The application has three runtime dependency layers:
 1. **System**: OpenGL (driver, always present)
 2. **C++ libraries**: Qt6 (Widgets, OpenGLWidgets), OCCT 8.0.0 (20+ shared libs), plus ClotCAD's own `libocctviewer.so` and cl-occt's `libocctwrap.so`
-3. **Lisp runtime**: SBCL 2.6.0 + Swank
+3. **Lisp runtime**: SBCL 2.6.0 + Slynk
 
 All three layers will be bundled.
 
@@ -15,7 +15,7 @@ All three layers will be bundled.
 - Single `.AppImage` file that runs on any Linux distribution (glibc 2.39+)
 - `.tar.gz` archive with identical contents
 - Pre-compiled SBCL core for sub-second startup
-- Swank server on port 4005 for SLIME connectivity (started in background thread)
+- Slynk server on port 4005 for SLIME/SLY connectivity (started in background thread)
 - All licenses bundled with clear mapping
 - CI pipeline (GitHub Actions) building both artifacts on Ubuntu 24.04
 
@@ -23,7 +23,7 @@ All three layers will be bundled.
 - Flatpak/Snap/other Linux packaging formats
 - Distribution packages (.deb, .rpm)
 - macOS or Windows distribution
-- nREPL / Slynk support
+- nREPL support
 - Automatic update mechanism
 - Code signing
 
@@ -77,7 +77,7 @@ Instead of shipping Lisp source and loading via `--script`, we dump a heap image
 The core is built by `scripts/make-core.lisp`:
 ```lisp
 (load-system :cl-occt-viewer)
-(ql:quickload :swank)  ; not loaded by cl-occt-viewer
+(ql:quickload :slynk)  ; not loaded by cl-occt-viewer
 (save-lisp-and-die "ClotCAD.core")
 ```
 
@@ -88,7 +88,7 @@ sbcl --core ClotCAD.core \
      --eval '(sb-ext:quit)'
 ```
 
-The `bootstrap` function (added to `lifecycle.lisp`) starts Swank in a background thread, then calls the existing `start-viewer`.
+The `bootstrap` function (added to `lifecycle.lisp`) starts Slynk in a background thread, then calls the existing `start-viewer`.
 
 ### 3. Qt6 bundling via CI apt packages
 
@@ -103,24 +103,24 @@ The same `run.sh`/`AppRun` works for both formats:
 HERE="$(dirname "$(readlink -f "$0")")"
 export LD_LIBRARY_PATH="$HERE/lib/qt6:$HERE/lib/qt6/plugins:$HERE/lib/occt:$HERE/lib"
 exec "$HERE/sbcl/bin/sbcl" --core "$HERE/ClotCAD.core" \
-     --eval '(bootstrap)' --eval '(sb-ext:quit)'
+      --eval '(bootstrap)' --eval '(sb-ext:quit)'
 ```
 
 ### 5. License mapping via README
 
 Rather than modifying license texts, a `share/licenses/README.md` maps each component to its license file:
 ```markdown
-ClotCAD                    → GPL-3.0.txt  
+ClotCAD                    → GPL-3.0.txt
   https://github.com/.../clotcad
 
-Open CASCADE Technology    → LGPL-2.1.txt  
+Open CASCADE Technology    → LGPL-2.1.txt
   https://dev.opencascade.org/
 
-Qt6                        → LGPL-3.0.txt  
+Qt6                        → LGPL-3.0.txt
   https://www.qt.io/
 ```
 
-### 6. linddeploy + appimagetool for AppImage
+### 6. linuxdeploy + appimagetool for AppImage
 
 The AppImage is produced by running `linuxdeploy` (with manual Qt lib copying) then `appimagetool` on the `dist/` directory. No linuxdeploy plugins needed since we handle Qt ourselves.
 

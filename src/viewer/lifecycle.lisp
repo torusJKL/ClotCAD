@@ -26,19 +26,25 @@
     (setf *viewer-running* nil)
     (setf *viewer* nil)))
 
+
+
 (defun bootstrap ()
-  (format t ";; Starting Swank on port 4005...~%")
+  (format t ";; Starting Slynk on port 4005...~%")
   (handler-case
-      (let ((create-server (find-symbol "CREATE-SERVER" :swank)))
-        (if create-server
-            (sb-thread:make-thread
-             (lambda ()
-               (funcall create-server :port 4005 :dont-close t)
-               (loop (sleep 1)))
-             :name "swank")
-            (warn "Swank not available; skipping.")))
+      (let ((bindings (find-symbol "*DEFAULT-WORKER-THREAD-BINDINGS*" :slynk))
+            (create-server (find-symbol "CREATE-SERVER" :slynk)))
+        (if (and bindings create-server)
+            (progn
+              (setf (symbol-value bindings)
+                    `((*package* . ,(find-package :cl-occt-user))))
+              (sb-thread:make-thread
+               (lambda ()
+                 (funcall create-server :port 4005 :dont-close t)
+                 (loop (sleep 1)))
+               :name "slynk"))
+            (warn "Slynk not available; skipping.")))
     (error (e)
-      (format t ";; Warning: Could not start Swank: ~A~%" e)))
+      (format t ";; Warning: Could not start Slynk: ~A~%" e)))
   (format t ";; Starting viewer...~%")
   (start-viewer))
 

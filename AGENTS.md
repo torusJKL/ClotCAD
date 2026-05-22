@@ -8,7 +8,7 @@ just viewer       # CMake build → lib/libocctviewer.so
 just core         # SBCL core dump → ClotCAD.core (for distribution)
 just dist         # Assemble distribution → dist/ + tarball + AppImage
 just package-all  # viewer + core + dist (full distribution pipeline)
-just start        # Launch viewer + Swank on port 4005
+just start        # Launch viewer + Slynk on port 4005
 just test         # Run Lisp test suite (no display required)
 just clean        # Remove build artifacts
 ```
@@ -27,7 +27,7 @@ Without this, the C++ library and OCCT won't load.
 
 - **C++**: Thin Qt6 widgets in `wrap/` → shared lib `libocctviewer.so`. ViewerWidget (QOpenGLWidget + AIS_ViewController) handles rendering and mouse events. No business logic, no state — just event dispatch and OCCT rendering calls.
 - **Lisp**: CFFI bindings in `src/viewer/` → ASDF system `:cl-occt-viewer`. All viewer state (shape storage, grid/axis visibility, render loop) lives in Lisp modules: `ui.lisp` (state management), `render.lisp` (periodic redraw), `queue.lisp` (inter-thread dispatch), `repl.lisp` (callback registration).
-- **Threading**: Qt main thread runs event loop; Swank worker thread handles eval and pushes display updates via Qt events
+- **Threading**: Qt main thread runs event loop; Slynk worker thread handles eval and pushes display updates via Qt events
 - **Entry points**:
   - C++: `wrap/viewer_window.cpp` → `QMainWindow`
   - Lisp: `src/viewer/lifecycle.lisp` → `start-viewer`, `bootstrap`
@@ -54,6 +54,8 @@ The `with-mocked-viewer` macro mocks `%viewer-post-event`, `%viewer-sync-shapes`
 `%viewer-set-repl-history-modifier`, and `%viewer-set-repl-submit-modifier`.
 Add new CFFI function symbols to the mock list if new tests require them.
 
+All IDE connectivity is via SLY (not SLIME). Slynk serves SLY natively; SLIME compatibility is not supported due to protocol differences.
+
 The Lisp import/export system uses `*repl-log*` (REPL history log),
 `*import-speed*` (replay delay), `*import-cancelled*` (cancellation flag),
 and `*export-with-output*` (debug mode toggle). User-facing functions:
@@ -78,7 +80,7 @@ This repo uses the **openspec** workflow (see `.opencode/skills/` and `.opencode
 - Shared library: `lib/libocctviewer.so`
 - SBCL core dump: `ClotCAD.core` (product of `just core`)
 - Distribution: `dist/` (product of `just dist`), `ClotCAD-*.tar.gz`, `ClotCAD-*.AppImage`
-- Swank port: `4005`
+- Slynk port: `4005`
 
 ## Prerequisites
 

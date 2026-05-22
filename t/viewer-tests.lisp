@@ -987,7 +987,7 @@
 
 ;; --- Bootstrap tests ---
 
-(deftest bootstrap-handles-swank-not-available
+(deftest bootstrap-handles-slynk-not-available
   (let ((*viewer* (make-array 1))
         (*viewer-queue* nil)
         (*displayed-models* (make-hash-table :test 'equal))
@@ -1008,7 +1008,7 @@
           (progn
             (bootstrap)
             (assert-true start-viewer-called
-                         "bootstrap should call start-viewer even when swank is unavailable"))
+                         "bootstrap should call start-viewer even when slynk is unavailable"))
         (setf (symbol-function 'start-viewer) old-start
               (symbol-function '%viewer-create) old-create
               (symbol-function '%viewer-show) old-show
@@ -1491,7 +1491,7 @@
                replay-speed-sets-variable
                cancel-import-noop-when-idle
                result-export-toggles
-               bootstrap-handles-swank-not-available
+                bootstrap-handles-slynk-not-available
                make-core-loads-systems))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"
