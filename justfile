@@ -6,6 +6,7 @@ occt-src := root-dir + "/.local/occt-src"
 occt-build := root-dir + "/.local/occt-build"
 occt-install := root-dir + "/.local"
 clocct-dir := root-dir + "/lib/cl-occt"
+alive-lsp-dir := root-dir + "/lib/alive-lsp"
 
 default:
     @echo "cl-occt-viewer (Qt) — Common Lisp parametric CAD with 3D viewer"
@@ -13,11 +14,12 @@ default:
     @echo "Recipes:"
     @echo "  setup        Download + build OCCT {{occt-version}} (one-time)"
     @echo "  submodules         Init submodule + symlink + wrap (requires OCCT built)"
+    @echo "  alive-lsp    Clone alive-lsp LSP server → lib/alive-lsp/"
     @echo "  viewer       Build shared library → lib/libocctviewer.so"
     @echo "  core         Build SBCL core dump → ClotCAD.core"
     @echo "  dist         Assemble distribution → dist/ + tarball + AppImage"
     @echo "  package-all  viewer + core + dist (run setup first)"
-    @echo "  start        Launch viewer + Swank SLIME server"
+    @echo "  start        Launch viewer + Slynk (4005) + Alive LSP (4006)"
     @echo "  test         Run Lisp test suite"
     @echo "  clean        Remove build artifacts"
 
@@ -54,13 +56,20 @@ submodules:
     ln -sf ../../.local {{clocct-dir}}/.local
     cd {{clocct-dir}} && just wrap
 
+alive-lsp-commit := "c6994bc4c5100415c33d41ab8d36b5e4ca9aa798"
+
+alive-lsp:
+    test -d {{alive-lsp-dir}} || \
+        git clone https://github.com/nobody-famous/alive-lsp.git {{alive-lsp-dir}} && \
+        cd {{alive-lsp-dir}} && git checkout {{alive-lsp-commit}}
+
 viewer:
     mkdir -p build lib
     cmake -S . -B build -DOCCT_DIR={{occt-install}}
     cmake --build build -- -j$(nproc)
     cp build/libocctviewer.so lib/
 
-core:
+core: alive-lsp
     LD_LIBRARY_PATH=lib:{{occt-install}}/lib:{{clocct-dir}}/lib \
     sbcl --script scripts/make-core.lisp
 

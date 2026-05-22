@@ -422,6 +422,11 @@ occt_viewer viewer_create(const char* title, int width, int height)
     showAboutDialog(win);
   });
 
+  // Wire File > Quit
+  QObject::connect(win->quitAction(), &QAction::triggered, [win]() {
+    win->close();
+  });
+
   // Wire scene tree
   SceneTreePanel* st = win->sceneTree();
   if (st)

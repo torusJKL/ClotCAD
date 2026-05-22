@@ -985,9 +985,50 @@
     (assert-nil *export-with-output*
                 "result-export nil should set *export-with-output* to nil")))
 
+(deftest log-remote-eval-adds-entry
+  (with-mocked-viewer
+    (setf *repl-log* nil)
+    (log-remote-eval "(+ 1 2)" "3")
+    (assert-equal 1 (length *repl-log*)
+                  "log-remote-eval should add one entry")
+    (destructuring-bind (code . output) (car *repl-log*)
+      (assert-true (string= "(+ 1 2)" code)
+                   "code should match input")
+      (assert-true (string= "3" output)
+                   "output should match input"))
+    (log-remote-eval "(list 1 2 3)" "(1 2 3)")
+    (assert-equal 2 (length *repl-log*)
+                  "second call should add another entry")
+    (destructuring-bind (code . output) (car *repl-log*)
+      (assert-true (string= "(list 1 2 3)" code)
+                   "newest entry should have second call's code")
+      (assert-true (string= "(1 2 3)" output)
+                   "newest entry should have second call's output"))))
+
+(deftest log-remote-eval-entries-are-exported
+  (with-mocked-viewer
+    (setf *repl-log* nil
+          *export-with-output* nil)
+    (log-remote-eval "(+ 1 2)" "3")
+    (log-remote-eval "(list 'a 'b)" "(A B)")
+    (let ((path (format nil "/tmp/test-remote-export-~D.lisp" (get-universal-time))))
+      (unwind-protect
+           (progn
+             (export-repl-history path)
+             (with-open-file (f path)
+               (let ((line1 (read-line f nil nil))
+                     (line2 (read-line f nil nil)))
+                 (assert-true (and (stringp line1) (stringp line2))
+                              "file should have two lines")
+                 (assert-true (string= "(+ 1 2)" line1)
+                              "first line should be oldest entry's code (reverse order)")
+                 (assert-true (string= "(list 'a 'b)" line2)
+                              "second line should be newest entry's code"))))
+        (ignore-errors (delete-file path))))))
+
 ;; --- Bootstrap tests ---
 
-(deftest bootstrap-handles-swank-not-available
+(deftest bootstrap-handles-slynk-not-available
   (let ((*viewer* (make-array 1))
         (*viewer-queue* nil)
         (*displayed-models* (make-hash-table :test 'equal))
@@ -1008,7 +1049,7 @@
           (progn
             (bootstrap)
             (assert-true start-viewer-called
-                         "bootstrap should call start-viewer even when swank is unavailable"))
+                         "bootstrap should call start-viewer even when slynk is unavailable"))
         (setf (symbol-function 'start-viewer) old-start
               (symbol-function '%viewer-create) old-create
               (symbol-function '%viewer-show) old-show
@@ -1490,8 +1531,10 @@
                export-repl-history-debug
                replay-speed-sets-variable
                cancel-import-noop-when-idle
-               result-export-toggles
-               bootstrap-handles-swank-not-available
+                result-export-toggles
+                log-remote-eval-adds-entry
+                log-remote-eval-entries-are-exported
+                bootstrap-handles-slynk-not-available
                make-core-loads-systems))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"

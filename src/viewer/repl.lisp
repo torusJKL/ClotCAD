@@ -44,7 +44,7 @@
                         (dolist (v values)
                           (format s "~S~%" v)))))
           (%viewer-append-repl-output *viewer* output)
-          (push (cons form-text output) *repl-log*))))
+          (sb-ext:atomic-push (cons form-text output) *repl-log*))))
     (%viewer-set-import-status *viewer* 1 *import-done* *import-total*)
     (if *import-forms*
         (if *import-speed*
@@ -60,6 +60,9 @@
 
 (defun replay-speed (ms)
   (setf *import-speed* ms))
+
+(defun log-remote-eval (code-str output-str)
+  (sb-ext:atomic-push (cons code-str output-str) *repl-log*))
 
 (cffi:defcallback eval-string :void ((code :string) (result :pointer) (maxlen :int))
   (handler-case
@@ -87,7 +90,7 @@
                         outputs)
                   (setf pos next-pos)))))
         (let ((output (apply #'concatenate 'string (nreverse outputs))))
-          (push (cons full-code output) *repl-log*)
+          (sb-ext:atomic-push (cons full-code output) *repl-log*)
           (cffi:foreign-funcall "snprintf" :pointer result :int maxlen
                                :string output :int (min (length output) (1- maxlen)) :void)))
     (error (e)

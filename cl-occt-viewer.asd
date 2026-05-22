@@ -17,8 +17,8 @@
          (:file "repl")
         (:file "ui")
         (:file "theme")
-        (:file "render")
-        (:file "lifecycle")))))
+         (:file "render")
+         (:file "lifecycle")))))
 
 (defsystem :cl-occt-viewer/tests
   :description "Test suite for cl-occt-viewer"

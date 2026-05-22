@@ -174,7 +174,8 @@
     :cancel-import
     :replay-speed
     :result-export
-    :export-repl-history))
+    :export-repl-history
+    :log-remote-eval))
 
 (defpackage :cl-occt-user
   (:use :cl :cl-occt :cl-occt-viewer)

@@ -6,10 +6,13 @@
 
 (push (merge-pathnames #P"lib/cl-occt/" (truename "."))
       asdf:*central-registry*)
+(push (merge-pathnames #P"lib/alive-lsp/" (truename "."))
+      asdf:*central-registry*)
 (push (truename ".") asdf:*central-registry*)
 
 (ql:quickload :cl-occt-viewer :silent t)
-(ql:quickload :swank :silent t)
+(ql:quickload :slynk :silent t)
+(ql:quickload :alive-lsp :silent t)
 
 (sb-ext:save-lisp-and-die "ClotCAD.core"
   :purify t)
