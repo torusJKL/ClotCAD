@@ -80,23 +80,24 @@
    :*displayed-models*
    :*grid-visible*
    :*axis-visible*
-   :start-viewer
-   :stop-viewer
+    :start-viewer
+    :stop-viewer
+    :bootstrap
     :sync-viewer
     :display
     :undisplay
     :clear-all
     :register-viewer-callbacks
     :drain-queue
-     :show-grid
-     :show-axis
-     :toggle-grid
-     :toggle-axis
+    :show-grid
+    :show-axis
+    :toggle-grid
+    :toggle-axis
      :set-view-aa
-    :fit-view
-    :run-tests
-   :*repl-eof-sentinel*
-   :*repl-accumulator*))
+     :fit-view
+     :run-tests
+    :*repl-eof-sentinel*
+    :*repl-accumulator*))
 
 (defpackage :cl-occt-viewer
   (:use :cl :cl-occt-viewer.impl)
@@ -128,51 +129,52 @@
     :write-stl
     :start-viewer
     :stop-viewer
+    :bootstrap
     :display
     :undisplay
     :clear-all
     :show-grid
     :show-axis
     :toggle-grid
-     :toggle-axis
-     :show-viewcube
-     :toggle-viewcube
-     :show-viewcube-axes
-     :toggle-viewcube-axes
-     :set-view
-     :current-view
-     :show-repl
+    :toggle-axis
+    :show-viewcube
+    :toggle-viewcube
+    :show-viewcube-axes
+    :toggle-viewcube-axes
+    :set-view
+    :current-view
+    :show-repl
     :show-scene-tree
     :toggle-repl
     :toggle-scene-tree
-     :set-view-aa
-     :fit-view
-      :run-tests
-      :set-repl-history-key
-      :set-repl-submit-key
-      :apply-theme
-     :set-accent
-     :theme-dark
-     :theme-light
-     :theme-auto
-     :set-font-size
-        :*theme-mode*
-        :*accent-color*
-        :*font-size*
-        :*current-view*
-        :*viewcube-visible*
-        ;; Selection
-        :*selected*
-        :select
-        :deselect
-        :clear-selection
-        :selected-shapes
-        :apply-selection-schemes
-        ;; Lisp import/export
-        :cancel-import
-        :replay-speed
-        :result-export
-        :export-repl-history))
+    :set-view-aa
+    :fit-view
+    :run-tests
+    :set-repl-history-key
+    :set-repl-submit-key
+    :apply-theme
+    :set-accent
+    :theme-dark
+    :theme-light
+    :theme-auto
+    :set-font-size
+    :*theme-mode*
+    :*accent-color*
+    :*font-size*
+    :*current-view*
+    :*viewcube-visible*
+    ;; Selection
+    :*selected*
+    :select
+    :deselect
+    :clear-selection
+    :selected-shapes
+    :apply-selection-schemes
+    ;; Lisp import/export
+    :cancel-import
+    :replay-speed
+    :result-export
+    :export-repl-history))
 
 (defpackage :cl-occt-user
   (:use :cl :cl-occt :cl-occt-viewer)

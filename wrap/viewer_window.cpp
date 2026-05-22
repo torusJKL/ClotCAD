@@ -2,7 +2,6 @@
 #include "viewer_widget.h"
 #include "repl_panel.h"
 #include "scene_tree_panel.h"
-
 #include <Standard_WarningsDisable.hxx>
 #include <QApplication>
 #include <QHBoxLayout>
@@ -41,10 +40,10 @@ void ViewerWindow::setupMenus()
   QMenu* viewMenu = mb->addMenu(tr("&View"));
   myReplAction = viewMenu->addAction(tr("&REPL"));
   myReplAction->setCheckable(true);
-  myReplAction->setChecked(true);
+  myReplAction->setChecked(false);
   mySceneTreeAction = viewMenu->addAction(tr("&Scene Tree"));
   mySceneTreeAction->setCheckable(true);
-  mySceneTreeAction->setChecked(true);
+  mySceneTreeAction->setChecked(false);
   viewMenu->addSeparator();
   myAxisAction = viewMenu->addAction(tr("&Axis"));
   myAxisAction->setCheckable(true);
@@ -80,12 +79,14 @@ void ViewerWindow::setupPanels()
   myRepl = new REPLPanel(this);
   addDockWidget(Qt::RightDockWidgetArea, myRepl);
   myRepl->setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetMovable);
+  myRepl->setVisible(false);
   connect(myReplAction, &QAction::toggled, myRepl, &QDockWidget::setVisible);
   myRepl->installEventFilter(this);
 
   mySceneTree = new SceneTreePanel(this);
   addDockWidget(Qt::LeftDockWidgetArea, mySceneTree);
   mySceneTree->setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetMovable);
+  mySceneTree->setVisible(false);
   connect(mySceneTreeAction, &QAction::toggled, mySceneTree, &QDockWidget::setVisible);
   mySceneTree->installEventFilter(this);
 }

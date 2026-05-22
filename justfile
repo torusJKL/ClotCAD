@@ -11,11 +11,15 @@ default:
     @echo "cl-occt-viewer (Qt) — Common Lisp parametric CAD with 3D viewer"
     @echo ""
     @echo "Recipes:"
-    @echo "  setup              Download + build OCCT {{occt-version}} (one-time)"
+    @echo "  setup        Download + build OCCT {{occt-version}} (one-time)"
     @echo "  submodules         Init submodule + symlink + wrap (requires OCCT built)"
-    @echo "  viewer             Build shared library → lib/libocctviewer.so"
-    @echo "  start  Launch viewer + Swank SLIME server"
-    @echo "  clean  Remove build artifacts"
+    @echo "  viewer       Build shared library → lib/libocctviewer.so"
+    @echo "  core         Build SBCL core dump → ClotCAD.core"
+    @echo "  dist         Assemble distribution → dist/ + tarball + AppImage"
+    @echo "  package-all  viewer + core + dist (run setup first)"
+    @echo "  start        Launch viewer + Swank SLIME server"
+    @echo "  test         Run Lisp test suite"
+    @echo "  clean        Remove build artifacts"
 
 setup:
     # Download and build OCCT 8.0.0
@@ -56,9 +60,18 @@ viewer:
     cmake --build build -- -j$(nproc)
     cp build/libocctviewer.so lib/
 
+core:
+    LD_LIBRARY_PATH=lib:{{occt-install}}/lib:{{clocct-dir}}/lib \
+    sbcl --script scripts/make-core.lisp
+
+dist:
+    ./scripts/package.sh
+
+package-all: submodules viewer core dist
+
 start:
     LD_LIBRARY_PATH=lib:{{occt-install}}/lib:{{clocct-dir}}/lib \
-    sbcl --script start.lisp
+    sbcl --script scripts/start.lisp
 
 test:
     LD_LIBRARY_PATH=lib:{{occt-install}}/lib:{{clocct-dir}}/lib \

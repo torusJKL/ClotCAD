@@ -26,6 +26,22 @@
     (setf *viewer-running* nil)
     (setf *viewer* nil)))
 
+(defun bootstrap ()
+  (format t ";; Starting Swank on port 4005...~%")
+  (handler-case
+      (let ((create-server (find-symbol "CREATE-SERVER" :swank)))
+        (if create-server
+            (sb-thread:make-thread
+             (lambda ()
+               (funcall create-server :port 4005 :dont-close t)
+               (loop (sleep 1)))
+             :name "swank")
+            (warn "Swank not available; skipping.")))
+    (error (e)
+      (format t ";; Warning: Could not start Swank: ~A~%" e)))
+  (format t ";; Starting viewer...~%")
+  (start-viewer))
+
 (defun stop-viewer ()
   (when *viewer*
     (setf *viewer-running* nil)

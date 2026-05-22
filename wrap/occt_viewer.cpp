@@ -5,6 +5,7 @@
 #include "repl_panel.h"
 #include "scene_tree_panel.h"
 #include "OcctQtTools.h"
+#include "icon_data.h"
 
 #include <AIS_Trihedron.hxx>
 #include <AIS_ViewCube.hxx>
@@ -19,10 +20,12 @@
 #include <gp.hxx>
 #include <TopoDS_Shape.hxx>
 #include <V3d_View.hxx>
+#include <Standard_Version.hxx>
 
 
 #include <Standard_WarningsDisable.hxx>
 #include <QApplication>
+#include <QPixmap>
 #include <QIcon>
 #include <QObject>
 #include <QEvent>
@@ -160,7 +163,7 @@ public:
 
 static QApplication* theApp = nullptr;
 static int theArgc = 1;
-static const char* theArgv[] = {"cl-occt-viewer", nullptr};
+static const char* theArgv[] = {"ClotCAD", nullptr};
 
 static void ensureQApplication()
 {
@@ -170,6 +173,9 @@ static void ensureQApplication()
     OcctQtTools::qtGlPlatformSetup();
     theApp = new QApplication(theArgc, const_cast<char**>(theArgv));
     theApp->setStyle(new ThemeIconStyle(theApp->style()));
+    QPixmap pm;
+    if (pm.loadFromData(clotcad_icon_png, clotcad_icon_png_len))
+      theApp->setWindowIcon(QIcon(pm));
   }
 }
 
@@ -196,7 +202,7 @@ static void showAboutDialog(QWidget* parent)
 {
   QDialog dlg(parent);
   dlg.setWindowTitle(QStringLiteral("About ClotCAD"));
-  dlg.setFixedSize(420, 360);
+  dlg.setFixedSize(420, 380);
 
   auto* layout = new QVBoxLayout(&dlg);
   layout->setAlignment(Qt::AlignCenter);
@@ -210,9 +216,20 @@ static void showAboutDialog(QWidget* parent)
   logoLabel->setAlignment(Qt::AlignCenter);
   layout->addWidget(logoLabel);
 
-  auto* nameLabel = new QLabel(QStringLiteral("<h2>ClotCAD</h2>"), &dlg);
+  auto* nameLabel = new QLabel(
+    QStringLiteral("<h2>ClotCAD %1</h2>").arg(CLOTCAD_VERSION), &dlg);
   nameLabel->setAlignment(Qt::AlignCenter);
   layout->addWidget(nameLabel);
+
+  auto* versLabel = new QLabel(
+    QStringLiteral("OCCT %1 | Qt %2 | %3")
+      .arg(OCC_VERSION_COMPLETE)
+      .arg(QT_VERSION_STR)
+      .arg(SBCL_VERSION),
+    &dlg);
+  versLabel->setAlignment(Qt::AlignCenter);
+  versLabel->setStyleSheet("QLabel { color: gray; font-size: 11px; }");
+  layout->addWidget(versLabel);
 
   auto* descLabel = new QLabel(
     QStringLiteral(
@@ -256,6 +273,11 @@ occt_viewer viewer_create(const char* title, int width, int height)
   ensureQApplication();
   auto* s = new ViewerState();
   auto* win = new ViewerWindow(title, width, height);
+  {
+    QPixmap pm;
+    if (pm.loadFromData(clotcad_icon_png, clotcad_icon_png_len))
+      win->setWindowIcon(QIcon(pm));
+  }
   s->window = win;
   s->widget = win->viewport();
   s->widget->setViewerState(s);

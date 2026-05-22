@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=ClotCAD
+Comment=Common Lisp parametric CAD with 3D viewer
+Exec=AppRun
+Icon=ClotCAD
+Type=Application
+Categories=Graphics;
+StartupWMClass=ClotCAD
+Terminal=false

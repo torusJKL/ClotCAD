@@ -985,6 +985,41 @@
     (assert-nil *export-with-output*
                 "result-export nil should set *export-with-output* to nil")))
 
+;; --- Bootstrap tests ---
+
+(deftest bootstrap-handles-swank-not-available
+  (let ((*viewer* (make-array 1))
+        (*viewer-queue* nil)
+        (*displayed-models* (make-hash-table :test 'equal))
+        (*queue-lock* (sb-thread:make-mutex))
+        (*grid-visible* t)
+        (*axis-visible* t)
+        (start-viewer-called nil))
+    (let ((old-start (symbol-function 'start-viewer))
+          (old-create (symbol-function '%viewer-create))
+          (old-show (symbol-function '%viewer-show))
+          (old-run (symbol-function '%viewer-run)))
+      (setf (symbol-function '%viewer-create) (lambda (title w h) (declare (ignore title w h)) *viewer*)
+            (symbol-function '%viewer-show) (lambda (vwr) (declare (ignore vwr)))
+            (symbol-function '%viewer-run) (lambda (vwr) (declare (ignore vwr)))
+            (symbol-function 'start-viewer)
+            (lambda (&key &allow-other-keys) (setf start-viewer-called t)))
+      (unwind-protect
+          (progn
+            (bootstrap)
+            (assert-true start-viewer-called
+                         "bootstrap should call start-viewer even when swank is unavailable"))
+        (setf (symbol-function 'start-viewer) old-start
+              (symbol-function '%viewer-create) old-create
+              (symbol-function '%viewer-show) old-show
+              (symbol-function '%viewer-run) old-run)))))
+
+;; --- make-core load test ---
+
+(deftest make-core-loads-systems
+  (assert-true (find-symbol "BOOTSTRAP" :cl-occt-viewer)
+               "bootstrap should be defined after loading cl-occt-viewer"))
+
 ;; --- Registration tests ---
 
 (deftest register-viewer-callbacks-sets-viewer
@@ -1438,24 +1473,26 @@
                resolve-mode-auto-dark resolve-mode-auto-light
                resolve-mode-auto-unknown resolve-mode-explicit-dark
                resolve-mode-explicit-light
-                palette-has-axis-colors palette-has-placeholder-color
-                palette-font-size-uses-variable set-font-size-updates-and-reapplies
-                selection-starts-empty select-adds-names
-                select-with-no-args-clears select-replaces-previous
-                deselect-removes-one clear-selection-empties
-                selected-shapes-returns-list
-                select-pushes-sync-selection
-                 deselect-pushes-sync-selection
-                 clear-selection-pushes-sync-selection
-                 import-tick-processes-one-form
-                 import-tick-cancelled-stops
-                 import-tick-error-continues
-                 repl-log-captures-manual
-                 export-repl-history-clean
-                 export-repl-history-debug
-                 replay-speed-sets-variable
-                 cancel-import-noop-when-idle
-                 result-export-toggles))
+               palette-has-axis-colors palette-has-placeholder-color
+               palette-font-size-uses-variable set-font-size-updates-and-reapplies
+               selection-starts-empty select-adds-names
+               select-with-no-args-clears select-replaces-previous
+               deselect-removes-one clear-selection-empties
+               selected-shapes-returns-list
+               select-pushes-sync-selection
+               deselect-pushes-sync-selection
+               clear-selection-pushes-sync-selection
+               import-tick-processes-one-form
+               import-tick-cancelled-stops
+               import-tick-error-continues
+               repl-log-captures-manual
+               export-repl-history-clean
+               export-repl-history-debug
+               replay-speed-sets-variable
+               cancel-import-noop-when-idle
+               result-export-toggles
+               bootstrap-handles-swank-not-available
+               make-core-loads-systems))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"
             (test-result-pass *test-result*)

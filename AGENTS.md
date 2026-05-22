@@ -3,11 +3,14 @@
 ## Build Commands
 
 ```sh
-just setup    # Download + build OCCT 8.0.0 to .local/ (one-time, ~10 min)
-just viewer   # CMake build → lib/libocctviewer.so
-just start    # Launch viewer + Swank on port 4005
-just test     # Run Lisp test suite (no display required)
-just clean    # Remove build artifacts
+just setup        # Download + build OCCT 8.0.0 to .local/ (one-time, ~10 min)
+just viewer       # CMake build → lib/libocctviewer.so
+just core         # SBCL core dump → ClotCAD.core (for distribution)
+just dist         # Assemble distribution → dist/ + tarball + AppImage
+just package-all  # viewer + core + dist (full distribution pipeline)
+just start        # Launch viewer + Swank on port 4005
+just test         # Run Lisp test suite (no display required)
+just clean        # Remove build artifacts
 ```
 
 ## Runtime Dependencies
@@ -27,7 +30,8 @@ Without this, the C++ library and OCCT won't load.
 - **Threading**: Qt main thread runs event loop; Swank worker thread handles eval and pushes display updates via Qt events
 - **Entry points**:
   - C++: `wrap/viewer_window.cpp` → `QMainWindow`
-  - Lisp: `src/viewer/lifecycle.lisp` → `start-viewer`
+  - Lisp: `src/viewer/lifecycle.lisp` → `start-viewer`, `bootstrap`
+  - Distribution: `run.sh` / `AppRun` → `sbcl --core ClotCAD.core --eval '(bootstrap)'`
 
 ## Design Decisions
 
@@ -55,6 +59,10 @@ The Lisp import/export system uses `*repl-log*` (REPL history log),
 and `*export-with-output*` (debug mode toggle). User-facing functions:
 `cancel-import`, `replay-speed`, `result-export`, and `export-repl-history`.
 
+Tests for `bootstrap` use inline mocking of `%viewer-create`, `%viewer-show`,
+`%viewer-run`, `%viewer-quit`, and `start-viewer`. The `make-core-loads-systems`
+test mocks `sb-ext:save-lisp-and-die`.
+
 ## OpenCode Workflow
 
 This repo uses the **openspec** workflow (see `.opencode/skills/` and `.opencode/commands/`). Key commands:
@@ -68,6 +76,8 @@ This repo uses the **openspec** workflow (see `.opencode/skills/` and `.opencode
 - OCCT installed to: `.local/`
 - cl-occt dependency: `lib/cl-occt/` (git submodule)
 - Shared library: `lib/libocctviewer.so`
+- SBCL core dump: `ClotCAD.core` (product of `just core`)
+- Distribution: `dist/` (product of `just dist`), `ClotCAD-*.tar.gz`, `ClotCAD-*.AppImage`
 - Swank port: `4005`
 
 ## Prerequisites

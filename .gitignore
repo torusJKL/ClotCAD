@@ -3,3 +3,8 @@ lib/
 !lib/cl-occt/
 .local/
 *.fasl
+*.core
+*.AppImage
+*.AppDir
+*.tar.gz
+dist/

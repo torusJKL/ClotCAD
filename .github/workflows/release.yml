@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake build-essential curl \
+            qt6-base-dev libqt6opengl6-dev \
+            libgl1-mesa-dev \
+            inkscape
+
+      - name: Cache OCCT build
+        id: cache-occt
+        uses: actions/cache@v4
+        with:
+          path: .local
+          key: occt-8.0.0-${{ runner.os }}-${{ hashFiles('CMakeLists.txt') }}
+
+      - name: Build OCCT
+        if: steps.cache-occt.outputs.cache-hit != 'true'
+        run: just setup
+
+      - name: Install SBCL 2.6.0
+        run: |
+          wget -q https://github.com/roswell/sbcl_bin/releases/download/2.6.0/sbcl-2.6.0-x86-64-linux.tar.bz2
+          tar xf sbcl-2.6.0-x86-64-linux.tar.bz2
+          echo "$PWD/sbcl-2.6.0/bin" >> $GITHUB_PATH
+
+      - name: Install linuxdeploy and appimagetool
+        run: |
+          wget -q "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
+          chmod +x linuxdeploy-x86_64.AppImage
+          mv linuxdeploy-x86_64.AppImage /usr/local/bin/linuxdeploy
+          wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool-x86_64.AppImage
+          mv appimagetool-x86_64.AppImage /usr/local/bin/appimagetool
+
+      - name: Build viewer
+        run: just viewer
+
+      - name: Build distribution
+        run: just package-all
+        env:
+          VERSION: ${{ github.ref_name }}
+
+      - name: Upload tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClotCAD-tarball
+          path: ClotCAD-*.tar.gz
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClotCAD-AppImage
+          path: ClotCAD-*.AppImage
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ClotCAD-*.tar.gz
+            ClotCAD-*.AppImage
+          generate_release_notes: true
