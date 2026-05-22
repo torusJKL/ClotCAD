@@ -39,6 +39,15 @@ set(SOURCES
 )
 
 add_library(occtviewer SHARED ${SOURCES})
+
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/share/icons/ClotCAD-logo.svg PROPERTIES
+    QT_RESOURCE_ALIAS "icons/ClotCAD-logo.svg"
+)
+qt6_add_resources(occtviewer "app_resources"
+    PREFIX "/"
+    FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/share/icons/ClotCAD-logo.svg
+)
 target_include_directories(occtviewer PRIVATE
     ${CMAKE_SOURCE_DIR}/wrap
     ${OpenCASCADE_INCLUDE_DIR}

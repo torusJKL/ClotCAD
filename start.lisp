@@ -10,7 +10,7 @@
 (push (truename ".") asdf:*central-registry*)
 
 (asdf:load-system :cl-occt-viewer)
-(in-package :cl-occt-viewer)
+(in-package :cl-occt-user)
 
 ;; Start Swank in background thread for SLIME connectivity
 (handler-case

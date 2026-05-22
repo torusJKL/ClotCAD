@@ -39,6 +39,19 @@ initialize-viewer function.
 - **WHEN** `(show-axis t)` is called
 - **THEN** the axis trihedron SHALL be displayed
 
+#### Scenario: Theme application sets OCCT state
+
+- **WHEN** `(apply-theme :dark)` or `(apply-theme :light)` is called
+- **THEN** the QSS stylesheet SHALL be pushed via %viewer-set-stylesheet
+- **THEN** the viewport background SHALL be set via cl-occt's
+        %v3d-view-set-bg-color (using the view handle from viewer_get_view)
+- **THEN** the trihedron axis colors SHALL be set via cl-occt's
+        %ais-trihedron-set-datum-part-color (using the trihedron handle
+        from viewer_get_trihedron)
+- **THEN** each axis (X, Y, Z) SHALL receive a color from the palette
+- **THEN** the placeholder text color SHALL be set via
+        %viewer-set-placeholder-color
+
 ### Requirement: Viewer widget cleanup
 
 - ViewerWidget.h SHALL remove: setupAxis(), setupGrid(), myAxis,

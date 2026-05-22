@@ -11,8 +11,9 @@ default:
     @echo "cl-occt-viewer (Qt) — Common Lisp parametric CAD with 3D viewer"
     @echo ""
     @echo "Recipes:"
-    @echo "  setup  Download + build OCCT {{occt-version}} (one-time)"
-    @echo "  viewer Build shared library → lib/libocctviewer.so"
+    @echo "  setup              Download + build OCCT {{occt-version}} (one-time)"
+    @echo "  submodules         Init submodule + symlink + wrap (requires OCCT built)"
+    @echo "  viewer             Build shared library → lib/libocctviewer.so"
     @echo "  start  Launch viewer + Swank SLIME server"
     @echo "  clean  Remove build artifacts"
 
@@ -39,6 +40,12 @@ setup:
     cmake --build {{occt-build}} -- -j$(nproc)
     cmake --install {{occt-build}}
     # Init submodule and build cl-occt's C wrapper
+    git submodule update --init {{clocct-dir}}
+    ln -sf ../../.local {{clocct-dir}}/.local
+    cd {{clocct-dir}} && just wrap
+
+submodules:
+    test -f {{occt-install}}/lib/libTKernel.so || (echo "OCCT not built — run 'just setup' first" && exit 1)
     git submodule update --init {{clocct-dir}}
     ln -sf ../../.local {{clocct-dir}}/.local
     cd {{clocct-dir}} && just wrap

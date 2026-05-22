@@ -18,7 +18,11 @@ must keep creating its own V3d_Viewer/V3d_View/AIS_InteractiveContext
 for the rendering surface.
 
 What CAN move is all state ownership and application logic. The existing
-C API becomes thin OCCT wrappers. No new C bindings are created.
+C API becomes thin OCCT wrappers. Where cl-occt already wraps a pure OCCT
+operation (no Qt involvement), those calls are made directly from Lisp
+instead of through our viewer's C API. Only minimal getter functions
+(viewer_get_view, viewer_get_trihedron) are added to bridge C++-owned
+handles to Lisp.
 
 ## Goals / Non-Goals
 
@@ -34,7 +38,6 @@ C API becomes thin OCCT wrappers. No new C bindings are created.
 - All changes are runtime-REPL-inspectable
 
 **Non-Goals:**
-- Expose widget handles to Lisp (requires new C API functions)
 - Replace QTreeWidget (scene tree) with Lisp widget
 - Add dynamic menu creation from Lisp (requires new C function)
 - Replace Qt file dialogs with Lisp equivalents
@@ -107,6 +110,43 @@ timer was removed (replaced by Lisp's render.lisp running on the
 worker thread). File dialog modal loops on the Qt thread no longer race
 with a C++ timer callback, so the guard is unnecessary.
 
+### 6. Pure OCCT operations delegated to cl-occt
+
+**Decision:** Pure OCCT operations (no Qt/widget involvement) use
+cl-occt's CFFI bindings directly from Lisp, rather than going through
+our viewer's C API wrapper. Affected operations:
+- **Viewport background color**: `v3d_view_set_bg_color` (cl-occt)
+  replaces `viewer_set_background_color` (removed)
+- **Trihedron axis colors**: `ais_trihedron_set_datum_part_color`
+  (cl-occt) replaces `viewer_set_axis_color` (removed)
+- **Status bar text**: `viewer_set_status_text` (new minimal setter)
+  replaces `updateShapeCount` logic (moved to Lisp `update-shape-count`)
+
+**Rationale:** The old approach duplicated OCCT wrapping code — our
+viewer's C API replicated what cl-occt already provides. Removing the
+duplicate C functions and calling cl-occt directly eliminates the
+middle layer, reduces the viewer C API surface, and removes OCCT header
+dependencies (`Quantity_Color.hxx`, `Prs3d_DatumParts.hxx`) from the
+viewer's C++.
+
+**C API additions:**
+- `viewer_get_view` — returns V3d_View* for use with cl-occt view functions
+- `viewer_get_trihedron` — returns AIS_Trihedron* for use with cl-occt
+  trihedron functions
+
+**C API removals:**
+- `viewer_set_background_color` — replaced by cl-occt
+- `viewer_set_axis_color` — replaced by cl-occt
+
+**Implementation notes:**
+- cl-occt functions use double floats (0.0–1.0); Lisp converts hex
+  colors via `(/ r 255.0)` at the call site
+- `update-shape-count` in ui.lisp formats the status bar text using
+  Lisp string logic (singular/plural, hidden count) and pushes it
+  through `%viewer-set-status-text`
+- Shape visibility changes from the scene tree fire a CFFI callback
+  into Lisp, which re-queries counts and updates the status bar
+
 ## Architecture
 
 ### Before (simplified)
@@ -147,12 +187,12 @@ drain-queue()
 ```
 viewer_create()
   → ViewerState { window, widget, context,
-                  eval_cb, file_cb, drain_cb, shapes (cache),
+                  eval_cb, file_cb, drain_cb, vis_cb, shapes (cache),
                   shape_names, name_cache, running }
   → ViewerWindow → setupMenus(), setupPanels(), setupStatusBar()
   → Wire File menu → QFileDialog → file_op_callback
   → Wire View menu → viewer_show_axis/grid
-  → Wire scene tree visibility → viewer_set_shape_visible
+  → Wire scene tree visibility → viewer_set_shape_visible (fires vis_cb)
   → Wire drain callback
 
 viewer_put_shape()
@@ -175,10 +215,24 @@ initialize-viewer()  (Lisp, after viewer-show)
   → (%viewer-show-grid vwr 1)
   → (%viewer-show-axis vwr 1)
   → (%viewer-set-antialiasing vwr 1)
+  → (apply-theme *theme-mode*)     ← pushes QSS + OCCT viewport/axis colors
+
+apply-theme()  (Lisp)
+  → %viewer-set-stylesheet          ← QSS
+  → cl-occt:%v3d-view-set-bg-color ← viewport background (via viewer_get_view)
+  → cl-occt:%ais-trihedron-set-datum-part-color ← axis colors (via viewer_get_trihedron)
+  → %viewer-set-placeholder-color   ← placeholder text
+
+update-shape-count()  (Lisp, after queue drain + visibility callback)
+  → %viewer-get-shape-count
+  → %viewer-get-visible-shape-count
+  → format status text with Lisp string logic
+  → %viewer-set-status-text
 
 drain-queue()
   → %viewer-put-shape → C++ displays + caches + tree
   → *displayed-models*[name] = shape  ← SINGLE source of truth
+  → update-shape-count()              ← Lisp updates status bar
 ```
 
 ## Communication Flows
@@ -198,9 +252,27 @@ WakeEvent received
 ### Viewer configuration (Lisp → Qt main thread)
 ```
 initialize-viewer()  (called from same thread as viewer_create)
-  → %viewer-show-grid *viewer* 1     ← C function, synchronous
-  → %viewer-show-axis *viewer* 1     ← C function, synchronous
-  → %viewer-set-antialiasing *viewer* 1
+  → %viewer-show-grid *viewer* 1         ← C function, synchronous
+  → %viewer-show-axis *viewer* 1         ← C function, synchronous
+  → %viewer-set-antialiasing *viewer* 1  ← C function, synchronous
+  → (apply-theme *theme-mode*)           ← QSS + OCCT colors from Lisp
+
+apply-theme()  (Lisp → cl-occt → OCCT)
+  → %viewer-set-stylesheet               ← Qt QSS
+  → viewer_get_view → %v3d-view-set-bg-color  ← cl-occt, viewport bg
+  → viewer_get_trihedron → %ais-trihedron-set-datum-part-color ← cl-occt, axes
+  → %viewer-set-placeholder-color        ← Qt palette
+```
+
+### Shape visibility change (scene tree → Lisp → status bar)
+```
+Scene tree checkbox → viewer_set_shape_visible
+  → OCCT Display/Erase
+  → visibility_callback(name, visible) → Lisp %on-shape-visibility
+    → update-shape-count()
+      → %viewer-get-shape-count, %viewer-get-visible-shape-count
+      → format string (singular/plural, hidden count)
+      → %viewer-set-status-text
 ```
 
 ### File operation (C++ menu → native dialog → Lisp)
@@ -217,10 +289,10 @@ Or from Lisp REPL directly:
 ```
 Before:                              After:
 wrap/                                wrap/
-├── occt_viewer.h   (62 lines)       ├── occt_viewer.h   (~70 lines)
-├── occt_viewer.cpp (562 lines)      ├── occt_viewer.cpp (~430 lines)
-├── viewer_window.h  (58 lines)      ├── viewer_window.h  (~70 lines)
-├── viewer_window.cpp(105 lines)     ├── viewer_window.cpp(~95 lines)
+├── occt_viewer.h   (62 lines)       ├── occt_viewer.h   (~75 lines)
+├── occt_viewer.cpp (562 lines)      ├── occt_viewer.cpp (~560 lines)
+├── viewer_window.h  (58 lines)      ├── viewer_window.h  (~67 lines)
+├── viewer_window.cpp(105 lines)     ├── viewer_window.cpp(~85 lines)
 ├── viewer_widget.h  (59 lines)      ├── viewer_widget.h  (~50 lines)
 ├── viewer_widget.cpp(187 lines)     ├── viewer_widget.cpp(~150 lines)
 ├── repl_panel.h     (43 lines)      repl_panel.h        (same)
@@ -233,14 +305,15 @@ wrap/                                wrap/
 └── OcctGlTools.cpp  (87 lines)      OcctGlTools.cpp      (same)
 
 src/viewer/                          src/viewer/
-├── package.lisp   (65 lines)        ├── package.lisp    (~80 lines)
-├── bindings.lisp (105 lines)        ├── bindings.lisp   (~85 lines)
+├── package.lisp   (65 lines)        ├── package.lisp    (~92 lines)
+├── bindings.lisp (105 lines)        ├── bindings.lisp   (~112 lines)
 ├── lifecycle.lisp (23 lines)        ├── lifecycle.lisp  (~30 lines)
-├── queue.lisp     (76 lines)        ├── queue.lisp      (~75 lines)
+├── queue.lisp     (76 lines)        ├── queue.lisp      (~76 lines)
 ├── repl.lisp      (98 lines)        ├── repl.lisp       (~100 lines)
-├── t/             (tests)           ├── ui.lisp          NEW(~40 lines)
-                                     ├── render.lisp      NEW(~30 lines)
-                                     └── t/              (same)
+├── theme.lisp     —                 ├── theme.lisp       NEW(~430 lines)
+├── t/             (tests)           ├── ui.lisp          (~55 lines)
+                                     ├── render.lisp      (~30 lines)
+                                     └── t/              (~728 lines)
 ```
 
 ## Risks / Trade-offs

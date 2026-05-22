@@ -9,13 +9,16 @@
   :components
    ((:module "viewer"
      :components
-     ((:file "package")
-      (:file "bindings")
-      (:file "queue")
-      (:file "repl")
-      (:file "ui")
-      (:file "render")
-      (:file "lifecycle")))))
+        ((:file "package")
+         (:file "bindings")
+         (:file "queue")
+         (:file "ops")
+         (:file "select")
+         (:file "repl")
+        (:file "ui")
+        (:file "theme")
+        (:file "render")
+        (:file "lifecycle")))))
 
 (defsystem :cl-occt-viewer/tests
   :description "Test suite for cl-occt-viewer"
