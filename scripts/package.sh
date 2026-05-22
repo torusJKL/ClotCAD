@@ -65,6 +65,20 @@ for lib in $QT6_LIBS; do
   fi
 done
 
+# ICU libraries (transitive Qt6Core dependencies)
+ICU_LIBS="libicui18n.so.74 libicuuc.so.74 libicudata.so.74"
+for lib in $ICU_LIBS; do
+  found=$(find "$QT_LIB_DIR" -name "$lib" 2>/dev/null | head -1)
+  if [ -z "$found" ]; then
+    found=$(ldconfig -p 2>/dev/null | grep "$lib" | head -1 | awk '{print $NF}')
+  fi
+  if [ -n "$found" ]; then
+    cp -L "$found" "$DIST_DIR/lib/qt6/"
+  else
+    echo "  WARNING: $lib not found"
+  fi
+done
+
 # Qt6 platform plugin
 echo "  → Qt6 platform plugin"
 xcb_plugin=$(find "$QT_LIB_DIR" -path "*/plugins/platforms/libqxcb.so" 2>/dev/null | head -1)
