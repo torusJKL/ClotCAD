@@ -12,5 +12,4 @@
 (ql:quickload :swank :silent t)
 
 (sb-ext:save-lisp-and-die "ClotCAD.core"
-  :compression t
   :purify t)
