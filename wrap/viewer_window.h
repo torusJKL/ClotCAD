@@ -42,6 +42,7 @@ public:
   QAction* replAction() const { return myReplAction; }
   QAction* sceneTreeAction() const { return mySceneTreeAction; }
   QAction* aboutAction() const { return myAboutAction; }
+  QAction* quitAction() const { return myQuitAction; }
 
 signals:
   void windowClosed();
@@ -76,6 +77,7 @@ private:
   QAction* myGridAction = nullptr;
   QAction* myViewCubeAction = nullptr;
   QAction* myAboutAction = nullptr;
+  QAction* myQuitAction = nullptr;
 
   QLabel* myShapeCountLabel = nullptr;
   QLabel* myFpsLabel = nullptr;

@@ -37,6 +37,10 @@ void ViewerWindow::setupMenus()
   myExportStlAction = fileMenu->addAction(tr("Export S&TL..."));
   myExportReplHistoryAction = fileMenu->addAction(tr("Export REPL &History..."));
 
+  fileMenu->addSeparator();
+  myQuitAction = fileMenu->addAction(tr("&Quit"));
+  myQuitAction->setShortcut(QKeySequence("Ctrl+Q"));
+
   QMenu* viewMenu = mb->addMenu(tr("&View"));
   myReplAction = viewMenu->addAction(tr("&REPL"));
   myReplAction->setCheckable(true);
