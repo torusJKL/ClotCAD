@@ -67,7 +67,7 @@ core:
 dist:
     ./scripts/package.sh
 
-package-all: viewer core dist
+package-all: submodules viewer core dist
 
 start:
     LD_LIBRARY_PATH=lib:{{occt-install}}/lib:{{clocct-dir}}/lib \

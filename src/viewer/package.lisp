@@ -93,13 +93,11 @@
     :show-axis
     :toggle-grid
     :toggle-axis
-    :set-view-aa
-    :set-antialiasing
-    :fit-view
-    :fit-all
-    :run-tests
-   :*repl-eof-sentinel*
-   :*repl-accumulator*))
+     :set-view-aa
+     :fit-view
+     :run-tests
+    :*repl-eof-sentinel*
+    :*repl-accumulator*))
 
 (defpackage :cl-occt-viewer
   (:use :cl :cl-occt-viewer.impl)
@@ -150,9 +148,7 @@
     :toggle-repl
     :toggle-scene-tree
     :set-view-aa
-    :set-antialiasing
     :fit-view
-    :fit-all
     :run-tests
     :set-repl-history-key
     :set-repl-submit-key
