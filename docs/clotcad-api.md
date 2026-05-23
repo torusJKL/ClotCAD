@@ -1,0 +1,295 @@
+# ClotCAD API Reference
+
+ClotCAD is a parametric CAD application built on Common Lisp and OpenCASCADE (OCCT).
+Users interact via an in-window REPL or a remote SLY/LSP connection.
+
+## Packages
+
+Functions are available in the `CL-OCCT-USER` package (nicknames: `CAD-USER`, `OCCT-USER`),
+which combines `CL-OCCT` (modeling kernel) and `CL-OCCT-VIEWER` (viewer commands).
+
+## 3D Primitives
+
+```lisp
+(make-box dx dy dz)                                         ; => shape
+(make-cylinder radius height)                               ; => shape
+(make-sphere radius)                                        ; => shape
+(make-cone r1 r2 height)                                    ; => shape
+(make-torus major-radius minor-radius)                      ; => shape
+```
+
+## Sweeps
+
+```lisp
+(make-prism shape dx dy dz)                                 ; => shape
+(make-revol shape ax ay az angle-deg)                       ; => shape
+```
+
+`make-prism` extrudes a shape along a vector. `make-revol` revolves a shape around an axis.
+
+## Boolean Operations
+
+```lisp
+(cut shape &rest others)                                    ; => shape
+(fuse shape &rest others)                                   ; => shape
+(common shape &rest others)                                 ; => shape
+(section shape &rest others)                                ; => shape
+```
+
+`cut` subtracts shapes, `fuse` unions them, `common` intersects, `section` returns intersection curves.
+Wrapper functions accept symbols, strings, or raw shapes.
+
+## Transformations
+
+```lisp
+(translate shape dx dy dz)                                  ; => shape
+(rotate shape ax ay az angle-deg)                           ; => shape
+```
+
+## 2D Geometry
+
+### Points, Vectors, Directions
+
+```lisp
+(make-pnt2d x y)                                            ; => geom2d
+(make-vec2d x y)                                            ; => geom2d
+(make-dir2d x y)                                            ; => geom2d
+```
+
+### Lines & Circles
+
+```lisp
+(make-line2d x y dx dy)                                     ; => geom2d
+(make-circle2d x y radius)                                  ; => geom2d
+```
+
+### Edges
+
+```lisp
+(make-edge x1 y1 x2 y2)                                     ; => shape
+(make-edge-3d x1 y1 z1 x2 y2 z2)                            ; => shape
+(make-circle-edge x y radius)                               ; => shape
+(make-circular-arc x1 y1 x2 y2 x3 y3)                       ; => shape
+```
+
+### Wires & Faces
+
+```lisp
+(make-wire &rest edges)                                     ; => shape
+(make-face wire)                                            ; => shape
+(make-face-on-plane wire ox oy oz nx ny nz)                 ; => shape
+```
+
+## Object Display Management
+
+```lisp
+(display name shape &key visible show-in-tree origin)       ; => shape
+(undisplay name)                                            ; => nil
+(clear-all)                                                 ; => nil
+(def name shape-form)                                       ; => shape
+(show &rest names)                                          ; => nil
+(hide &rest names)                                          ; => nil
+(toggle &rest names)                                        ; => nil
+(show-defs on)                                              ; => nil
+(toggle-defs)                                               ; => nil
+(resolve-shape designator)                                  ; => shape
+```
+
+`display` shows a shape in the 3D scene with a name. `def` defines a shape hidden (for later `show`).
+`show`/`hide`/`toggle` control visibility by name. `resolve-shape` resolves a symbol, string, or raw value to a shape object.
+
+## Selection
+
+```lisp
+(select &rest designators)                                  ; => nil
+(deselect &rest designators)                                ; => nil
+(clear-selection)                                           ; => nil
+(selected-shapes)                                           ; => list
+(apply-selection-schemes &key click ctrl-click shift-click) ; => nil
+```
+
+## Compounds & Assemblies
+
+```lisp
+(make-compound shapes)                                      ; => shape
+(add-to-compound compound shape)                            ; => shape
+(make-part shape &key name color location)                  ; => shape
+(make-assembly &key name children)                          ; => assembly
+```
+
+## View Controls
+
+```lisp
+(set-view orientation)                                      ; => nil
+(current-view)                                              ; => keyword
+(fit-view)                                                  ; => nil
+(set-view-aa enable)                                        ; => nil
+```
+
+Orientation values: `:top`, `:bottom`, `:front`, `:back`, `:left`, `:right`, `:iso`.
+
+### Grid, Axis, ViewCube Toggles
+
+```lisp
+(show-grid &optional show)                                  ; => nil
+(toggle-grid)                                               ; => nil
+(show-axis &optional show)                                  ; => nil
+(toggle-axis)                                               ; => nil
+(show-viewcube &optional show)                              ; => nil
+(toggle-viewcube)                                           ; => nil
+(show-viewcube-axes &optional show)                         ; => nil
+(toggle-viewcube-axes)                                      ; => nil
+```
+
+## Dock Panels
+
+```lisp
+(show-repl &optional show)                                  ; => nil
+(toggle-repl)                                               ; => nil
+(show-scene-tree &optional show)                            ; => nil
+(toggle-scene-tree)                                         ; => nil
+```
+
+## Theme
+
+```lisp
+(apply-theme mode &key accent)                              ; => nil
+(theme-dark &optional accent)                               ; => nil
+(theme-light &optional accent)                              ; => nil
+(theme-auto &optional accent)                               ; => nil
+(set-accent color-hex)                                      ; => nil
+(set-font-size size)                                        ; => nil
+```
+
+Mode values: `:dark`, `:light`, `:auto`. Accent is a hex color string like `"#4A90D9"`.
+
+## Parametric DSL
+
+The DSL provides a reactive DAG (directed acyclic graph) for parametric modeling.
+Models auto-track dependencies and re-evaluate when parameters change.
+
+### Macros
+
+```lisp
+(defmodel name (params) ..body)                             ; => model
+(with-params (&rest bindings) ..body)                       ; => values
+```
+
+### Functions
+
+```lisp
+(param key)                                                 ; => value
+(model-ref name)                                            ; => shape
+(model-display-name name)                                   ; => string or nil
+```
+
+### Mutation
+
+```lisp
+(set-param! key value)                                      ; => nil
+(set-params! &rest key-values)                              ; => nil
+```
+
+### Examples
+
+```lisp
+;; Simple parameterized model
+(defmodel base-plate (w d)
+  (make-box (param :w) 5 (param :d)))
+
+;; Model referencing another model
+(defmodel assembly (h)
+  (fuse (model-ref :base-plate)
+        (make-cylinder 5 (param :h))))
+
+;; Model with let, boolean cut, and translate
+(defmodel bracket (w h d r)
+  (let ((box (make-box (param :w) (param :h) (param :d)))
+        (hole (make-cylinder (param :r) (param :d))))
+    (cut box (translate hole
+      (/ (param :w) 2) (/ (param :h) 2) 0))))
+
+;; Set global parameters
+(set-params! :w 60 :d 40 :h 20 :r 3)
+
+;; Display assembly directly
+(display :assy (model-ref :assembly))
+
+;; Local parameter scope with def/show workflow
+(with-params (:w 80 :h 30)
+  (def :br (model-ref :bracket)))
+(show :br)
+
+;; Fit view to see all shapes
+(fit-view)
+```
+
+## File I/O
+
+```lisp
+(write-step shape filename)                                 ; => nil
+(read-step filename)                                        ; => shape
+(write-stl shape filename &key deflection)                  ; => nil
+(read-stl filename)                                         ; => shape
+```
+
+## REPL & Import
+
+```lisp
+(cancel-import)                                             ; => nil
+(replay-speed ms)                                           ; => nil
+(result-export flag)                                        ; => nil
+(export-repl-history path)                                  ; => nil
+(set-repl-history-key modifier)                             ; => nil
+(set-repl-submit-key modifier)                              ; => nil
+```
+
+Modifier values: `:ctrl`, `:none`, `:alt`.
+
+## Typical Workflow
+
+```lisp
+;; 1. Create and display a shape
+(display :box (make-box 10 20 30))
+
+;; 2. Named shape workflow (def → show)
+(def :s (make-sphere 20))
+(def :b (make-box 10 20 30))
+(def :result (cut :s :b))
+(show :result)
+
+;; 3. Visibility control
+(hide :result)
+(toggle :result)
+
+;; 4. Selection
+(select :box :sphere)
+(selected-shapes)  ;; => ("BOX" "SPHERE")
+
+;; 5. View control
+(set-view :iso)
+(fit-view)
+
+;; 6. Export
+(write-step :result "output.step")
+```
+
+## Viewer Interaction
+
+| Action | Mouse |
+|--------|-------|
+| Orbit | Left mouse button |
+| Pan | Middle mouse button |
+| Zoom | Right mouse button / scroll |
+| ViewCube | Click faces/corners for one-click orientation |
+| Scene Tree | Click to select, Ctrl+click to toggle, Shift+click for range |
+
+### REPL Key Bindings
+
+| Key | Action |
+|-----|--------|
+| Enter | Submit expression |
+| Shift+Enter | Insert newline |
+| Ctrl+Up | Previous history entry |
+| Ctrl+Down | Next history entry |
+| Tab | Insert 2-space indent |

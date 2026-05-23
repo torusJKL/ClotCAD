@@ -10,3 +10,4 @@ lib/
 dist/
 .vscode/
 squashfs-root/
+docs/cheatsheet/*.pdf
