@@ -1,6 +1,6 @@
 (defsystem :cl-occt-viewer
   :description "Qt-based 3D viewer for cl-occt using OCCT AIS"
-  :version "0.2.0"
+  :version "0.2.2"
   :author "Gal Buki"
   :license "GPLv3"
   :depends-on (:cl-occt :cffi :trivial-garbage :alexandria)
