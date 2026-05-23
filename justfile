@@ -95,5 +95,13 @@ test:
       --eval '(run-tests)' \
       --eval '(sb-ext:quit)'
 
+_cheatsheet-version := `tag=$(git describe --tags --abbrev=0 2>/dev/null) && commits=$(git rev-list --count "$tag..HEAD" 2>/dev/null) && if [ "$commits" = "0" ]; then echo "$tag"; else echo "$tag-$commits"; fi || echo "unknown"`
+
+# Build the ClotCAD cheatsheet PDF/A
+cheatsheet:
+    typst compile --pdf-standard a-2u	\
+      --input version="{{_cheatsheet-version}}"	\
+      docs/cheatsheet/main.typ docs/cheatsheet/clotcad-cheatsheet.pdf
+
 clean:
     rm -rf build lib
