@@ -60,17 +60,17 @@
             (warn "Slynk not available; skipping.")))
     (error (e)
       (format t ";; Warning: Could not start Slynk: ~A~%" e)))
-  (format t ";; Starting Alive LSP on port 4006...~%")
+  (format t ";; Starting Alive LSP server on port 4006...~%")
   (handler-case
       (let ((start (find-symbol "START" :alive/server)))
         (if start
             (progn
               (sb-thread:make-thread
-                (lambda ()
-                  (funcall start :port 4006 :default-package "CL-OCCT-USER"
-                                 :log-fn #'log-remote-eval)
-                  (loop (sleep 1)))
-                :name "alive-lsp")
+               (lambda ()
+                 (funcall start :port 4006 :default-package "CL-OCCT-USER"
+                                :log-fn #'log-remote-eval)
+                 (loop (sleep 1)))
+               :name "alive-lsp")
               (format t ";; Alive LSP server started on port 4006~%"))
             (warn "Alive LSP not available; skipping.")))
     (error (e)

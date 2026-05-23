@@ -9,3 +9,4 @@ lib/
 *.tar.gz
 dist/
 .vscode/
+squashfs-root/

@@ -37,7 +37,14 @@ Without this, the C++ library and OCCT won't load.
 ## Design Decisions
 
 - **File dialogs**: We use `QFileDialog::DontUseNativeDialog` for all import/export dialogs (STEP/STL) because the system-native dialog crashes the application on some configurations. See `wrap/occt_viewer.cpp` for the 4 dialog sites.
-- **alive-lsp patches**: We patch `lib/alive-lsp/` source in 3 files to add `:default-package` support. Alive LSP's eval handler hardcodes `"cl-user"` as the default package, but the viewer operates in `CL-OCCT-USER`. The upstream project has no configurable default package, so we added a `:default-package` parameter to `alive/server:start` threaded through the state → eval handler. When the client sends `"cl-user"` or `"common-lisp-user"` (or omits the package), the server substitutes the configured default. The clone is pinned to a specific commit in `justfile` so patches are reproducible.
+- **alive-lsp patches**: We patch `lib/alive-lsp/` source in 3 files to add `:default-package` support. Alive LSP's eval handler hardcodes `"cl-user"` as the default package, but the viewer operates in `CL-OCCT-USER`. The upstream project has no configurable default package, so we added a `:default-package` parameter to `alive/server:start` threaded through the state → eval handler. When the client sends `"cl-user"` or `"common-lisp-user"` (or omits the package), the server substitutes the configured default. The clone is pinned to a specific commit in `justfile` so patches are reproducible. Patches are stored at `scripts/patches/alive-lsp-default-package.patch` and applied automatically by `just alive-lsp`.
+
+- **AppImage Qt6 OpenGL plugins**: When bundling Qt6 applications in AppImages, you **must** include the `xcbglintegrations` plugins (`libqxcb-glx-integration.so` and `libqxcb-egl-integration.so`) in `lib/plugins/xcbglintegrations/`. These plugins bridge between the XCB platform plugin and the GL libraries (GLX/EGL). Without them, Qt6 cannot create OpenGL contexts and fails with:
+  ```
+  QXcbIntegration: Cannot create platform OpenGL context, neither GLX nor EGL are enabled
+  QOpenGLWidget is not supported on this platform.
+  ```
+  This error is misleading—it's not about missing GL libraries, but missing Qt plugins. The plugins are located at `/usr/lib/x86_64-linux-gnu/qt6/plugins/xcbglintegrations/` on Debian/Ubuntu systems. See `scripts/package.sh` for the bundling logic.
 
 ## Testing
 
