@@ -1,4 +1,4 @@
-(in-package :cl-occt-viewer)
+(in-package :clotcad)
 
 (defvar *selected* (make-hash-table :test 'equal)
   "Set of selected shape names (string → t). Lisp is the source of truth.")

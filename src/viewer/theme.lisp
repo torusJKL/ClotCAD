@@ -1,4 +1,4 @@
-(in-package :cl-occt-viewer)
+(in-package :clotcad)
 
 ;; ======================================================================
 ;;  Fluent-inspired theme system

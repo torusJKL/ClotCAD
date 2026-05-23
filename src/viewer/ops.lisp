@@ -1,4 +1,4 @@
-(in-package :cl-occt-viewer)
+(in-package :clotcad)
 
 (defvar *show-defs-in-tree* t
   "When non-nil, def-ined shapes appear in the Scene Tree.

@@ -10,7 +10,7 @@
       asdf:*central-registry*)
 (push (truename ".") asdf:*central-registry*)
 
-(ql:quickload :cl-occt-viewer :silent t)
+(ql:quickload :clotcad :silent t)
 (ql:quickload :slynk :silent t)
 (ql:quickload :alive-lsp :silent t)
 

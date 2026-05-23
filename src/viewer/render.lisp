@@ -1,4 +1,4 @@
-(in-package :cl-occt-viewer)
+(in-package :clotcad)
 
 (defvar *render-timer* nil
   "Periodic redraw timer handle.")

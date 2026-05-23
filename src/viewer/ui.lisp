@@ -1,4 +1,4 @@
-(in-package :cl-occt-viewer)
+(in-package :clotcad)
 
 (defvar *grid-visible* t)
 (defvar *axis-visible* nil)

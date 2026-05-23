@@ -1,12 +1,12 @@
-(in-package :cl-occt-viewer.impl)
+(in-package :clotcad.impl)
 
-(define-foreign-library libocctviewer
-  (:unix (:or "libocctviewer.so"
-              (merge-pathnames "lib/libocctviewer.so"
-                               (asdf:system-source-directory :cl-occt-viewer))))
-  (t (:default "libocctviewer")))
+(define-foreign-library libclotcad
+  (:unix (:or "libclotcad.so"
+              (merge-pathnames "lib/libclotcad.so"
+                               (asdf:system-source-directory :clotcad))))
+  (t (:default "libclotcad")))
 
-(use-foreign-library libocctviewer)
+(use-foreign-library libclotcad)
 
 ;; --- Lifecycle ---
 

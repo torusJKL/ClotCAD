@@ -5,8 +5,8 @@ Users interact via an in-window REPL or a remote SLY/LSP connection.
 
 ## Packages
 
-Functions are available in the `CL-OCCT-USER` package (nicknames: `CAD-USER`, `OCCT-USER`),
-which combines `CL-OCCT` (modeling kernel) and `CL-OCCT-VIEWER` (viewer commands).
+Functions are available in the `CLOTCAD-USER` package (nicknames: `CAD-USER`, `OCCT-USER`),
+which combines `CL-OCCT` (modeling kernel) and `CLOTCAD` (viewer commands).
 
 ## 3D Primitives
 

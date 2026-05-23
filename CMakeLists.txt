@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(occt-viewer-qt LANGUAGES CXX)
+project(ClotCAD LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -51,25 +51,25 @@ execute_process(COMMAND sbcl --version
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
 string(STRIP "${SBCL_VERSION_RAW}" SBCL_VERSION)
 
-add_library(occtviewer SHARED ${SOURCES})
+add_library(clotcad SHARED ${SOURCES})
 
-target_compile_definitions(occtviewer PRIVATE
+target_compile_definitions(clotcad PRIVATE
     CLOTCAD_VERSION="${CLOTCAD_VERSION}"
     SBCL_VERSION="${SBCL_VERSION}")
 
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/share/icons/ClotCAD-logo.svg PROPERTIES
     QT_RESOURCE_ALIAS "icons/ClotCAD-logo.svg"
 )
-qt6_add_resources(occtviewer "app_resources"
+qt6_add_resources(clotcad "app_resources"
     PREFIX "/"
     FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/share/icons/ClotCAD-logo.svg
 )
-target_include_directories(occtviewer PRIVATE
+target_include_directories(clotcad PRIVATE
     ${CMAKE_SOURCE_DIR}/wrap
     ${OpenCASCADE_INCLUDE_DIR}
 )
-target_link_libraries(occtviewer PRIVATE
+target_link_libraries(clotcad PRIVATE
     Qt6::Widgets
     Qt6::OpenGLWidgets
     OpenGL::GL
@@ -80,6 +80,6 @@ target_link_libraries(occtviewer PRIVATE
     OCC_TKHLR OCC_TKMesh
 )
 
-install(TARGETS occtviewer
+install(TARGETS clotcad
     LIBRARY DESTINATION lib
 )

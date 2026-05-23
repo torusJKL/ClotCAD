@@ -1,4 +1,4 @@
-(defpackage :cl-occt-viewer.impl
+(defpackage :clotcad.impl
   (:use :cl :cffi)
   (:import-from :cl-occt :shape :shape-p)
   (:export
@@ -99,8 +99,8 @@
     :*repl-eof-sentinel*
     :*repl-accumulator*))
 
-(defpackage :cl-occt-viewer
-  (:use :cl :cl-occt-viewer.impl)
+(defpackage :clotcad
+  (:use :cl :clotcad.impl)
   (:import-from :cl-occt :shape :shape-p
                :ais-clear-selected :ais-set-selected
                :ais-add-or-remove-selected
@@ -177,9 +177,9 @@
     :export-repl-history
     :log-remote-eval))
 
-(defpackage :cl-occt-user
-  (:use :cl :cl-occt :cl-occt-viewer)
-  (:shadowing-import-from :cl-occt-viewer
+(defpackage :clotcad-user
+  (:use :cl :cl-occt :clotcad)
+  (:shadowing-import-from :clotcad
    :cut :fuse :common :section :translate :rotate
    :make-prism :make-revol :make-compound :make-part
    :write-step :write-stl)

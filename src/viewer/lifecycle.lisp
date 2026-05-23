@@ -1,4 +1,4 @@
-(in-package :cl-occt-viewer)
+(in-package :clotcad)
 
 (defun initialize-viewer (vwr)
   (%viewer-show-axis vwr 0)
@@ -36,7 +36,7 @@
         (if (and bindings create-server)
             (progn
               (setf (symbol-value bindings)
-                    `((*package* . ,(find-package :cl-occt-user))))
+                    `((*package* . ,(find-package :clotcad-user))))
               (sb-thread:make-thread
                (lambda ()
                  (funcall create-server :port 4005 :dont-close t)

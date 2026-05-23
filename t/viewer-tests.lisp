@@ -1,4 +1,4 @@
-(in-package :cl-occt-viewer)
+(in-package :clotcad)
 
 (defstruct test-result
   (pass 0)
@@ -641,8 +641,8 @@
     (assert-eq :front *current-view* "callback with 1 (V3d_Ypos) should set :front")))
 
 (deftest palette-has-viewcube-colors
-  (let ((dark (cl-occt-viewer::%dark-palette "#0078d4"))
-        (light (cl-occt-viewer::%light-palette "#0078d4")))
+  (let ((dark (clotcad::%dark-palette "#0078d4"))
+        (light (clotcad::%light-palette "#0078d4")))
     (dolist (p (list dark light))
       (assert-true (assoc :viewcube-color p) "should have viewcube-color")
       (assert-true (assoc :viewcube-text-color p) "should have viewcube-text-color")
@@ -680,22 +680,22 @@
 
 ;; --- Package tests ---
 
-(deftest cl-occt-user-package-exists
-  (assert-true (find-package :cl-occt-user)
-               "cl-occt-user package should exist")
+(deftest clotcad-user-package-exists
+  (assert-true (find-package :clotcad-user)
+               "clotcad-user package should exist")
   (assert-true (find-package :cad-user)
                "cad-user nickname should resolve")
   (assert-true (find-package :occt-user)
                "occt-user nickname should resolve"))
 
-(deftest cl-occt-user-has-modeling-symbols
+(deftest clotcad-user-has-modeling-symbols
   (dolist (sym '("MAKE-SPHERE" "CUT" "FUSE" "TRANSLATE"))
-    (let ((found (find-symbol sym :cl-occt-user)))
-      (assert-true found (format nil "~A should be accessible in cl-occt-user" sym))
+    (let ((found (find-symbol sym :clotcad-user)))
+      (assert-true found (format nil "~A should be accessible in clotcad-user" sym))
       (assert-true (fboundp found)
-                   (format nil "~A should be fbound in cl-occt-user" sym)))))
+                   (format nil "~A should be fbound in clotcad-user" sym)))))
 
-(deftest cl-occt-user-has-viewer-symbols
+(deftest clotcad-user-has-viewer-symbols
     (dolist (sym '("DISPLAY" "UNDISPLAY" "CLEAR-ALL" "SHOW-GRID" "FIT-VIEW"
                    "SET-VIEW-AA" "SET-REPL-HISTORY-KEY" "SET-REPL-SUBMIT-KEY"
                    "DEF" "SHOW" "HIDE" "TOGGLE"
@@ -709,10 +709,10 @@
                   "APPLY-SELECTION-SCHEMES"
                   "SHOW-VIEWCUBE" "TOGGLE-VIEWCUBE" "SHOW-VIEWCUBE-AXES"
                   "TOGGLE-VIEWCUBE-AXES" "SET-VIEW" "CURRENT-VIEW"))
-    (let ((found (find-symbol sym :cl-occt-user)))
-      (assert-true found (format nil "~A should be accessible in cl-occt-user" sym))
+    (let ((found (find-symbol sym :clotcad-user)))
+      (assert-true found (format nil "~A should be accessible in clotcad-user" sym))
       (assert-true (fboundp found)
-                   (format nil "~A should be fbound in cl-occt-user" sym)))))
+                   (format nil "~A should be fbound in clotcad-user" sym)))))
 
 ;; --- REPL tests ---
 
@@ -1058,8 +1058,8 @@
 ;; --- make-core load test ---
 
 (deftest make-core-loads-systems
-  (assert-true (find-symbol "BOOTSTRAP" :cl-occt-viewer)
-               "bootstrap should be defined after loading cl-occt-viewer"))
+  (assert-true (find-symbol "BOOTSTRAP" :clotcad)
+               "bootstrap should be defined after loading ClotCAD"))
 
 ;; --- Registration tests ---
 
@@ -1090,26 +1090,26 @@
 ;; --- Theme tests ---
 
 (deftest subst-replaces-single-token
-  (let ((result (cl-occt-viewer::%subst "hello {{name}}" '(("name" . "world")))))
+  (let ((result (clotcad::%subst "hello {{name}}" '(("name" . "world")))))
     (assert-true (search "hello world" result :test 'char=)
                  "should replace {{name}} with world")))
 
 (deftest subst-replaces-multiple-tokens
   (let* ((color-alist '(("fg" . "#ffffff") ("bg" . "#000000")))
-         (result (cl-occt-viewer::%subst "color: {{fg}}; background: {{bg}};" color-alist)))
+         (result (clotcad::%subst "color: {{fg}}; background: {{bg}};" color-alist)))
     (assert-true (search "#ffffff" result :test 'char=) "should contain fg color")
     (assert-true (search "#000000" result :test 'char=) "should contain bg color")))
 
 (deftest subst-handles-symbol-keys
-  (let ((result (cl-occt-viewer::%subst "color: {{fg}};" '((:fg . "#ff0000")))))
+  (let ((result (clotcad::%subst "color: {{fg}};" '((:fg . "#ff0000")))))
     (assert-true (search "#ff0000" result :test 'char=))))
 
 (deftest subst-leaves-unknown-tokens
-  (let ((result (cl-occt-viewer::%subst "{{keep}}" nil)))
+  (let ((result (clotcad::%subst "{{keep}}" nil)))
     (assert-equal "{{keep}}" result "unmatched token should remain")))
 
 (deftest subst-empty-string
-  (assert-equal "" (cl-occt-viewer::%subst "" nil) "empty input should return empty"))
+  (assert-equal "" (clotcad::%subst "" nil) "empty input should return empty"))
 
 (deftest generate-qss-returns-string
   (let* ((*accent-color* "#0078d4")
@@ -1226,44 +1226,44 @@
 (deftest resolve-mode-auto-dark
   (with-mocked-viewer
     (setf mock-color-scheme 2)
-    (assert-eq :dark (cl-occt-viewer::%resolve-mode :auto))))
+    (assert-eq :dark (clotcad::%resolve-mode :auto))))
 
 (deftest resolve-mode-auto-light
   (with-mocked-viewer
     (setf mock-color-scheme 1)
-    (assert-eq :light (cl-occt-viewer::%resolve-mode :auto))))
+    (assert-eq :light (clotcad::%resolve-mode :auto))))
 
 (deftest resolve-mode-auto-unknown
   (with-mocked-viewer
     (setf mock-color-scheme 0)
-    (assert-eq :light (cl-occt-viewer::%resolve-mode :auto))))
+    (assert-eq :light (clotcad::%resolve-mode :auto))))
 
 (deftest resolve-mode-explicit-dark
-  (assert-eq :dark (cl-occt-viewer::%resolve-mode :dark)))
+  (assert-eq :dark (clotcad::%resolve-mode :dark)))
 
 (deftest resolve-mode-explicit-light
-  (assert-eq :light (cl-occt-viewer::%resolve-mode :light)))
+  (assert-eq :light (clotcad::%resolve-mode :light)))
 
 (deftest palette-has-axis-colors
-  (let ((dark (cl-occt-viewer::%dark-palette "#0078d4"))
-        (light (cl-occt-viewer::%light-palette "#0078d4")))
+  (let ((dark (clotcad::%dark-palette "#0078d4"))
+        (light (clotcad::%light-palette "#0078d4")))
     (dolist (p (list dark light))
       (assert-true (assoc :axis-x-color p) "should have axis-x-color")
       (assert-true (assoc :axis-y-color p) "should have axis-y-color")
       (assert-true (assoc :axis-z-color p) "should have axis-z-color"))))
 
 (deftest palette-has-placeholder-color
-  (let ((dark (cl-occt-viewer::%dark-palette "#0078d4"))
-        (light (cl-occt-viewer::%light-palette "#0078d4")))
+  (let ((dark (clotcad::%dark-palette "#0078d4"))
+        (light (clotcad::%light-palette "#0078d4")))
     (dolist (p (list dark light))
       (assert-true (assoc :placeholder-fg p) "should have placeholder-fg"))))
 
 (deftest palette-font-size-uses-variable
-  (let ((cl-occt-viewer::*font-size* "15px"))
-    (let ((dark (cl-occt-viewer::%dark-palette "#0078d4")))
+  (let ((clotcad::*font-size* "15px"))
+    (let ((dark (clotcad::%dark-palette "#0078d4")))
       (assert-equal "15px" (cdr (assoc :font-size dark)))))
-  (let ((cl-occt-viewer::*font-size* "12px"))
-    (let ((light (cl-occt-viewer::%light-palette "#0078d4")))
+  (let ((clotcad::*font-size* "12px"))
+    (let ((light (clotcad::%light-palette "#0078d4")))
       (assert-equal "12px" (cdr (assoc :font-size light))))))
 
 (deftest set-font-size-updates-and-reapplies
@@ -1451,7 +1451,7 @@
   (setq *test-result* (make-test-result))
   (let ((*repl-accumulator* "")
         (*repl-eof-sentinel* (gensym "REPL-EOF")))
-    (format t "~&=== cl-occt-viewer tests ===~2%")
+    (format t "~&=== ClotCAD tests ===~2%")
     (dolist (test-sym
              '(queue-push-adds-item queue-push-multiple-items queue-push-item-contents
                drain-queue-processes-all-items drain-queue-clear-empties-models
@@ -1486,9 +1486,9 @@
                update-shape-count-computes-from-hash
                show-grid-sets-visible show-axis-sets-visible
                toggle-grid-flips toggle-axis-flips
-               cl-occt-user-package-exists
-               cl-occt-user-has-modeling-symbols
-               cl-occt-user-has-viewer-symbols
+               clotcad-user-package-exists
+               clotcad-user-has-modeling-symbols
+               clotcad-user-has-viewer-symbols
                initialize-viewer-calls-all-three
                get-displayed-names-empty get-displayed-names-returns-names
                export-all-step-warns-on-empty export-all-stl-warns-on-empty

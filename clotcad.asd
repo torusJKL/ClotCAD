@@ -1,5 +1,5 @@
-(defsystem :cl-occt-viewer
-  :description "Qt-based 3D viewer for cl-occt using OCCT AIS"
+(defsystem :clotcad
+  :description "ClotCAD — parametric CAD with 3D viewer"
   :version "0.2.2"
   :author "Gal Buki"
   :license "GPLv3"
@@ -20,9 +20,9 @@
          (:file "render")
          (:file "lifecycle")))))
 
-(defsystem :cl-occt-viewer/tests
-  :description "Test suite for cl-occt-viewer"
-  :depends-on (:cl-occt-viewer)
+(defsystem :clotcad/tests
+  :description "Test suite for ClotCAD"
+  :depends-on (:clotcad)
   :pathname "t/"
   :serial t
   :components
