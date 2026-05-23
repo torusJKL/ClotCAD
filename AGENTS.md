@@ -4,7 +4,7 @@
 
 ```sh
 just setup        # Download + build OCCT 8.0.0 to .local/ (one-time, ~10 min)
-just viewer       # CMake build → lib/libocctviewer.so
+just viewer       # CMake build → lib/libclotcad.so
 just alive-lsp    # Clone alive-lsp LSP server → lib/alive-lsp/
 just core         # SBCL core dump → ClotCAD.core (for distribution)
 just dist         # Assemble distribution → dist/ + tarball + AppImage
@@ -26,8 +26,8 @@ Without this, the C++ library and OCCT won't load.
 
 ## Architecture
 
-- **C++**: Thin Qt6 widgets in `wrap/` → shared lib `libocctviewer.so`. ViewerWidget (QOpenGLWidget + AIS_ViewController) handles rendering and mouse events. No business logic, no state — just event dispatch and OCCT rendering calls.
-- **Lisp**: CFFI bindings in `src/viewer/` → ASDF system `:cl-occt-viewer`. All viewer state (shape storage, grid/axis visibility, render loop) lives in Lisp modules: `ui.lisp` (state management), `render.lisp` (periodic redraw), `queue.lisp` (inter-thread dispatch), `repl.lisp` (callback registration).
+- **C++**: Thin Qt6 widgets in `wrap/` → shared lib `libclotcad.so`. ViewerWidget (QOpenGLWidget + AIS_ViewController) handles rendering and mouse events. No business logic, no state — just event dispatch and OCCT rendering calls.
+- **Lisp**: CFFI bindings in `src/viewer/` → ASDF system `:clotcad`. All viewer state (shape storage, grid/axis visibility, render loop) lives in Lisp modules: `ui.lisp` (state management), `render.lisp` (periodic redraw), `queue.lisp` (inter-thread dispatch), `repl.lisp` (callback registration).
 - **Threading**: Qt main thread runs event loop; Slynk worker thread (port 4005) and Alive LSP worker thread (port 4006) handle eval and push display updates via Qt events
 - **Entry points**:
   - C++: `wrap/viewer_window.cpp` → `QMainWindow`
@@ -37,7 +37,7 @@ Without this, the C++ library and OCCT won't load.
 ## Design Decisions
 
 - **File dialogs**: We use `QFileDialog::DontUseNativeDialog` for all import/export dialogs (STEP/STL) because the system-native dialog crashes the application on some configurations. See `wrap/occt_viewer.cpp` for the 4 dialog sites.
-- **alive-lsp patches**: We patch `lib/alive-lsp/` source in 3 files to add `:default-package` support. Alive LSP's eval handler hardcodes `"cl-user"` as the default package, but the viewer operates in `CL-OCCT-USER`. The upstream project has no configurable default package, so we added a `:default-package` parameter to `alive/server:start` threaded through the state → eval handler. When the client sends `"cl-user"` or `"common-lisp-user"` (or omits the package), the server substitutes the configured default. The clone is pinned to a specific commit in `justfile` so patches are reproducible. Patches are stored at `scripts/patches/alive-lsp-default-package.patch` and applied automatically by `just alive-lsp`.
+- **alive-lsp patches**: We patch `lib/alive-lsp/` source in 3 files to add `:default-package` support. Alive LSP's eval handler hardcodes `"cl-user"` as the default package, but the viewer operates in `CLOTCAD-USER`. The upstream project has no configurable default package, so we added a `:default-package` parameter to `alive/server:start` threaded through the state → eval handler. When the client sends `"cl-user"` or `"common-lisp-user"` (or omits the package), the server substitutes the configured default. The clone is pinned to a specific commit in `justfile` so patches are reproducible. Patches are stored at `scripts/patches/alive-lsp-default-package.patch` and applied automatically by `just alive-lsp`.
 
 - **AppImage Qt6 OpenGL plugins**: When bundling Qt6 applications in AppImages, you **must** include the `xcbglintegrations` plugins (`libqxcb-glx-integration.so` and `libqxcb-egl-integration.so`) in `lib/plugins/xcbglintegrations/`. These plugins bridge between the XCB platform plugin and the GL libraries (GLX/EGL). Without them, Qt6 cannot create OpenGL contexts and fails with:
   ```
@@ -48,7 +48,7 @@ Without this, the C++ library and OCCT won't load.
 
 ## Testing
 
-Tests are in `t/` directory, loaded via `:cl-occt-viewer/tests` ASDF system. Run with `just test` (uses mocked CFFI, no display needed).
+Tests are in `t/` directory, loaded via `:clotcad/tests` ASDF system. Run with `just test` (uses mocked CFFI, no display needed).
 
 The `with-mocked-viewer` macro mocks `%viewer-post-event`, `%viewer-sync-shapes`,
 `%viewer-post-event-delayed`, `%viewer-fit-all`, `%viewer-show-grid`,
@@ -82,12 +82,35 @@ This repo uses the **openspec** workflow (see `.opencode/skills/` and `.opencode
 - `/opsx-apply` — Apply a change from spec
 - `/opsx-archive` — Archive completed change
 
+## Rename Translation Matrix (May 2026)
+
+This change (`rename-to-clotcad`) renamed all project identifiers from the legacy
+`cl-occt-viewer` to `ClotCAD`. Use this table to map old references to new:
+
+| Old Name | New Name |
+|---|---|
+| `cl-occt-viewer.asd` (file) | `clotcad.asd` |
+| `:cl-occt-viewer` (ASDF system) | `:clotcad` |
+| `:cl-occt-viewer/tests` (ASDF test system) | `:clotcad/tests` |
+| `:cl-occt-viewer.impl` (Lisp package) | `:clotcad.impl` |
+| `:cl-occt-viewer` (Lisp package) | `:clotcad` |
+| `:cl-occt-user` (Lisp workspace) | `:clotcad-user` |
+| `occt-viewer-qt` (CMake project) | `ClotCAD` |
+| `occtviewer` (CMake target) | `clotcad` |
+| `libocctviewer.so` (shared library) | `libclotcad.so` |
+| `libocctviewer` (CFFI foreign lib) | `libclotcad` |
+| `cl-occt-viewer:bootstrap` (Lisp function) | `clotcad:bootstrap` |
+
+OpenSpec archive documents (under `openspec/changes/archive/`) were intentionally
+left unchanged — they are historical records. All active code, build scripts, and
+documentation have been updated.
+
 ## Important Paths
 
 - OCCT installed to: `.local/`
 - cl-occt dependency: `lib/cl-occt/` (git submodule)
 - alive-lsp dependency: `lib/alive-lsp/` (git clone)
-- Shared library: `lib/libocctviewer.so`
+- Shared library: `lib/libclotcad.so`
 - SBCL core dump: `ClotCAD.core` (product of `just core`)
 - Distribution: `dist/` (product of `just dist`), `ClotCAD-*.tar.gz`, `ClotCAD-*.AppImage`
 - Slynk port: `4005`

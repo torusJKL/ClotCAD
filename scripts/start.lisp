@@ -11,8 +11,8 @@
       asdf:*central-registry*)
 (push (truename ".") asdf:*central-registry*)
 
-(asdf:load-system :cl-occt-viewer)
-(in-package :cl-occt-user)
+(asdf:load-system :clotcad)
+(in-package :clotcad-user)
 
 ;; Start Slynk in background thread for SLY connectivity
 (handler-case
@@ -22,7 +22,7 @@
             (create-server (find-symbol "CREATE-SERVER" :slynk)))
         (when (and bindings create-server)
           (setf (symbol-value bindings)
-                `((*package* . ,(find-package :cl-occt-user))))
+                `((*package* . ,(find-package :clotcad-user))))
           (sb-thread:make-thread
            (lambda ()
              (funcall create-server :port 4005 :dont-close t)
@@ -59,7 +59,7 @@
         (when start
           (sb-thread:make-thread
            (lambda ()
-             (funcall start :port 4006 :default-package "CL-OCCT-USER"
+              (funcall start :port 4006 :default-package "CLOTCAD-USER"
                             :log-fn #'log-remote-eval)
              (loop (sleep 1)))
            :name "alive-lsp")

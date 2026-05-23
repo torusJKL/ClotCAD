@@ -6,7 +6,7 @@ Qt6-based 3D viewer for [cl-occt](https://github.com/torusJKL/cl-occt) using OCC
 
 ```sh
 just setup         # Build OCCT + cl-occt (one-time, ~10 min)
-just viewer        # Build libocctviewer.so
+just viewer        # Build libclotcad.so
 just start         # Launch viewer + Slynk (4005) + Alive LSP (4006)
 ```
 
@@ -89,7 +89,7 @@ All viewer settings are changeable at runtime from either REPL:
 (current-view)           ; → :TOP (or nil if non-standard orientation)
 ```
 
-You can switch to the `cl-occt` or `cl-occt-viewer` packages directly
+You can switch to the `cl-occt` or `clotcad` packages directly
 for qualified access, or use the package nicknames `:cad-user` / `:occt-user`:
 
 ```lisp
@@ -132,8 +132,8 @@ Accepts `:ctrl`, `:none`, and `:alt` for each modifier.
 
 ## Workspace Package
 
-The system provides `:cl-occt-user` — a convenience workspace package
-that combines `:cl-occt` (modeling API) and `:cl-occt-viewer` (viewer
+The system provides `:clotcad-user` — a convenience workspace package
+that combines `:cl-occt` (modeling API) and `:clotcad` (viewer
 commands) into a single namespace. Load it through nicknames:
 
 | Package | Nicknames |
@@ -318,7 +318,7 @@ wrap/
 └── OcctGlTools.h/.cpp       GL context/FBO wrapping
 
 src/viewer/
-├── package.lisp             Package exports (cl-occt-viewer, cl-occt-user)
+├── package.lisp             Package exports (clotcad, clotcad-user)
 ├── bindings.lisp            CFFI bindings
 ├── queue.lisp               Event queue + full-state sync
 ├── ops.lisp                 def, show, hide, toggle, resolve-shape, wrappers
@@ -384,7 +384,7 @@ cmake --install .
 ## Build Viewer
 
 ```sh
-just viewer        # cmake build → lib/libocctviewer.so
+just viewer        # cmake build → lib/libclotcad.so
 ```
 
 Or manually:
@@ -392,7 +392,7 @@ Or manually:
 ```sh
 cmake -S . -B build
 cmake --build build
-cp build/libocctviewer.so lib/
+cp build/libclotcad.so lib/
 ```
 
 ## Tests
@@ -414,7 +414,7 @@ CFFI functions are mocked via `with-mocked-viewer`.
 To run from a Lisp REPL:
 
 ```lisp
-(asdf:load-system :cl-occt-viewer/tests)
-(in-package :cl-occt-viewer)
+(asdf:load-system :clotcad/tests)
+(in-package :clotcad)
 (run-tests)
 ```

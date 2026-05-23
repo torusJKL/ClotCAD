@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Replaced Swank with Slynk for IDE connectivity (SLIME compatibility dropped)
-- Bound `*package*` to `CL-OCCT-USER` in UI REPL
+- Bound `*package*` to `CLOTCAD-USER` in UI REPL
 - Switched to binary SBCL release instead of source code build
 
 ## [0.1.0] - 2026-05-22

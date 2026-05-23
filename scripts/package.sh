@@ -37,15 +37,15 @@ if [ -d "$SBCL_HOME/lib/sbcl" ]; then
 fi
 
 # 2. C++ libraries
-echo "  → libocctviewer.so"
-cp "$ROOT_DIR/lib/libocctviewer.so" "$DIST_DIR/lib/"
+echo "  → libclotcad.so"
+cp "$ROOT_DIR/lib/libclotcad.so" "$DIST_DIR/lib/"
 
 echo "  → libocctwrap.so"
 cp "$ROOT_DIR/lib/cl-occt/lib/libocctwrap.so" "$DIST_DIR/lib/"
 
 # 3. OCCT shared libraries
 echo "  → OCCT libraries"
-OCCT_LIBS=$(ldd "$DIST_DIR/lib/libocctviewer.so" "$DIST_DIR/lib/libocctwrap.so" 2>/dev/null \
+OCCT_LIBS=$(ldd "$DIST_DIR/lib/libclotcad.so" "$DIST_DIR/lib/libocctwrap.so" 2>/dev/null \
   | grep -oP '/\S+libTK\w+\.so[.\d]*' | sort -u)
 if [ -z "$OCCT_LIBS" ]; then
   # Fallback: copy all OCCT libs from .local
@@ -209,7 +209,7 @@ if command -v linuxdeploy &>/dev/null && command -v appimagetool &>/dev/null; th
   # Pass --library for key binaries so linuxdeploy resolves their deps (GLX, EGL, etc.)
   # Set LD_LIBRARY_PATH so linuxdeploy can find OCCT libs in lib/occt/
   LINUXDEPLOY_LIB_ARGS=()
-  for lib in "$APPDIR/lib/libocctviewer.so" "$APPDIR/lib/libocctwrap.so"; do
+  for lib in "$APPDIR/lib/libclotcad.so" "$APPDIR/lib/libocctwrap.so"; do
     [ -f "$lib" ] && LINUXDEPLOY_LIB_ARGS+=(--library "$lib")
   done
   LD_LIBRARY_PATH="$APPDIR/lib/occt:$APPDIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \

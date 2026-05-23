@@ -1,4 +1,4 @@
-(in-package :cl-occt-viewer)
+(in-package :clotcad)
 
 (defvar *repl-accumulator* ""
   "Accumulates incomplete REPL input for multiline support.")
@@ -65,7 +65,7 @@
   (sb-ext:atomic-push (cons code-str output-str) *repl-log*))
 
 (cffi:defcallback eval-string :void ((code :string) (result :pointer) (maxlen :int))
-  (let ((*package* (find-package :cl-occt-user)))
+  (let ((*package* (find-package :clotcad-user)))
     (handler-case
         (let* ((full-code (if (string= *repl-accumulator* "")
                               code
@@ -221,9 +221,9 @@
 
 (defun register-viewer-callbacks (vwr)
   (setf *viewer* vwr)
-  (cl-occt-viewer.impl:%viewer-set-eval-callback vwr (cffi:callback eval-string))
-  (cl-occt-viewer.impl:%viewer-set-file-op-callback vwr (cffi:callback handle-file-op))
-  (cl-occt-viewer.impl:%viewer-set-drain-callback vwr (cffi:callback drain-queue-callback))
+  (clotcad.impl:%viewer-set-eval-callback vwr (cffi:callback eval-string))
+  (clotcad.impl:%viewer-set-file-op-callback vwr (cffi:callback handle-file-op))
+  (clotcad.impl:%viewer-set-drain-callback vwr (cffi:callback drain-queue-callback))
   (register-shape-visibility-callback)
   (%viewer-set-tree-selection-callback vwr (cffi:callback %on-tree-selection))
   (register-selection-callback)

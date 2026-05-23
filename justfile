@@ -9,13 +9,13 @@ clocct-dir := root-dir + "/lib/cl-occt"
 alive-lsp-dir := root-dir + "/lib/alive-lsp"
 
 default:
-    @echo "cl-occt-viewer (Qt) — Common Lisp parametric CAD with 3D viewer"
+    @echo "ClotCAD — Common Lisp parametric CAD with 3D viewer"
     @echo ""
     @echo "Recipes:"
     @echo "  setup        Download + build OCCT {{occt-version}} (one-time)"
     @echo "  submodules         Init submodule + symlink + wrap (requires OCCT built)"
     @echo "  alive-lsp    Clone alive-lsp LSP server → lib/alive-lsp/"
-    @echo "  viewer       Build shared library → lib/libocctviewer.so"
+    @echo "  viewer       Build shared library → lib/libclotcad.so"
     @echo "  core         Build SBCL core dump → ClotCAD.core"
     @echo "  dist         Assemble distribution → dist/ + tarball + AppImage"
     @echo "  package-all  viewer + core + dist (run setup first)"
@@ -68,7 +68,7 @@ viewer:
     mkdir -p build lib
     cmake -S . -B build -DOCCT_DIR={{occt-install}}
     cmake --build build -- -j$(nproc)
-    cp build/libocctviewer.so lib/
+    cp build/libclotcad.so lib/
 
 core: alive-lsp
     rm -rf ~/.cache/common-lisp
@@ -90,8 +90,8 @@ test:
       --eval '(require :asdf)' \
       --eval '(push "{{clocct-dir}}/" asdf:*central-registry*)' \
       --eval '(push "{{root-dir}}/" asdf:*central-registry*)' \
-      --eval '(asdf:load-system :cl-occt-viewer/tests :force t)' \
-      --eval '(in-package :cl-occt-viewer)' \
+      --eval '(asdf:load-system :clotcad/tests :force t)' \
+      --eval '(in-package :clotcad)' \
       --eval '(run-tests)' \
       --eval '(sb-ext:quit)'
 
