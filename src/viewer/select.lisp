@@ -5,7 +5,16 @@
 
 (defun select (&rest designators)
   "Select one or more shapes, replacing current selection.
-Each designator is a string (\"box1\") or symbol (:box)."
+
+  Each designator is a string (\"box1\") or symbol (:box).
+
+  Example:
+
+      (select :box :sphere)
+      (select \"box1\" \"sphere2\")
+      (select)             ;; deselect all
+
+  See also: `deselect`, `clear-selection`, `selected-shapes`"
   (let ((names (mapcar #'string designators)))
     (clrhash *selected*)
     (dolist (name names)
@@ -13,18 +22,37 @@ Each designator is a string (\"box1\") or symbol (:box)."
     (queue-push :sync-selection)))
 
 (defun deselect (&rest designators)
-  "Remove one or more shapes from the current selection."
+  "Remove one or more shapes from the current selection.
+
+  Example:
+
+      (deselect :sphere)
+      (deselect \"box1\")
+
+  See also: `select`, `clear-selection`"
   (dolist (d designators)
     (remhash (string d) *selected*))
   (queue-push :sync-selection))
 
 (defun clear-selection ()
-  "Deselect all shapes."
+  "Deselect all shapes.
+
+  Example:
+
+      (clear-selection)
+
+  See also: `select`, `deselect`"
   (clrhash *selected*)
   (queue-push :sync-selection))
 
 (defun selected-shapes ()
-  "Return a list of currently selected shape name strings."
+  "Return a list of currently selected shape name strings.
+
+  Example:
+
+      (selected-shapes)   ;; => (\"BOX\" \"SPHERE\")
+
+  See also: `select`, `deselect`"
   (loop for name being the hash-keys of *selected* collecting name))
 
 (defun sync-selection-to-occt (&optional vwr)
@@ -50,12 +78,17 @@ Must be called from the main thread (where OCCT context lives)."
                                       (ctrl-click :add)
                                       (shift-click :xor))
   "Configure mouse selection schemes from Lisp.
-Keyword values: :replace, :add, :remove, :xor, :clear, :replace-extra
-OCCT constants:
-  Aspect_VKeyMouse_LeftButton = 1<<13 = #x2000
-  Aspect_VKeyFlags_SHIFT      = 1<<8  = #x100
-  Aspect_VKeyFlags_CTRL       = 1<<9  = #x200
-C++ computes: key = button | (modifiers << 16)"
+
+  Keyword values: `:replace`, `:add`, `:remove`, `:xor`, `:clear`,
+  `:replace-extra`.
+
+  Example:
+
+      (apply-selection-schemes)                           ;; defaults
+      (apply-selection-schemes :click :add
+                               :ctrl-click :xor)          ;; custom
+
+  See also: `select`, `deselect`"
   (when *viewer*
     (flet ((scheme-int (k)
              (or (cdr (assoc k cl-occt:*selection-scheme-map*)) 0)))

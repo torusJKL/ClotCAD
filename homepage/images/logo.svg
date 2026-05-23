@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Left parenthesis ( -->
+  <path d="M 28.5 10 C 6.5 25, 6.5 75, 28.5 90"
+        fill="none" stroke="#5B7DBF" stroke-width="5"
+        stroke-linecap="round" />
+
+  <!-- Right parenthesis ) -->
+  <path d="M 71.5 10 C 93.5 25, 93.5 75, 71.5 90"
+        fill="none" stroke="#5B7DBF" stroke-width="5"
+        stroke-linecap="round" />
+
+  <!-- Colon between left bracket and cylinder -->
+  <circle cx="27.5" cy="42" r="3" fill="#fbd92c"/>
+  <circle cx="27.5" cy="58" r="3" fill="#fbd92c"/>
+
+  <!-- Wireframe cylinder -->
+  <g fill="none" stroke="#fbd92c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="53.5" cy="31.25" rx="18" ry="7"/>
+    <ellipse cx="53.5" cy="68.75" rx="18" ry="7"/>
+    <line x1="35.5" y1="31.25" x2="35.5" y2="68.75"/>
+    <line x1="71.5" y1="31.25" x2="71.5" y2="68.75"/>
+    <line x1="53.5" y1="31.25" x2="53.5" y2="68.75"/>
+  </g>
+</svg>

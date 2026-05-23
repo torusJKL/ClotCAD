@@ -11,3 +11,4 @@ dist/
 .vscode/
 squashfs-root/
 docs/cheatsheet/*.pdf
+homepage/output/
