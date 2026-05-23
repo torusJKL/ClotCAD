@@ -56,9 +56,29 @@
           (%viewer-set-import-status *viewer* 0 0 0)))))
 
 (defun cancel-import ()
+  "Cancel an active Lisp file import.
+
+  The current form finishes evaluation, then the import stops.
+
+  Example:
+
+      (cancel-import)
+
+  See also: `replay-speed`"
   (setf *import-cancelled* t))
 
 (defun replay-speed (ms)
+  "Set the delay between imported form evaluations.
+
+  MS is in milliseconds. NIL means no delay (evaluate as fast
+  as possible). Useful for debugging slow imports.
+
+  Example:
+
+      (replay-speed 500)   ;; wait 500ms between forms
+      (replay-speed nil)   ;; no delay
+
+  See also: `cancel-import`"
   (setf *import-speed* ms))
 
 (defun log-remote-eval (code-str output-str)
@@ -128,6 +148,18 @@
     t))
 
 (defun export-repl-history (path)
+  "Export the REPL session log to a Lisp file.
+
+  Each entry is written as code followed by a newline. If
+  `result-export` is T, outputs are included as comments.
+
+  Example:
+
+      (export-repl-history \"session.lisp\")
+      (result-export t)
+      (export-repl-history \"session-with-results.lisp\")
+
+  See also: `result-export`"
   (with-open-file (f path :direction :output :if-exists :supersede)
     (dolist (entry (reverse *repl-log*))
       (destructuring-bind (code . output) entry
@@ -140,6 +172,17 @@
   t)
 
 (defun result-export (flag)
+  "Toggle whether REPL history export includes result values.
+
+  When T, exported history includes output lines as comments.
+  When NIL, only code is exported.
+
+  Example:
+
+      (result-export t)     ;; include results as ; comments
+      (result-export nil)   ;; code only (default)
+
+  See also: `export-repl-history`"
   (setf *export-with-output* flag))
 
 (defun export-all-stl (path)
@@ -206,6 +249,16 @@
   (sync-selection-to-occt))
 
 (defun set-repl-history-key (modifier)
+  "Set the modifier key for REPL history navigation.
+
+  MODIFIER is one of: `:ctrl` (default), `:none`, `:alt`.
+  When :none, plain Up/Down arrow keys navigate history.
+
+  Example:
+
+      (set-repl-history-key :none)   ;; plain arrows for history
+
+  See also: `set-repl-submit-key`"
   (%viewer-set-repl-history-modifier *viewer*
     (ecase modifier
       (:ctrl  *qt-control-modifier*)
@@ -213,6 +266,17 @@
       (:alt   *qt-alt-modifier*))))
 
 (defun set-repl-submit-key (modifier)
+  "Set the modifier key for REPL expression submission.
+
+  MODIFIER is one of: `:none` (default, plain Enter submits),
+  `:ctrl` (Ctrl+Enter submits, Enter inserts newline),
+  `:alt` (Alt+Enter submits).
+
+  Example:
+
+      (set-repl-submit-key :ctrl)   ;; Ctrl+Enter to submit
+
+  See also: `set-repl-history-key`"
   (%viewer-set-repl-submit-modifier *viewer*
     (ecase modifier
       (:none  *qt-no-modifier*)

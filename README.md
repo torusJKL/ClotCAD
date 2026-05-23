@@ -110,13 +110,14 @@ evaluated:
 
 **Key bindings** (default, configurable at runtime):
 
-| Key | Action |
-|-----|--------|
-| **Enter** | Submit expression |
-| **Shift+Enter** | Insert newline |
-| **Ctrl+Up** | Previous history entry |
-| **Ctrl+Down** | Next history entry |
-| **Tab** | Insert 2-space indent |
+<table>
+  <tr><th>Key</th><th>Action</th></tr>
+  <tr><td><b>Enter</b></td><td>Submit expression</td></tr>
+  <tr><td><b>Shift+Enter</b></td><td>Insert newline</td></tr>
+  <tr><td><b>Ctrl+Up</b></td><td>Previous history entry</td></tr>
+  <tr><td><b>Ctrl+Down</b></td><td>Next history entry</td></tr>
+  <tr><td><b>Tab</b></td><td>Insert 2-space indent</td></tr>
+</table>
 
 To change the modifiers from Lisp:
 
@@ -136,9 +137,10 @@ The system provides `:clotcad-user` — a convenience workspace package
 that combines `:cl-occt` (modeling API) and `:clotcad` (viewer
 commands) into a single namespace. Load it through nicknames:
 
-| Package | Nicknames |
-|---------|-----------|
-| `CL-OCCT-USER` | `CAD-USER`, `OCCT-USER` |
+<table>
+  <tr><th>Package</th><th>Nicknames</th></tr>
+  <tr><td><code>CL-OCCT-USER</code></td><td><code>CAD-USER</code>, <code>OCCT-USER</code></td></tr>
+</table>
 
 This is the default package when starting the viewer via `just start`.
 From a SLY REPL, type `(in-package :cad-user)` to switch.
@@ -184,12 +186,13 @@ the event loop between forms. The 3D view stays interactive while importing.
 
 **Controls during import:**
 
-| Action | What it does |
-|--------|-------------|
-| **Ctrl+G** | Cancel the current import |
-| Click "Importing N/M..." in status bar | Cancel the current import |
-| `(cancel-import)` | Cancel the current import |
-| `(replay-speed 500)` | Wait 500ms between forms (nil = immediate) |
+<table>
+  <tr><th>Action</th><th>What it does</th></tr>
+  <tr><td><b>Ctrl+G</b></td><td>Cancel the current import</td></tr>
+  <tr><td>Click "Importing N/M..." in status bar</td><td>Cancel the current import</td></tr>
+  <tr><td><code>(cancel-import)</code></td><td>Cancel the current import</td></tr>
+  <tr><td><code>(replay-speed 500)</code></td><td>Wait 500ms between forms (nil = immediate)</td></tr>
+</table>
 
 The status bar shows "Importing 5/42..." during an active import. Click it
 to cancel.
@@ -226,22 +229,24 @@ symbol-based export:
 
 ## Interface
 
-| Component | Description |
-|-----------|-------------|
-| **Menu Bar** (top) | File (Import/Export STEP/STL, Import Lisp, Export REPL History) and View (REPL, Scene Tree, Axis, Grid, ViewCube toggles) |
-| **3D Viewport** (center) | QOpenGLWidget with OCCT AIS rendering. Orbit (LMB), pan (MMB), zoom (RMB/scroll). ViewCube in top-right corner for one-click view orientation |
-| **Scene Tree** (left) | Shape list with visibility checkboxes. Click to select, Ctrl+click to toggle, Shift+click for range |
-| **REPL** (right) | In-window Lisp REPL with multi-line input, multi-form evaluation, input/output history, and configurable key bindings |
-| **Status Bar** (bottom) | Shape count, import progress/cancel label, and FPS |
+<table>
+  <tr><th>Component</th><th>Description</th></tr>
+  <tr><td><b>Menu Bar</b> (top)</td><td>File (Import/Export STEP/STL, Import Lisp, Export REPL History) and View (REPL, Scene Tree, Axis, Grid, ViewCube toggles)</td></tr>
+  <tr><td><b>3D Viewport</b> (center)</td><td>QOpenGLWidget with OCCT AIS rendering. Orbit (LMB), pan (MMB), zoom (RMB/scroll). ViewCube in top-right corner for one-click view orientation</td></tr>
+  <tr><td><b>Scene Tree</b> (left)</td><td>Shape list with visibility checkboxes. Click to select, Ctrl+click to toggle, Shift+click for range</td></tr>
+  <tr><td><b>REPL</b> (right)</td><td>In-window Lisp REPL with multi-line input, multi-form evaluation, input/output history, and configurable key bindings</td></tr>
+  <tr><td><b>Status Bar</b> (bottom)</td><td>Shape count, import progress/cancel label, and FPS</td></tr>
+</table>
 
 ## Download
 
 Pre-built binaries are available for Linux:
 
-| Format | Description |
-|--------|-------------|
-| **ClotCAD-\*.AppImage** | Single-file executable — `chmod +x` and run |
-| **ClotCAD-\*.tar.gz** | Portable tarball — extract and run `run.sh` |
+<table>
+  <tr><th>Format</th><th>Description</th></tr>
+  <tr><td><b>ClotCAD-*.AppImage</b></td><td>Single-file executable — <code>chmod +x</code> and run</td></tr>
+  <tr><td><b>ClotCAD-*.tar.gz</b></td><td>Portable tarball — extract and run <code>run.sh</code></td></tr>
+</table>
 
 **Requirements:** glibc ≥ 2.39 (Ubuntu 24.04+, Fedora 39+, Arch, etc.).
 

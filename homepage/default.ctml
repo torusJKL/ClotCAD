@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" lquery="(attr :lang language)">
+<head>
+  <meta charset="utf-8" />
+  <title lquery="(text title)">ClotCAD</title>
+  <style lquery='(text (read-file (asdf:system-relative-pathname :clotcad "homepage/style.css")))'></style>
+</head>
+<body>
+  <header>
+    <nav class="nav">
+      <a href="index.html" class="nav-logo">
+        <c:when test="images">
+          <img src="logo.svg" alt="ClotCAD logo" width="32" height="32" />
+        </c:when>
+        <span class="nav-title">ClotCAD</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <c:when test="packages">
+          <a href="#index">API Reference</a>
+        </c:when>
+        <a href="cheatsheet.pdf">Cheatsheet</a>
+      </div>
+    </nav>
+  </header>
+  <main>
+    <c:when test="documentation">
+      <section id="documentation" lquery="(html documentation)"></section>
+    </c:when>
+    <c:when test="packages">
+      <section id="index">
+        <h2>Definition Index</h2>
+        <ul iterate="(mapcar #'staple::ensure-package-definition packages)">
+          <li>
+            <article class="definition package" lquery="(attr :id id)">
+              <header>
+                <h3>
+                  <a href="#" lquery="(attr :href xref) (text name)">NAME</a>
+                </h3>
+                <ul class="nicknames" iterate="nicknames">
+                  <li lquery="(text *)">NICKNAME</li>
+                </ul>
+                <c:when test="source-link">
+                  <a class="source-link" href="#" lquery="(attr :href source-link)">Source</a>
+                </c:when>
+              </header>
+              <div class="docstring" lquery="(html formatted-documentation)"></div>
+              <ul class="definitions" iterate="definitions">
+                <li>
+                  <article class="definition" lquery="(add-class (string-downcase type)) (add-class (when (typep * 'definitions:callable) (string-downcase :callable))) (attr :id id)">
+                    <header>
+                      <span class="type" lquery="(text type)">type</span>
+                      <h4 class="name">
+                        <a href="#" lquery="(attr :href xref) (text designator)">name</a>
+                      </h4>
+                      <c:when test="source-link">
+                        <a class="source-link" href="#" lquery="(attr :href source-link)">Source</a>
+                      </c:when>
+                    </header>
+                    <div class="docstring" lquery="(html formatted-documentation)"></div>
+                  </article>
+                </li>
+              </ul>
+            </article>
+          </li>
+        </ul>
+      </section>
+    </c:when>
+  </main>
+  <footer class="footer">
+    <p>ClotCAD <c:when test="version"><span lquery="(text version)"></span></c:when> — <a href="https://github.com/clotcad/clotcad">source</a></p>
+  </footer>
+</body>
+</html>
