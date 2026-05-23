@@ -1,0 +1,92 @@
+name: Publish Homepage
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake build-essential curl just \
+            qt6-base-dev libqt6opengl6-dev \
+            libfreetype-dev libx11-dev libfontconfig-dev \
+            libgl1-mesa-dev
+
+      - name: Cache OCCT build
+        id: cache-occt
+        uses: actions/cache@v4
+        with:
+          path: .local
+          key: occt-8.0.0-${{ runner.os }}-${{ hashFiles('CMakeLists.txt') }}
+
+      - name: Build OCCT (cache miss)
+        if: steps.cache-occt.outputs.cache-hit != 'true'
+        run: |
+          just setup 2>&1 | tail -500
+          exit ${PIPESTATUS[0]}
+
+      - name: Install SBCL 2.6.0
+        run: |
+          wget -q https://sourceforge.net/projects/sbcl/files/sbcl/2.6.0/sbcl-2.6.0-x86-64-linux-binary.tar.bz2/download -O sbcl.tar.bz2
+          tar xjf sbcl.tar.bz2
+          cd sbcl-2.6.0-x86-64-linux && sudo sh install.sh
+
+      - name: Install Quicklisp
+        run: |
+          curl -O https://beta.quicklisp.org/quicklisp.lisp
+          sbcl --load quicklisp.lisp \
+               --eval "(quicklisp-quickstart:install)" \
+               --quit
+
+      - name: Build viewer
+        run: just viewer
+
+      - name: Compute semver
+        id: semver
+        run: |
+          TAG="${{ github.ref_name }}"
+          echo "value=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate documentation with Staple
+        run: |
+          export LD_LIBRARY_PATH=lib:.local/lib:lib/cl-occt/lib
+          sbcl --load ~/quicklisp/setup.lisp \
+               --eval "(push (truename \".\") asdf:*central-registry*)" \
+               --eval "(push #p\"lib/cl-occt/\" asdf:*central-registry*)" \
+               --eval "(ql:quickload '(:clotcad :staple-markdown :staple) :silent t)" \
+               --eval "(staple:generate :clotcad :output-directory #p\"/tmp/staple-output/\")" \
+               --quit
+          mkdir -p "public/${{ steps.semver.outputs.value }}"
+          cp -r /tmp/staple-output/* "public/${{ steps.semver.outputs.value }}/"
+
+      - name: Copy to latest
+        run: |
+          cp -r "public/${{ steps.semver.outputs.value }}" "public/latest"
+
+      - name: Write root index redirect
+        run: |
+          echo '<!DOCTYPE html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=latest/"><title>ClotCAD</title>' > public/index.html
+
+      - name: Compile cheatsheet
+        uses: typst-community/setup-typst@v3
+      - run: typst compile docs/cheatsheet/cheatsheet.typ public/cheatsheet.pdf
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          publish_branch: gh-pages

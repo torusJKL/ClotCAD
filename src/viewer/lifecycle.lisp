@@ -9,6 +9,19 @@
   (apply-selection-schemes))
 
 (defun start-viewer (&key (width 1024) (height 768) (title "ClotCAD"))
+  "Launch the ClotCAD 3D viewer window.
+
+  Creates the Qt window, initializes OCCT rendering, registers
+  all callbacks (REPL, file I/O, selection), starts the render
+  loop, and blocks until the window is closed. Only one viewer
+  instance can run at a time.
+
+  Example:
+
+      (start-viewer)                                ;; default size
+      (start-viewer :width 1920 :height 1080)        ;; full HD
+
+  See also: `stop-viewer`, `bootstrap`"
   (when *viewer*
     (format t "Viewer is already running.~%")
     (return-from start-viewer nil))
@@ -29,6 +42,17 @@
 
 
 (defun bootstrap ()
+  "Start all services: Slynk, Alive LSP, and the 3D viewer.
+
+  This is the main entry point for the distribution. It starts
+  Slynk on port 4005, Alive LSP on port 4006, and then blocks
+  on the Qt event loop via `start-viewer`.
+
+  Example:
+
+      (clotcad:bootstrap)   ;; run from the distribution entry point
+
+  See also: `start-viewer`, `stop-viewer`"
   (format t ";; Starting Slynk on port 4005...~%")
   (handler-case
       (let ((bindings (find-symbol "*DEFAULT-WORKER-THREAD-BINDINGS*" :slynk))
@@ -79,6 +103,16 @@
   (start-viewer))
 
 (defun stop-viewer ()
+  "Stop the ClotCAD 3D viewer and close the window.
+
+  Signals the render loop to stop and calls `%viewer-quit`
+  to close the Qt window.
+
+  Example:
+
+      (stop-viewer)
+
+  See also: `start-viewer`, `bootstrap`"
   (when *viewer*
     (setf *viewer-running* nil)
     (%viewer-quit *viewer*)
