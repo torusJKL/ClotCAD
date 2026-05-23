@@ -1,0 +1,212 @@
+diff --git a/src/server.lisp b/src/server.lisp
+index 7e16f24..deb7ad4 100644
+--- a/src/server.lisp
++++ b/src/server.lisp
+@@ -178,21 +178,21 @@
+                      :do-load (lambda (path &key stdin-fn stdout-fn stderr-fn) (alive/file:do-load path :stdin-fn stdin-fn :stdout-fn stdout-fn :stderr-fn stderr-fn)))))
+ 
+ 
+-(defun accept-conn (server log)
++(defun accept-conn (server log &optional default-package log-fn)
+     (let* ((conn (usocket:socket-accept (socket server) :element-type '(unsigned-byte 8)))
+-           (state (state:create :log log))
++           (state (state:create :log log :default-package (or default-package "cl-user") :log-fn log-fn))
+            (deps (create-deps :input-stream (flexi-streams:make-flexi-stream (usocket:socket-stream conn))
+                               :output-stream (usocket:socket-stream conn)
+                               :state state)))
+         (session:start deps state)))
+ 
+ 
+-(defun wait-for-conn (server log)
++(defun wait-for-conn (server log &optional default-package log-fn)
+     (usocket:wait-for-input (socket server))
+ 
+     (when (and (running server)
+                (usocket::state (socket server)))
+-          (accept-conn server log)))
++          (accept-conn server log default-package log-fn)))
+ 
+ 
+ (defun wake-up-accept (server)
+@@ -211,7 +211,7 @@
+               (setf (socket server) nil))))
+ 
+ 
+-(defun listen-for-conns (server log port)
++(defun listen-for-conns (server log port &optional default-package log-fn)
+     (let ((socket (usocket:socket-listen "127.0.0.1" port :reuse-address T)))
+         (format T "[~A][STARTING] Started on port ~A~%" (alive/utils:get-timestamp) (usocket:get-local-port socket))
+ 
+@@ -220,15 +220,15 @@
+                        (setf (running server) T)
+ 
+                        (loop :while (running server)
+-                             :do (wait-for-conn server log)))
++                             :do (wait-for-conn server log default-package log-fn)))
+             (stop-server server))))
+ 
+ 
+-(defun start-server (server log port)
++(defun start-server (server log port &optional default-package log-fn)
+     (let ((stdout *standard-output*))
+         (bt:make-thread (lambda ()
+                             (let ((*standard-output* stdout))
+-                                (listen-for-conns server log port)))
++                                (listen-for-conns server log port default-package log-fn)))
+                         :name "Alive LSP Server")))
+ 
+ 
+@@ -238,7 +238,7 @@
+     (stop-server server))
+ 
+ 
+-(defun start (&key (port *default-port*))
++(defun start (&key (port *default-port*) (default-package "cl-user") log-fn)
+     (let ((log (logger:create *standard-output* logger:*info*))
+           (server (make-instance 'lsp-server)))
+-        (start-server server log port)))
++        (start-server server log port default-package log-fn)))
+diff --git a/src/session/handler/eval.lisp b/src/session/handler/eval.lisp
+index c43cea5..2103243 100644
+--- a/src/session/handler/eval.lisp
++++ b/src/session/handler/eval.lisp
+@@ -17,7 +17,12 @@
+ (defun handle (deps state msg)
+     (let* ((id (cdr (assoc :id msg)))
+            (params (cdr (assoc :params msg)))
+-           (pkg-name (or (cdr (assoc :package params)) "cl-user"))
++           (pkg-name (let ((client-pkg (cdr (assoc :package params))))
++                       (if (or (null client-pkg)
++                               (string-equal client-pkg "cl-user")
++                               (string-equal client-pkg "common-lisp-user"))
++                           (state:default-package state)
++                           client-pkg)))
+            (text (cdr (assoc :text params)))
+            (* (state:get-history-item state 0))
+            (** (state:get-history-item state 1))
+@@ -38,10 +43,16 @@
+         (when (cdr (assoc :store-result params))
+               (state:add-history state (car results)))
+ 
+-        (let ((response-content (if (cdr results)
+-                                    (mapcar (lambda (r) (format nil "~A" r)) results)
+-                                    (format nil "~A" (car results)))))
+-            (deps:send-msg deps (handler-utils:result id "text" response-content)))))
++        (let* ((response-content (if (cdr results)
++                                     (mapcar (lambda (r) (format nil "~A" r)) results)
++                                     (format nil "~A" (car results))))
++               (log-fn (state:log-fn state)))
++          (when log-fn
++                (funcall log-fn text
++                         (etypecase response-content
++                           (string response-content)
++                           (cons (format nil "~{~A~%~}" response-content)))))
++          (deps:send-msg deps (handler-utils:result id "text" response-content)))))
+ 
+ 
+ (declaim (ftype (function (deps:dependencies state:state cons) null) handle-in-frame))
+@@ -57,5 +68,8 @@
+                                (stringp text))
+                           (debugger:eval-in-frame (nth frame frames) text))))
+ 
+-        (let ((response-content (format nil "~A" results)))
+-            (deps:send-msg deps (handler-utils:result id "text" response-content)))))
++        (let* ((response-content (format nil "~A" results))
++               (log-fn (state:log-fn state)))
++          (when log-fn
++                (funcall log-fn text response-content))
++          (deps:send-msg deps (handler-utils:result id "text" response-content)))))
+diff --git a/src/session/handler/inspect.lisp b/src/session/handler/inspect.lisp
+index 2f9cab1..4aff996 100644
+--- a/src/session/handler/inspect.lisp
++++ b/src/session/handler/inspect.lisp
+@@ -72,8 +72,12 @@
+ (defun do-inspect (deps state msg)
+     (let* ((id (cdr (assoc :id msg)))
+            (params (cdr (assoc :params msg)))
+-           (pkg-name (or (cdr (assoc :package params))
+-                         "cl-user"))
++           (pkg-name (let ((client-pkg (cdr (assoc :package params))))
++                       (if (or (null client-pkg)
++                               (string-equal client-pkg "cl-user")
++                               (string-equal client-pkg "common-lisp-user"))
++                           (state:default-package state)
++                           client-pkg)))
+            (text (cdr (assoc :text params)))
+            (* (state:get-history-item state 0))
+            (** (state:get-history-item state 1))
+@@ -100,7 +104,7 @@
+                   (symbol-value old-result)
+                   old-result))
+            (pkg-name (or (inspector:get-pkg inspector)
+-                         "cl-user"))
++                          (state:default-package state)))
+            (result (eval:from-string deps text
+                                      :pkg-name pkg-name
+                                      :stdin-fn (lambda ()
+@@ -175,7 +179,12 @@
+ (defun macro (deps state msg)
+     (let* ((id (cdr (assoc :id msg)))
+            (params (cdr (assoc :params msg)))
+-           (pkg-name (or (cdr (assoc :package params)) "cl-user"))
++           (pkg-name (let ((client-pkg (cdr (assoc :package params))))
++                       (if (or (null client-pkg)
++                               (string-equal client-pkg "cl-user")
++                               (string-equal client-pkg "common-lisp-user"))
++                           (state:default-package state)
++                           client-pkg)))
+            (text (or (cdr (assoc :text params)) ""))
+            (expanded (macros:expand-1 text pkg-name)))
+ 
+diff --git a/src/session/state.lisp b/src/session/state.lisp
+index a924be4..e7dfb66 100644
+--- a/src/session/state.lisp
++++ b/src/session/state.lisp
+@@ -16,11 +16,13 @@
+              :initialized
+              :listeners
+              :lock
++             :log-fn
+              :next-inspector-id
+              :next-send-id
+-             :next-thread-id
+-             :rem-inspector
+-             :remove-debugger
++              :next-thread-id
++              :default-package
++              :rem-inspector
++              :remove-debugger
+              :rem-thread-msg
+              :running
+              :set-debugger
+@@ -63,14 +65,27 @@
+ 
+     (listeners nil :type (or null cons))
+ 
++    (default-package "cl-user" :type string)
++
++    (log-fn nil :type (or null function))
++
+     (history (make-array 3) :type array)
+ 
+     (lock (bt:make-recursive-lock) :type sb-thread:mutex))
+ 
+ 
+-(declaim (ftype (function (&key (:log (or null logger:logger))) state) create))
+-(defun create (&key log)
+-    (make-state :log log))
++(declaim (ftype (function (&key (:log (or null logger:logger)) (:default-package string) (:log-fn (or null function))) state) create))
++(defun create (&key log (default-package "cl-user") log-fn)
++    (make-state :log log :default-package default-package :log-fn log-fn))
++
++
++(declaim (ftype (function (state) string) default-package))
++(defun default-package (state)
++    (state-default-package state))
++
++(declaim (ftype (function (state) (or null function)) log-fn))
++(defun log-fn (state)
++    (state-log-fn state))
+ 
+ 
+ (declaim (ftype (function (state) (or null cons)) listeners))

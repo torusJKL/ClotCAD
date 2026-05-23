@@ -60,8 +60,9 @@ alive-lsp-commit := "c6994bc4c5100415c33d41ab8d36b5e4ca9aa798"
 
 alive-lsp:
     test -d {{alive-lsp-dir}} || \
-        git clone https://github.com/nobody-famous/alive-lsp.git {{alive-lsp-dir}} && \
-        cd {{alive-lsp-dir}} && git checkout {{alive-lsp-commit}}
+        git clone https://github.com/nobody-famous/alive-lsp.git {{alive-lsp-dir}}
+    cd {{alive-lsp-dir}} && git checkout {{alive-lsp-commit}}
+    cd {{alive-lsp-dir}} && git apply {{root-dir}}/scripts/patches/alive-lsp-default-package.patch 2>/dev/null || true
 
 viewer:
     mkdir -p build lib
