@@ -71,8 +71,9 @@ viewer:
     cp build/libocctviewer.so lib/
 
 core: alive-lsp
+    rm -rf ~/.cache/common-lisp
     LD_LIBRARY_PATH=lib:{{occt-install}}/lib:{{clocct-dir}}/lib \
-    sbcl --script scripts/make-core.lisp
+    sbcl --noinform --load scripts/make-core.lisp --quit
 
 dist:
     ./scripts/package.sh
