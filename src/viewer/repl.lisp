@@ -65,38 +65,39 @@
   (sb-ext:atomic-push (cons code-str output-str) *repl-log*))
 
 (cffi:defcallback eval-string :void ((code :string) (result :pointer) (maxlen :int))
-  (handler-case
-      (let* ((full-code (if (string= *repl-accumulator* "")
-                            code
-                            (concatenate 'string *repl-accumulator* code)))
-             (len (length full-code))
-             (pos 0)
-             (outputs '()))
+  (let ((*package* (find-package :cl-occt-user)))
+    (handler-case
+        (let* ((full-code (if (string= *repl-accumulator* "")
+                              code
+                              (concatenate 'string *repl-accumulator* code)))
+               (len (length full-code))
+               (pos 0)
+               (outputs '()))
+          (setf *repl-accumulator* "")
+          (loop
+            (when (>= pos len) (return))
+            (multiple-value-bind (form next-pos)
+                (read-from-string full-code nil *repl-eof-sentinel* :start pos)
+              (if (eq form *repl-eof-sentinel*)
+                  (progn
+                    (when (< pos len)
+                      (setf *repl-accumulator* (subseq full-code pos)))
+                    (return))
+                  (let ((values (handler-case (multiple-value-list (eval form))
+                                  (error (e) (list (format nil "Error: ~A" e))))))
+                    (push (with-output-to-string (s)
+                            (dolist (v values)
+                              (format s "~S~%" v)))
+                          outputs)
+                    (setf pos next-pos)))))
+          (let ((output (apply #'concatenate 'string (nreverse outputs))))
+            (sb-ext:atomic-push (cons full-code output) *repl-log*)
+            (cffi:foreign-funcall "snprintf" :pointer result :int maxlen
+                                 :string output :int (min (length output) (1- maxlen)) :void)))
+      (error (e)
         (setf *repl-accumulator* "")
-        (loop
-          (when (>= pos len) (return))
-          (multiple-value-bind (form next-pos)
-              (read-from-string full-code nil *repl-eof-sentinel* :start pos)
-            (if (eq form *repl-eof-sentinel*)
-                (progn
-                  (when (< pos len)
-                    (setf *repl-accumulator* (subseq full-code pos)))
-                  (return))
-                (let ((values (handler-case (multiple-value-list (eval form))
-                                (error (e) (list (format nil "Error: ~A" e))))))
-                  (push (with-output-to-string (s)
-                          (dolist (v values)
-                            (format s "~S~%" v)))
-                        outputs)
-                  (setf pos next-pos)))))
-        (let ((output (apply #'concatenate 'string (nreverse outputs))))
-          (sb-ext:atomic-push (cons full-code output) *repl-log*)
-          (cffi:foreign-funcall "snprintf" :pointer result :int maxlen
-                               :string output :int (min (length output) (1- maxlen)) :void)))
-    (error (e)
-      (setf *repl-accumulator* "")
-      (cffi:foreign-funcall "snprintf" :pointer result :int maxlen
-                           :string (format nil "Error: ~A~%" e) :int 0 :void))))
+        (cffi:foreign-funcall "snprintf" :pointer result :int maxlen
+                             :string (format nil "Error: ~A~%" e) :int 0 :void)))))
 
 (defun get-displayed-names ()
   (loop for k being the hash-keys of *displayed-models* collect k))
