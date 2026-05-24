@@ -27,9 +27,9 @@
 
 ## 4. DNS & Deployment
 
-- [ ] 4.1 Configure DNS A records for `clotcad.com` → GitHub Pages IPs
-- [ ] 4.2 Configure GitHub repo Settings → Pages → custom domain `clotcad.com`
-- [ ] 4.3 Push a tag, verify CI generates docs and deploys to gh-pages branch
-- [ ] 4.4 Verify `https://clotcad.com/` redirects to `https://clotcad.com/latest/`
-- [ ] 4.5 Verify `https://clotcad.com/v0.X.X/` serves documentation for that version
-- [ ] 4.6 Verify HTTPS is active (Let's Encrypt auto-provisioned)
+- [x] 4.1 Configure DNS A records for `clotcad.com` → GitHub Pages IPs
+- [x] 4.2 Configure GitHub repo Settings → Pages → custom domain `clotcad.com`
+- [x] 4.3 Push a tag, verify CI generates docs and deploys to gh-pages branch
+- [x] 4.4 Verify `https://clotcad.com/` redirects to `https://clotcad.com/latest/`
+- [x] 4.5 Verify `https://clotcad.com/0.2.3/` serves documentation for that version
+- [x] 4.6 Verify HTTPS is active (Let's Encrypt auto-provisioned)
