@@ -49,6 +49,92 @@
 
 
 
+(defun start-slynk (&key (port 4005))
+  "Start the Slynk server on the given PORT in a dedicated thread.
+Returns T if started, NIL if Slynk is not available.
+
+**Example:**
+
+    (start-slynk)                ;; port 4005
+    (start-slynk :port 4007)     ;; custom port
+
+**See also:** `start-alive`, `bootstrap`"
+  (format t ";; Starting Slynk on port ~D...~%" port)
+  (handler-case
+      (let ((bindings (find-symbol "*DEFAULT-WORKER-THREAD-BINDINGS*" :slynk))
+            (create-server (find-symbol "CREATE-SERVER" :slynk)))
+        (if (and bindings create-server)
+            (progn
+              (setf (symbol-value bindings)
+                    `((*package* . ,(find-package :clotcad-user))))
+              (sb-thread:make-thread
+               (lambda ()
+                 (funcall create-server :port port :dont-close t)
+                 (loop
+                   (let ((sym (when (find-package :slynk-mrepl)
+                                (find-symbol "MREPL-EVAL-1" :slynk-mrepl))))
+                     (when (and sym (fboundp sym) (not (get sym :clotcad-wrapped)))
+                       (setf (get sym :clotcad-wrapped) t)
+                       (let ((orig (fdefinition sym)))
+                         (setf (fdefinition sym)
+                               (lambda (repl string)
+                                 (let ((values (funcall orig repl string)))
+                                   (let ((output (with-output-to-string (s)
+                                                    (dolist (v values)
+                                                      (format s "~S~%" v)))))
+                                      (log-remote-eval string output))
+                                   values))))))
+                   (sleep 1)))
+               :name "slynk")
+              t)
+            (warn "Slynk not available; skipping.")))
+    (error (e)
+      (format t ";; Warning: Could not start Slynk: ~A~%" e))))
+
+(defun start-alive (&key (port 4006))
+  "Start the Alive LSP server on the given PORT in a dedicated thread.
+Returns T if started, NIL if Alive LSP is not available.
+
+**Example:**
+
+    (start-alive)                ;; port 4006
+    (start-alive :port 4008)     ;; custom port
+
+**See also:** `start-slynk`, `bootstrap`"
+  (format t ";; Starting Alive LSP server on port ~D...~%" port)
+  (handler-case
+      (let ((start (find-symbol "START" :alive/server)))
+        (if start
+            (progn
+              (sb-thread:make-thread
+               (lambda ()
+                 (funcall start :port port :default-package "CL-OCCT-USER"
+                                :log-fn #'log-remote-eval)
+                 (loop (sleep 1)))
+               :name "alive-lsp")
+              (format t ";; Alive LSP server started on port ~D~%" port)
+              t)
+            (warn "Alive LSP not available; skipping.")))
+    (error (e)
+      (format t ";; Warning: Could not start Alive LSP: ~A~%" e))))
+
+(defun wait-forever ()
+  "Block the current thread indefinitely until interrupted.
+Installs a low-level SIGINT handler so that Ctrl+C exits cleanly
+even when other libraries (e.g. Slynk) try to intercept the
+signal. The handler-case provides a fallback for the condition-
+based delivery path.
+
+**Example:**
+
+    (wait-forever)   ;; blocks until Ctrl+C
+
+**See also:** `start-slynk`, `start-alive`"
+  (sb-sys:enable-interrupt sb-unix:sigint
+    (lambda (s) (declare (ignore s)) (sb-ext:exit 0)))
+  (handler-case (loop (sleep 1))
+    (sb-sys:interactive-interrupt () (sb-ext:exit 0))))
+
 (defun bootstrap ()
   "Start all services: Slynk, Alive LSP, and the 3D viewer.
 
@@ -60,53 +146,9 @@
 
       (clotcad:bootstrap)   ;; run from the distribution entry point
 
-  **See also:** `start-viewer`, `stop-viewer`"
-  (format t ";; Starting Slynk on port 4005...~%")
-  (handler-case
-      (let ((bindings (find-symbol "*DEFAULT-WORKER-THREAD-BINDINGS*" :slynk))
-            (create-server (find-symbol "CREATE-SERVER" :slynk)))
-        (if (and bindings create-server)
-            (progn
-              (setf (symbol-value bindings)
-                    `((*package* . ,(find-package :clotcad-user))))
-              (sb-thread:make-thread
-               (lambda ()
-                 (funcall create-server :port 4005 :dont-close t)
-                 (loop
-                   ;; Wrap mrepl-eval-1 once it's loaded (contrib loads on client connect)
-                   (let ((sym (when (find-package :slynk-mrepl)
-                                (find-symbol "MREPL-EVAL-1" :slynk-mrepl))))
-                     (when (and sym (fboundp sym) (not (get sym :clotcad-wrapped)))
-                       (setf (get sym :clotcad-wrapped) t)
-                       (let ((orig (fdefinition sym)))
-                         (setf (fdefinition sym)
-                               (lambda (repl string)
-                                 (let ((values (funcall orig repl string)))
-                                   (let ((output (with-output-to-string (s)
-                                                   (dolist (v values)
-                                                     (format s "~S~%" v)))))
-                                     (log-remote-eval string output))
-                                   values))))))
-                   (sleep 1)))
-               :name "slynk"))
-            (warn "Slynk not available; skipping.")))
-    (error (e)
-      (format t ";; Warning: Could not start Slynk: ~A~%" e)))
-  (format t ";; Starting Alive LSP server on port 4006...~%")
-  (handler-case
-      (let ((start (find-symbol "START" :alive/server)))
-        (if start
-            (progn
-              (sb-thread:make-thread
-               (lambda ()
-                 (funcall start :port 4006 :default-package "CL-OCCT-USER"
-                                :log-fn #'log-remote-eval)
-                 (loop (sleep 1)))
-               :name "alive-lsp")
-              (format t ";; Alive LSP server started on port 4006~%"))
-            (warn "Alive LSP not available; skipping.")))
-    (error (e)
-      (format t ";; Warning: Could not start Alive LSP: ~A~%" e)))
+  **See also:** `start-viewer`, `stop-viewer`, `start-slynk`, `start-alive`"
+  (start-slynk :port 4005)
+  (start-alive :port 4006)
   (format t ";; Starting viewer...~%")
   (start-viewer))
 

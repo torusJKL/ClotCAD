@@ -1017,6 +1017,44 @@
                               "second line should be newest entry's code"))))
         (ignore-errors (delete-file path))))))
 
+;; --- start-slynk / start-alive / wait-forever tests ---
+
+(deftest start-slynk-exists
+  (assert-true (fboundp 'start-slynk)
+               "start-slynk should be a defined function"))
+
+(deftest start-slynk-works-without-slynk
+  (assert-nil (start-slynk :port 4005)
+              "start-slynk should return nil when slynk is not available"))
+
+(deftest start-slynk-accepts-custom-port
+  (assert-nil (start-slynk :port 4007)
+              "start-slynk should accept a custom port"))
+
+(deftest start-alive-exists
+  (assert-true (fboundp 'start-alive)
+               "start-alive should be a defined function"))
+
+(deftest start-alive-works-without-alive-lsp
+  (assert-nil (start-alive :port 4006)
+              "start-alive should return nil when alive-lsp is not available"))
+
+(deftest start-alive-accepts-custom-port
+  (assert-nil (start-alive :port 4008)
+              "start-alive should accept a custom port"))
+
+(deftest wait-forever-exists
+  (assert-true (fboundp 'wait-forever)
+               "wait-forever should be a defined function"))
+
+(deftest start-slynk-and-start-alive-exported-from-clotcad
+  (assert-true (find-symbol "START-SLYNK" :clotcad)
+               "start-slynk should be accessible from clotcad package")
+  (assert-true (find-symbol "START-ALIVE" :clotcad)
+               "start-alive should be accessible from clotcad package")
+  (assert-true (find-symbol "WAIT-FOREVER" :clotcad)
+               "wait-forever should be accessible from clotcad package"))
+
 ;; --- Bootstrap tests ---
 
 (deftest bootstrap-handles-slynk-not-available
@@ -1522,27 +1560,33 @@
                 result-export-toggles
                 log-remote-eval-adds-entry
                 log-remote-eval-entries-are-exported
-                bootstrap-handles-slynk-not-available
-                make-core-loads-systems
-                ;; Model layer tests
-                model-register-find
-                model-register-string-key
-                model-unregister
-                model-dirty-marking
-                model-dirty-propagates-to-dependents
-                topological-sort-simple
-                topological-sort-cycle-detected
-                param-global
-                param-missing-signals-error
-                param-local-override
-                set-param-basic
-                set-params-batch
-                defmodel-basic
-                defmodel-keyword-function
-                model-ref-basic
-                model-ref-unknown-error
-                model-metadata-accessors
-                model-metadata-defaults-to-nil))
+                 start-slynk-exists start-slynk-works-without-slynk
+                 start-slynk-accepts-custom-port
+                 start-alive-exists start-alive-works-without-alive-lsp
+                 start-alive-accepts-custom-port
+                 wait-forever-exists
+                 start-slynk-and-start-alive-exported-from-clotcad
+                 bootstrap-handles-slynk-not-available
+                 make-core-loads-systems
+                 ;; Model layer tests
+                 model-register-find
+                 model-register-string-key
+                 model-unregister
+                 model-dirty-marking
+                 model-dirty-propagates-to-dependents
+                 topological-sort-simple
+                 topological-sort-cycle-detected
+                 param-global
+                 param-missing-signals-error
+                 param-local-override
+                 set-param-basic
+                 set-params-batch
+                 defmodel-basic
+                 defmodel-keyword-function
+                 model-ref-basic
+                 model-ref-unknown-error
+                 model-metadata-accessors
+                 model-metadata-defaults-to-nil))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"
             (test-result-pass *test-result*)
