@@ -1017,6 +1017,44 @@
                               "second line should be newest entry's code"))))
         (ignore-errors (delete-file path))))))
 
+;; --- start-slynk / start-alive / wait-forever tests ---
+
+(deftest start-slynk-exists
+  (assert-true (fboundp 'start-slynk)
+               "start-slynk should be a defined function"))
+
+(deftest start-slynk-works-without-slynk
+  (assert-nil (start-slynk :port 4005)
+              "start-slynk should return nil when slynk is not available"))
+
+(deftest start-slynk-accepts-custom-port
+  (assert-nil (start-slynk :port 4007)
+              "start-slynk should accept a custom port"))
+
+(deftest start-alive-exists
+  (assert-true (fboundp 'start-alive)
+               "start-alive should be a defined function"))
+
+(deftest start-alive-works-without-alive-lsp
+  (assert-nil (start-alive :port 4006)
+              "start-alive should return nil when alive-lsp is not available"))
+
+(deftest start-alive-accepts-custom-port
+  (assert-nil (start-alive :port 4008)
+              "start-alive should accept a custom port"))
+
+(deftest wait-forever-exists
+  (assert-true (fboundp 'wait-forever)
+               "wait-forever should be a defined function"))
+
+(deftest start-slynk-and-start-alive-exported-from-clotcad
+  (assert-true (find-symbol "START-SLYNK" :clotcad)
+               "start-slynk should be accessible from clotcad package")
+  (assert-true (find-symbol "START-ALIVE" :clotcad)
+               "start-alive should be accessible from clotcad package")
+  (assert-true (find-symbol "WAIT-FOREVER" :clotcad)
+               "wait-forever should be accessible from clotcad package"))
+
 ;; --- Bootstrap tests ---
 
 (deftest bootstrap-handles-slynk-not-available
@@ -1051,6 +1089,81 @@
 (deftest make-core-loads-systems
   (assert-true (find-symbol "BOOTSTRAP" :clotcad)
                "bootstrap should be defined after loading ClotCAD"))
+
+;; --- quit-clotcad tests ---
+
+(deftest quit-clotcad-exists
+  (assert-true (fboundp 'quit-clotcad)
+               "quit-clotcad should be a defined function"))
+
+(deftest quit-clotcad-exported-from-clotcad
+  (assert-true (find-symbol "QUIT-CLOTCAD" :clotcad)
+               "quit-clotcad should be accessible from clotcad package")
+  (assert-true (find-symbol "QUIT-CLOTCAD" :clotcad-user)
+               "quit-clotcad should be accessible from clotcad-user package"))
+
+(deftest quit-clotcad-calls-viewer-cleanup
+  (let ((quit-called nil)
+        (viewer-quit-called nil)
+        (viewer-destroy-called nil))
+    ;; Set globals so the deferred thread (which doesn't inherit
+    ;; dynamic let-bindings) can see them.
+    (let ((old-viewer *viewer*)
+          (old-queue *viewer-queue*)
+          (old-running *viewer-running*)
+          (old-models *displayed-models*)
+          (old-select *selected*)
+          (old-repl-log *repl-log*)
+          (old-repl-acc *repl-accumulator*)
+          (old-import-forms *import-forms*)
+          (old-import-cancelled *import-cancelled*)
+          (old-render-timer *render-timer*))
+      (setf *viewer* (make-array 1)
+            *viewer-queue* nil
+            *viewer-running* t
+            *displayed-models* (make-hash-table :test 'equal)
+            *selected* (make-hash-table :test 'equal)
+            *repl-log* '((:a . "b"))
+            *repl-accumulator* "incomplete"
+            *import-forms* '((+ 1 2))
+            *import-cancelled* nil
+            *render-timer* t)
+      (let ((old-vq (symbol-function '%viewer-quit))
+            (old-vd (symbol-function '%viewer-destroy)))
+        (setf (symbol-function '%viewer-quit)
+              (lambda (vwr) (declare (ignore vwr)) (setf viewer-quit-called t))
+              (symbol-function '%viewer-destroy)
+              (lambda (vwr) (declare (ignore vwr)) (setf viewer-destroy-called t)))
+        (sb-ext:unlock-package :sb-ext)
+        (let ((old-quit (symbol-function 'sb-ext:quit)))
+          (setf (symbol-function 'sb-ext:quit)
+                (lambda (&key &allow-other-keys) (setf quit-called t)))
+          (unwind-protect
+              (progn
+                (quit-clotcad)
+                (sleep 2)
+                (assert-true viewer-quit-called
+                             "%viewer-quit should be called")
+                (assert-true viewer-destroy-called
+                             "%viewer-destroy should be called")
+                (assert-nil *viewer* "*viewer* should be nil after quit")
+                (assert-nil *viewer-running* "*viewer-running* should be nil")
+                (assert-nil *viewer-queue* "*viewer-queue* should be nil")
+                (assert-true quit-called "sb-ext:quit should be called"))
+            (setf (symbol-function 'sb-ext:quit) old-quit)))
+        (sb-ext:lock-package :sb-ext)
+        (setf (symbol-function '%viewer-quit) old-vq
+              (symbol-function '%viewer-destroy) old-vd))
+      (setf *viewer* old-viewer
+            *viewer-queue* old-queue
+            *viewer-running* old-running
+            *displayed-models* old-models
+            *selected* old-select
+            *repl-log* old-repl-log
+            *repl-accumulator* old-repl-acc
+            *import-forms* old-import-forms
+            *import-cancelled* old-import-cancelled
+            *render-timer* old-render-timer))))
 
 ;; --- Registration tests ---
 
@@ -1522,27 +1635,36 @@
                 result-export-toggles
                 log-remote-eval-adds-entry
                 log-remote-eval-entries-are-exported
-                bootstrap-handles-slynk-not-available
-                make-core-loads-systems
-                ;; Model layer tests
-                model-register-find
-                model-register-string-key
-                model-unregister
-                model-dirty-marking
-                model-dirty-propagates-to-dependents
-                topological-sort-simple
-                topological-sort-cycle-detected
-                param-global
-                param-missing-signals-error
-                param-local-override
-                set-param-basic
-                set-params-batch
-                defmodel-basic
-                defmodel-keyword-function
-                model-ref-basic
-                model-ref-unknown-error
-                model-metadata-accessors
-                model-metadata-defaults-to-nil))
+                 start-slynk-exists start-slynk-works-without-slynk
+                 start-slynk-accepts-custom-port
+                 start-alive-exists start-alive-works-without-alive-lsp
+                 start-alive-accepts-custom-port
+                 wait-forever-exists
+                 start-slynk-and-start-alive-exported-from-clotcad
+                 bootstrap-handles-slynk-not-available
+                 make-core-loads-systems
+                 quit-clotcad-exists
+                 quit-clotcad-exported-from-clotcad
+                 quit-clotcad-calls-viewer-cleanup
+                 ;; Model layer tests
+                 model-register-find
+                 model-register-string-key
+                 model-unregister
+                 model-dirty-marking
+                 model-dirty-propagates-to-dependents
+                 topological-sort-simple
+                 topological-sort-cycle-detected
+                 param-global
+                 param-missing-signals-error
+                 param-local-override
+                 set-param-basic
+                 set-params-batch
+                 defmodel-basic
+                 defmodel-keyword-function
+                 model-ref-basic
+                 model-ref-unknown-error
+                 model-metadata-accessors
+                 model-metadata-defaults-to-nil))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"
             (test-result-pass *test-result*)
