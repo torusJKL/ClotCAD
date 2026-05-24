@@ -8,7 +8,15 @@
   :pathname "src/"
   :serial t
   :components
-   ((:module "viewer"
+   ((:file "package")
+    (:module "model"
+     :components
+        ((:file "package")
+         (:file "model")
+         (:file "params")
+         (:file "propagation")
+         (:file "api")))
+    (:module "viewer"
      :components
         ((:file "package")
          (:file "bindings")

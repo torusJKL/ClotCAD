@@ -6,7 +6,9 @@
   (%viewer-set-antialiasing vwr 1)
   (apply-theme *theme-mode*)
   (register-color-scheme-callback)
-  (apply-selection-schemes))
+  (apply-selection-schemes)
+  ;; Register viewer-refresh on the propagation hook
+  (push 'viewer-refresh *after-propagation-hook*))
 
 (defun start-viewer (&key (width 1024) (height 768) (title "ClotCAD"))
   "Launch the ClotCAD 3D viewer window.

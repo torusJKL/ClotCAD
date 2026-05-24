@@ -84,7 +84,6 @@
 = Object Display Management
 #concept-block[
   `display(name, shape, ..options)`\
-  `undisplay(name)`\
   `clear-all()`\
   `def(name, shape-form)`\
   `show(&rest names)`\
@@ -121,7 +120,13 @@
   #inline("Functions")\
   `param(key)`\
   `model-ref(name)`\
+  `model-color(name)`\
   `model-display-name(name)`\
+  `model-layer(name)`\
+
+  #inline("Variables")\
+  `*params*` — parameter plist\
+  `*model-registry*` — DAG registry\
 
   #inline("Mutation")\
   `set-param!(key, value)`\
@@ -204,6 +209,9 @@
   `read-step(filename)`\
   `write-stl(shape, filename, ..options)`\
   `read-stl(filename)`\
+  `write-dag-models-to-step(path)`\
+  `read-step-into-dag(path)`\
+  `help()`\
 ]
 
 = REPL & Import

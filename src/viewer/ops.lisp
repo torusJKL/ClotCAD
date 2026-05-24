@@ -4,26 +4,11 @@
   "When non-nil, def-ined shapes appear in the Scene Tree.
    When nil, they are hidden from the tree but can still be operated on.")
 
-(defun resolve-shape (designator)
-  (etypecase designator
-    (cl-occt:shape designator)
-    (string (let ((entry (gethash designator *displayed-models*)))
-              (if entry
-                  (first entry)
-                  (error "~S does not name a known shape" designator))))
-    (symbol (let ((entry (gethash (string designator) *displayed-models*)))
-              (if entry
-                  (first entry)
-                  (let ((m (gethash designator cl-occt.impl:*model-registry*)))
-                    (if m
-                        (cl-occt.impl:model-cached-shape m)
-                        (error "~S does not name a known shape" designator))))))))
-
 (defmacro def (name shape-form)
   "Define a named shape without displaying it.
 
-  The shape is stored in the scene tree but hidden from the 3D view.
-  Use `show` to make it visible later.
+  The shape is stored in the DAG registry and the scene tree
+  (grayed). Use `show` to make it visible in the 3D view.
 
   Example:
 
@@ -33,6 +18,8 @@
   See also: `show`, `hide`, `toggle`"
   `(let* ((shape ,shape-form)
           (sname (string ',name)))
+     (register-model sname (make-model :name sname
+                                       :cached-shape shape))
      (display ',name shape
               :visible nil
               :show-in-tree *show-defs-in-tree*
@@ -57,7 +44,13 @@
           (progn
             (setf (second entry) t)
             (queue-push :sync))
-          (error "~S is not currently displayed" name)))))
+          ;; Not yet displayed — resolve from registry and display
+          (let ((m (find-model sname)))
+            (if m
+                (let ((shape (model-cached-shape m)))
+                  (when shape
+                    (display name shape :visible t :show-in-tree t :origin :def)))
+                (error "~S does not name a known shape" name)))))))
 
 (defun hide (&rest names)
   "Hide one or more named shapes from the 3D view.

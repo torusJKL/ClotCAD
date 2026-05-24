@@ -59,8 +59,10 @@
            (*axis-visible* t)
            (*theme-mode* :dark)
            (*accent-color* "#0078d4")
-           (*show-defs-in-tree* t)
-           (*color-scheme-callback-registered* nil)
+            (*show-defs-in-tree* t)
+            (*model-registry* (make-hash-table :test 'equal))
+            (*params* nil)
+            (*color-scheme-callback-registered* nil)
            (mock-grid-state 1)
            (mock-axis-state 1)
            (mock-viewcube-state 1)
@@ -284,20 +286,6 @@
     (let ((entry (gethash "MY-KEYWORD" *displayed-models*)))
       (assert-true entry))))
 
-(deftest undisplay-removes-from-models
-  (with-mocked-viewer
-    (setf (gethash "test" *displayed-models*) (list nil t t t :display))
-    (undisplay "test")
-    (assert-nil (gethash "test" *displayed-models*))))
-
-(deftest undisplay-queues-remove-message
-  (with-mocked-viewer
-    (setf (gethash "test" *displayed-models*) (list nil t t t :display))
-    (undisplay "test")
-    (let ((msg (first *viewer-queue*)))
-      (assert-equal :remove (first msg))
-      (assert-equal "test" (second msg)))))
-
 (deftest clear-all-empties-models
   (with-mocked-viewer
     (setf (gethash "a" *displayed-models*) (list nil t t t :display))
@@ -310,28 +298,31 @@
     (clear-all)
     (assert-equal :clear (first (first *viewer-queue*)))))
 
+;; --- Model layer helper (needs to be defined early) ---
+
+(defmacro with-clean-registry (&body body)
+  `(let ((*model-registry* (make-hash-table :test 'equal))
+         (*params* nil))
+     ,@body))
+
 ;; --- resolve-shape tests ---
 
 (deftest resolve-shape-passes-shape-through
   (let ((s (make-instance 'cl-occt:shape :ptr (cffi:null-pointer))))
     (assert-true (eq s (resolve-shape s)))))
 
-(deftest resolve-shape-errors-on-unknown
-  (with-mocked-viewer
+(deftest resolve-shape-finds-in-registry
+  (with-clean-registry
+    (register-model "my-box" (make-model :name "my-box" :cached-shape :box-shape))
+    (assert-eq :box-shape (resolve-shape :my-box))
+    (assert-eq :box-shape (resolve-shape "my-box"))))
+
+(deftest resolve-shape-errors-on-unknown-symbol
+  (with-clean-registry
     (assert-error (resolve-shape :unknown))))
 
-(deftest resolve-shape-finds-displayed
-  (with-mocked-viewer
-    (setf (gethash "S" *displayed-models*) (list :sphere t t t :display))
-    (assert-eq :sphere (resolve-shape :s))))
-
-(deftest resolve-shape-finds-displayed-string
-  (with-mocked-viewer
-    (setf (gethash "box2" *displayed-models*) (list :box t t t :display))
-    (assert-eq :box (resolve-shape "box2"))))
-
 (deftest resolve-shape-errors-on-unknown-string
-  (with-mocked-viewer
+  (with-clean-registry
     (assert-error (resolve-shape "nonexistent"))))
 
 ;; --- def tests ---
@@ -449,6 +440,8 @@
   (with-mocked-viewer
     (setf (gethash "S" *displayed-models*) (list :sphere t t t :def))
     (setf (gethash "B" *displayed-models*) (list :box t t t :def))
+    (register-model "S" (make-model :name "S" :cached-shape :sphere))
+    (register-model "B" (make-model :name "B" :cached-shape :box))
     (let ((called-with nil))
       (let ((old (symbol-function 'cl-occt:cut)))
         (setf (symbol-function 'cl-occt:cut)
@@ -464,6 +457,7 @@
 (deftest wrapper-translate-resolves
   (with-mocked-viewer
     (setf (gethash "S" *displayed-models*) (list :sphere t t t :def))
+    (register-model "S" (make-model :name "S" :cached-shape :sphere))
     (let ((called-shape nil))
       (let ((old (symbol-function 'cl-occt:translate)))
         (setf (symbol-function 'cl-occt:translate)
@@ -480,6 +474,7 @@
 (deftest wrapper-make-prism-resolves
   (with-mocked-viewer
     (setf (gethash "S" *displayed-models*) (list :sphere t t t :def))
+    (register-model "S" (make-model :name "S" :cached-shape :sphere))
     (let ((called-shape nil))
       (let ((old (symbol-function 'cl-occt:make-prism)))
         (setf (symbol-function 'cl-occt:make-prism)
@@ -497,6 +492,8 @@
   (with-mocked-viewer
     (setf (gethash "S" *displayed-models*) (list :sphere t t t :def))
     (setf (gethash "B" *displayed-models*) (list :box t t t :def))
+    (register-model "S" (make-model :name "S" :cached-shape :sphere))
+    (register-model "B" (make-model :name "B" :cached-shape :box))
     (let ((called-shapes nil))
       (let ((old (symbol-function 'cl-occt:make-compound)))
         (setf (symbol-function 'cl-occt:make-compound)
@@ -514,6 +511,7 @@
 (deftest wrapper-make-part-resolves
   (with-mocked-viewer
     (setf (gethash "S" *displayed-models*) (list :sphere t t t :def))
+    (register-model "S" (make-model :name "S" :cached-shape :sphere))
     (let ((called-shape nil))
       (let ((old (symbol-function 'cl-occt:make-part)))
         (setf (symbol-function 'cl-occt:make-part)
@@ -530,6 +528,7 @@
 (deftest wrapper-write-step-resolves
   (with-mocked-viewer
     (setf (gethash "S" *displayed-models*) (list :sphere t t t :def))
+    (register-model "S" (make-model :name "S" :cached-shape :sphere))
     (let ((called-name nil))
       (let ((old (symbol-function 'cl-occt:write-step)))
         (setf (symbol-function 'cl-occt:write-step)
@@ -696,7 +695,7 @@
                    (format nil "~A should be fbound in clotcad-user" sym)))))
 
 (deftest clotcad-user-has-viewer-symbols
-    (dolist (sym '("DISPLAY" "UNDISPLAY" "CLEAR-ALL" "SHOW-GRID" "FIT-VIEW"
+    (dolist (sym '("DISPLAY" "CLEAR-ALL" "SHOW-GRID" "FIT-VIEW"
                    "SET-VIEW-AA" "SET-REPL-HISTORY-KEY" "SET-REPL-SUBMIT-KEY"
                    "DEF" "SHOW" "HIDE" "TOGGLE"
                   "SHOW-DEFS" "TOGGLE-DEFS" "RESOLVE-SHAPE"
@@ -789,14 +788,6 @@
                    "whitespace-only input should produce empty output"))))
 
 ;; --- Edge case tests ---
-
-(deftest undisplay-nonexistent-is-safe
-  (with-mocked-viewer
-    (setf (gethash "a" *displayed-models*) (list nil t t t :display))
-    (undisplay "nonexistent")
-    (assert-equal 1 (hash-table-count *displayed-models*)
-                  "undisplay of nonexistent should not affect models")
-    (assert-true (gethash "a" *displayed-models*))))
 
 (deftest clear-all-on-empty-is-safe
   (with-mocked-viewer
@@ -1462,16 +1453,13 @@
                display-adds-to-models display-queues-display-message
                display-converts-keyword-to-string
                display-replaces-existing-name
-               undisplay-removes-from-models undisplay-queues-remove-message
-               undisplay-nonexistent-is-safe
                clear-all-empties-models clear-all-queues-clear-message
                clear-all-on-empty-is-safe
                displayed-models-entry-has-five-elements
                displayed-models-entry-origin-is-def-when-def
                resolve-shape-passes-shape-through
-               resolve-shape-finds-displayed
-               resolve-shape-errors-on-unknown
-               resolve-shape-finds-displayed-string
+               resolve-shape-finds-in-registry
+               resolve-shape-errors-on-unknown-symbol
                resolve-shape-errors-on-unknown-string
                def-stores-shape def-sets-visible-nil def-does-not-affect-previous-def-visibility def-respects-show-defs-in-tree
                show-sets-visible-t hide-sets-visible-nil toggle-flips-visible toggle-flips-visible-from-invisible
@@ -1535,7 +1523,26 @@
                 log-remote-eval-adds-entry
                 log-remote-eval-entries-are-exported
                 bootstrap-handles-slynk-not-available
-               make-core-loads-systems))
+                make-core-loads-systems
+                ;; Model layer tests
+                model-register-find
+                model-register-string-key
+                model-unregister
+                model-dirty-marking
+                model-dirty-propagates-to-dependents
+                topological-sort-simple
+                topological-sort-cycle-detected
+                param-global
+                param-missing-signals-error
+                param-local-override
+                set-param-basic
+                set-params-batch
+                defmodel-basic
+                defmodel-keyword-function
+                model-ref-basic
+                model-ref-unknown-error
+                model-metadata-accessors
+                model-metadata-defaults-to-nil))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"
             (test-result-pass *test-result*)
@@ -1543,3 +1550,148 @@
             (test-result-errors *test-result*))
     (values (test-result-pass *test-result*)
             (test-result-fail *test-result*))))
+
+;; --- Model layer tests (no viewer mock needed) ---
+
+(deftest model-register-find
+  (with-clean-registry
+    (let ((m (make-model :name "test" :cached-shape :dummy)))
+      (register-model "test" m)
+      (assert-true (find-model "test") "should find model")
+      (assert-eq m (find-model "test") "should return same model"))))
+
+(deftest model-register-string-key
+  (with-clean-registry
+    (let ((m (make-model :name "my-box" :cached-shape :dummy)))
+      (register-model "my-box" m)
+      (assert-true (find-model "my-box") "string key")
+      (assert-true (find-model :my-box) "symbol key normalizes"))))
+
+(deftest model-unregister
+  (with-clean-registry
+    (register-model "test" (make-model :name "test"))
+    (assert-true (find-model "test"))
+    (unregister-model "test")
+    (assert-nil (find-model "test") "should be gone")))
+
+(deftest model-dirty-marking
+  (with-clean-registry
+    (let ((a (make-model :name "a"))
+          (b (make-model :name "b" :dependents '("c")))
+          (c (make-model :name "c")))
+      ;; Models start dirty; reset for testing
+      (setf (model-dirty a) nil
+            (model-dirty b) nil
+            (model-dirty c) nil)
+      (register-model "a" a)
+      (register-model "b" b)
+      (register-model "c" c)
+      (dirty-model! "a")
+      (assert-true (model-dirty a) "a marked dirty")
+      ;; b and c have no dependency on a, so not dirty
+      (assert-nil (model-dirty b) "b not dirty"))))
+
+(deftest model-dirty-propagates-to-dependents
+  (with-clean-registry
+    (let ((a (make-model :name "a"))
+          (b (make-model :name "b" :model-deps '("a") :dependents '("c")))
+          (c (make-model :name "c" :model-deps '("b"))))
+      (register-model "a" a)
+      (register-model "b" b)
+      (register-model "c" c)
+      (dirty-model! "a")
+      (assert-true (model-dirty a))
+      (assert-true (model-dirty b) "b depends on a")
+      (assert-true (model-dirty c) "c depends on b, transitively"))))
+
+(deftest topological-sort-simple
+  (with-clean-registry
+    (register-model "a" (make-model :name "a"))
+    (register-model "b" (make-model :name "b" :model-deps '("a")))
+    (register-model "c" (make-model :name "c" :model-deps '("b")))
+    (let* ((sorted (topological-sort '("a" "b" "c")))
+           (pos (lambda (s) (position s sorted :test #'string=))))
+      (assert-true (< (funcall pos "a") (funcall pos "b")) "a before b")
+      (assert-true (< (funcall pos "b") (funcall pos "c")) "b before c"))))
+
+(deftest topological-sort-cycle-detected
+  (with-clean-registry
+    (register-model "a" (make-model :name "a" :model-deps '("b")))
+    (register-model "b" (make-model :name "b" :model-deps '("a")))
+    (assert-error (topological-sort '("a" "b")))))
+
+(deftest param-global
+  (with-clean-registry
+    (setf *params* '(:w 30 :d 20))
+    (assert-equal 30 (param :w))
+    (assert-equal 20 (param :d))))
+
+(deftest param-missing-signals-error
+  (with-clean-registry
+    (assert-error (param :nonexistent))))
+
+(deftest param-local-override
+  (with-clean-registry
+    (setf *params* '(:w 30))
+    (let ((result (with-params (:w 50) (param :w))))
+      (assert-equal 50 result "local overrides global")
+      (assert-equal 30 (param :w) "global unchanged outside scope"))))
+
+(deftest set-param-basic
+  (with-clean-registry
+    (register-model "test" (make-model :name "test" :param-keys '(:w) :fn (lambda () :ok)))
+    (let ((result (set-param! :w 42)))
+      (assert-equal 42 result "returns the value")
+      (assert-equal 42 (getf *params* :w)))))
+
+(deftest set-params-batch
+  (with-clean-registry
+    (set-params! :w 10 :d 20)
+    (assert-equal 10 (getf *params* :w))
+    (assert-equal 20 (getf *params* :d))))
+
+(deftest defmodel-basic
+  (with-clean-registry
+    (setf *params* (list :w 10 :d 20 :h 30))
+    (defmodel test-box (:w :d :h)
+      (list (param :w) (param :d) (param :h)))
+    (let ((m (find-model "test-box")))
+      (assert-true m "model registered as string")
+      (assert-equal '(:w :d :h) (model-param-keys m))
+      (assert-true (functionp (model-fn m)) "has body fn"))))
+
+(deftest defmodel-keyword-function
+  (with-clean-registry
+    (setf *params* (list :w 10))
+    (defmodel my-box (:w) (list (param :w)))
+    (let ((result (my-box :w 99)))
+      (assert-equal '(99) result))))
+
+(deftest model-ref-basic
+  (with-clean-registry
+    (let ((m (make-model :name "part-a" :cached-shape :shape-a)))
+      (register-model "part-a" m))
+    (assert-eq :shape-a (model-ref 'part-a))))
+
+(deftest model-ref-unknown-error
+  (with-clean-registry
+    (assert-error (model-ref 'nonexistent))))
+
+(deftest model-metadata-accessors
+  (with-clean-registry
+    (let ((m (make-model :name "test"
+                         :color-val '(:red)
+                         :display-name-val "My Test"
+                         :layer-val "Layer1")))
+      (register-model "test" m)
+      (assert-equal '(:red) (model-color 'test))
+      (assert-equal "My Test" (model-display-name 'test))
+      (assert-equal "Layer1" (model-layer 'test)))))
+
+(deftest model-metadata-defaults-to-nil
+  (with-clean-registry
+    (let ((m (make-model :name "plain")))
+      (register-model "plain" m)
+      (assert-nil (model-color 'plain))
+      (assert-nil (model-display-name 'plain))
+      (assert-nil (model-layer 'plain)))))
