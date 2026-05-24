@@ -3,6 +3,23 @@
 ;; --- Shape resolution ---
 
 (defun resolve-shape (designator)
+  "Resolve a shape designator to a `shape` object.
+
+  Designators can be raw `shape` objects (passed through), strings
+  looked up in the model registry, or symbols converted to strings
+  first. Signals an error if the name is not found.
+
+  - **designator** a `shape`, string name, or keyword/symbol
+
+  **Returns:** a `shape` object.
+
+  **Example:**
+
+      (resolve-shape :my-box)
+      (resolve-shape \"my-box\")
+      (resolve-shape some-shape)
+
+  **See also:** `model-ref`"
   (etypecase designator
     (cl-occt:shape designator)
     (string (let ((m (clotcad.impl:find-model designator)))
@@ -14,24 +31,68 @@
 ;; --- Model metadata accessors ---
 
 (defun model-color (name)
+  "Return the color value of a registered model.
+
+  - **name** string or symbol identifying the model
+
+  **Returns:** the color value, or signals an error if not found.
+
+  **Example:**
+
+      (model-color :my-box)
+
+  **See also:** `model-display-name`, `model-layer`, `model-ref`"
   (let ((m (clotcad.impl:find-model name)))
     (if m
         (clotcad.impl:model-color-val m)
         (error "Model ~S not found" name))))
 
 (defun model-display-name (name)
+  "Return the display name of a registered model.
+
+  - **name** string or symbol identifying the model
+
+  **Returns:** the display name string, or signals an error if not found.
+
+  **Example:**
+
+      (model-display-name :my-box)
+
+  **See also:** `model-color`, `model-layer`, `model-ref`"
   (let ((m (clotcad.impl:find-model name)))
     (if m
         (clotcad.impl:model-display-name-val m)
         (error "Model ~S not found" name))))
 
 (defun model-layer (name)
+  "Return the layer assignment of a registered model.
+
+  - **name** string or symbol identifying the model
+
+  **Returns:** the layer value, or signals an error if not found.
+
+  **Example:**
+
+      (model-layer :my-box)
+
+  **See also:** `model-color`, `model-display-name`, `model-ref`"
   (let ((m (clotcad.impl:find-model name)))
     (if m
         (clotcad.impl:model-layer-val m)
         (error "Model ~S not found" name))))
 
 (defun model-ref (name)
+  "Return the cached shape of a registered model.
+
+  - **name** string or symbol identifying the model
+
+  **Returns:** the cached `shape`, or signals an error if not found.
+
+  **Example:**
+
+      (model-ref :my-box)
+
+  **See also:** `resolve-shape`, `model-color`"
   (let ((m (clotcad.impl:find-model name)))
     (if m
         (clotcad.impl:model-cached-shape m)
@@ -40,12 +101,44 @@
 ;; --- Parameter access ---
 
 (defun param (key)
+  "Read a parameter value, searching local then global params.
+
+  Looks first in dynamic `*local-params*` (set by `with-params`),
+  then in the global `*params*` plist. Signals an error if the key
+  is not found in either.
+
+  - **key** keyword naming the parameter
+
+  **Returns:** the parameter value.
+
+  **Example:**
+
+      (param :width)
+      (with-params (:width 50)
+        (param :width))   ;; => 50
+
+  **See also:** `with-params`, `set-param!`, `set-params!`"
   (or (and (boundp 'clotcad.impl:*local-params*)
            (getf clotcad.impl:*local-params* key))
       (getf *params* key)
       (error "Param ~S not found" key)))
 
 (defmacro with-params ((&rest bindings) &body body)
+  "Evaluate BODY with local parameter bindings.
+
+  Parameters are given as alternating keyword-value pairs. Within
+  BODY, `param` looks up keys in these local bindings before
+  falling back to global `*params*`.
+
+  - **bindings** alternating `&rest` keyword-value pairs
+  - **body** `&body` forms to evaluate with the local bindings
+
+  **Example:**
+
+      (with-params (:width 50 :height 30)
+        (make-box (param :width) (param :height) 10))
+
+  **See also:** `param`, `set-param!`, `set-params!`"
   `(let ((clotcad.impl:*local-params* (list ,@(loop for (k v) on bindings by #'cddr
                                        append (list k v)))))
      ,@body))
@@ -82,6 +175,34 @@
     (nreverse keys)))
 
 (defmacro defmodel (name (&rest param-keys) &body body)
+  "Define a parametric model in the DAG registry.
+
+  Creates a model that can reference parameters via `param` and
+  other models via `model-ref`. The model is registered and its
+  dependencies are propagated immediately.
+
+  Body may include metadata clauses before the shape form:
+  `:color`, `:name`, `:layer`.
+
+  - **name** symbol naming the model
+  - **param-keys** list of keyword parameters this model depends on
+    (auto-detected from body if omitted)
+  - **body** model body that computes the shape, optionally prefixed
+    with metadata clauses
+
+  **Returns:** the model name symbol.
+
+  **Example:**
+
+      (defmodel my-box (:width :height :depth)
+        (make-box (param :width) (param :height) (param :depth)))
+
+      (defmodel my-part (:width)
+        :color :red
+        (fuse (make-box (param :width) 10 10)
+              (make-sphere 5)))
+
+  **See also:** `param`, `model-ref`, `set-param!`, `with-params`"
   (let ((sname (clotcad.impl:normalize-name name)))
     (multiple-value-bind (metadata-clauses real-body) (%parse-metadata body)
       (let* ((all-keys (or param-keys (%model-keys-from-params body)))
@@ -130,6 +251,21 @@
         do (clotcad.impl:dirty-model! name)))
 
 (defun set-param! (key value)
+  "Set a global parameter and trigger model propagation.
+
+  Updates `*params*`, marks all dependent models as dirty, and
+  triggers re-evaluation.
+
+  - **key** keyword naming the parameter
+  - **value** new value for the parameter
+
+  **Returns:** the new value.
+
+  **Example:**
+
+      (set-param! :width 50)
+
+  **See also:** `set-params!`, `param`, `with-params`, `defmodel`"
   (setf *params*
         (list* key value
                (loop for (k v) on *params* by #'cddr
@@ -140,6 +276,20 @@
   value)
 
 (defun set-params! (&rest key-values)
+  "Set multiple global parameters at once and propagate.
+
+  All parameters are set before triggering a single propagation
+  pass, avoiding redundant re-evaluations.
+
+  - **key-values** alternating `&rest` keyword-value pairs
+
+  **Returns:** the updated `*params*` plist.
+
+  **Example:**
+
+      (set-params! :width 50 :height 30)
+
+  **See also:** `set-param!`, `param`, `with-params`"
   (let ((changed-keys '()))
     (loop for (key value) on key-values by #'cddr
           do (setf *params*
@@ -156,6 +306,17 @@
 ;; --- DAG STEP I/O ---
 
 (defun write-dag-models-to-step (path)
+  "Export all registered DAG models to a STEP assembly file.
+
+  Each model is exported as a part with its display name and color.
+
+  - **path** output `.step` file path string
+
+  **Example:**
+
+      (write-dag-models-to-step \"assembly.step\")
+
+  **See also:** `read-step-into-dag`, `write-step`"
   (let ((shapes '()))
     (maphash (lambda (name m)
                (let ((shape (clotcad.impl:model-cached-shape m)))
@@ -170,6 +331,18 @@
         (error "No shapes in model registry"))))
 
 (defun read-step-into-dag (path)
+  "Import a STEP assembly file into the DAG model registry.
+
+  Each part in the assembly is registered as a model with its
+  shape, display name, and color. Children are walked recursively.
+
+  - **path** input `.step` file path string
+
+  **Example:**
+
+      (read-step-into-dag \"assembly.step\")
+
+  **See also:** `write-dag-models-to-step`, `read-step-into-dag`"
   (let ((assembly (cl-occt:read-step-assembly path))
         (counter 0))
     (labels ((walk (node)
@@ -190,6 +363,16 @@
 ;; --- Help ---
 
 (defun help ()
+  "Display an overview of available ClotCAD commands and models.
+
+  Prints categorized summaries of primitives, boolean operations,
+  transforms, viewer commands, parametric DSL, and I/O functions.
+
+  **Example:**
+
+      (help)
+
+  **See also:** `describe`, `*params*`, `*model-registry*`"
   (format t "~&ClotCAD — Common Lisp parametric CAD with 3D viewer~2%")
   (format t "~&3D Primitives:~%")
   (format t "  (make-box dx dy dz)            — rectangular box~%")

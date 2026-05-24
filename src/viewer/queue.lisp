@@ -94,6 +94,21 @@
     (process-import-tick)))
 
 (defun display (name shape &key (visible t) (show-in-tree t) (origin :display))
+  "Display a shape in the 3D viewport with the given name.
+
+  If a model with the same name already exists in the registry,
+  it is reused. Otherwise a new model is registered.
+
+  - **name** keyword or string naming the shape
+  - **shape** the `shape` object to display
+  - **visible** optional boolean, `t` to show immediately (default)
+  - **show-in-tree** optional boolean, `t` to appear in Scene Tree (default)
+  - **origin** optional keyword, `:display` (default) or `:def`
+
+  **Example:**
+
+      (display :my-box (make-box 10 20 30))
+      (display :hidden-sphere (make-sphere 5) :visible nil)"
   (let ((sname (string name)))
     ;; Register a simple model in the DAG registry if not already present
     (unless (find-model sname)
@@ -104,6 +119,15 @@
     (queue-push :display sname shape visible show-in-tree)))
 
 (defun clear-all ()
+  "Remove all displayed shapes from the 3D viewport.
+
+  Clears both the display list and the viewer scene.
+
+  **Example:**
+
+      (clear-all)
+
+  **See also:** `display`"
   (clrhash *displayed-models*)
   (queue-push :clear nil))
 

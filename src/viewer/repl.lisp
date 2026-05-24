@@ -60,11 +60,11 @@
 
   The current form finishes evaluation, then the import stops.
 
-  Example:
+  **Example:**
 
       (cancel-import)
 
-  See also: `replay-speed`"
+  **See also:** `replay-speed`"
   (setf *import-cancelled* t))
 
 (defun replay-speed (ms)
@@ -73,15 +73,28 @@
   MS is in milliseconds. NIL means no delay (evaluate as fast
   as possible). Useful for debugging slow imports.
 
-  Example:
+  - **ms** delay in milliseconds, or `nil` for no delay
+
+  **Example:**
 
       (replay-speed 500)   ;; wait 500ms between forms
       (replay-speed nil)   ;; no delay
 
-  See also: `cancel-import`"
+  **See also:** `cancel-import`"
   (setf *import-speed* ms))
 
 (defun log-remote-eval (code-str output-str)
+  "Append a code/output pair to the REPL log from a remote connection.
+
+  Used internally by the Slynk and Alive LSP wrappers to record
+  remotely-evaluated expressions.
+
+  - **code-str** the evaluated code as a string
+  - **output-str** the resulting output as a string
+
+  **Example:**
+
+      (log-remote-eval \"(+ 1 2)\" \"3\")"
   (sb-ext:atomic-push (cons code-str output-str) *repl-log*))
 
 (cffi:defcallback eval-string :void ((code :string) (result :pointer) (maxlen :int))
@@ -153,13 +166,17 @@
   Each entry is written as code followed by a newline. If
   `result-export` is T, outputs are included as comments.
 
-  Example:
+  - **path** output file path string
+
+  **Returns:** `t` on success.
+
+  **Example:**
 
       (export-repl-history \"session.lisp\")
       (result-export t)
       (export-repl-history \"session-with-results.lisp\")
 
-  See also: `result-export`"
+  **See also:** `result-export`"
   (with-open-file (f path :direction :output :if-exists :supersede)
     (dolist (entry (reverse *repl-log*))
       (destructuring-bind (code . output) entry
@@ -177,12 +194,16 @@
   When T, exported history includes output lines as comments.
   When NIL, only code is exported.
 
-  Example:
+  - **flag** boolean, `t` to include results, `nil` for code only
+
+  **Returns:** the new value of `*export-with-output*`.
+
+  **Example:**
 
       (result-export t)     ;; include results as ; comments
       (result-export nil)   ;; code only (default)
 
-  See also: `export-repl-history`"
+  **See also:** `export-repl-history`"
   (setf *export-with-output* flag))
 
 (defun export-all-stl (path)
@@ -251,14 +272,14 @@
 (defun set-repl-history-key (modifier)
   "Set the modifier key for REPL history navigation.
 
-  MODIFIER is one of: `:ctrl` (default), `:none`, `:alt`.
-  When :none, plain Up/Down arrow keys navigate history.
+  - **modifier** one of `:ctrl` (default), `:none`, `:alt`
+    When `:none`, plain Up/Down arrow keys navigate history.
 
-  Example:
+  **Example:**
 
       (set-repl-history-key :none)   ;; plain arrows for history
 
-  See also: `set-repl-submit-key`"
+  **See also:** `set-repl-submit-key`"
   (%viewer-set-repl-history-modifier *viewer*
     (ecase modifier
       (:ctrl  *qt-control-modifier*)
@@ -268,15 +289,15 @@
 (defun set-repl-submit-key (modifier)
   "Set the modifier key for REPL expression submission.
 
-  MODIFIER is one of: `:none` (default, plain Enter submits),
-  `:ctrl` (Ctrl+Enter submits, Enter inserts newline),
-  `:alt` (Alt+Enter submits).
+  - **modifier** one of `:none` (default, plain Enter submits),
+    `:ctrl` (Ctrl+Enter submits, Enter inserts newline),
+    `:alt` (Alt+Enter submits)
 
-  Example:
+  **Example:**
 
       (set-repl-submit-key :ctrl)   ;; Ctrl+Enter to submit
 
-  See also: `set-repl-history-key`"
+  **See also:** `set-repl-history-key`"
   (%viewer-set-repl-submit-modifier *viewer*
     (ecase modifier
       (:none  *qt-no-modifier*)
