@@ -1,6 +1,6 @@
 (defsystem :clotcad
   :description "ClotCAD — parametric CAD with 3D viewer"
-  :version "0.2.3"
+  :version "0.3.0"
   :author "Gal Buki"
   :license "GPLv3"
   :homepage "https://github.com/torusJKL/ClotCAD"
