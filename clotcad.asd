@@ -3,6 +3,7 @@
   :version "0.2.3"
   :author "Gal Buki"
   :license "GPLv3"
+  :homepage "https://github.com/torusJKL/ClotCAD"
   :depends-on (:cl-occt :cffi :trivial-garbage :alexandria)
   :pathname "src/"
   :serial t

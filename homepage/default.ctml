@@ -20,6 +20,7 @@
           <a href="#index">API Reference</a>
         </c:when>
         <a href="cheatsheet.pdf">Cheatsheet</a>
+        <a href="https://github.com/torusJKL/ClotCAD">Source</a>
       </div>
     </nav>
   </header>
@@ -68,7 +69,7 @@
     </c:when>
   </main>
   <footer class="footer">
-    <p>ClotCAD <c:when test="version"><span lquery="(text version)"></span></c:when> — <a href="https://github.com/clotcad/clotcad">source</a></p>
+    <p>ClotCAD <c:when test="version"><span lquery="(text version)"></span></c:when> — <a href="https://github.com/torusJKL/ClotCAD">source</a></p>
   </footer>
 </body>
 </html>

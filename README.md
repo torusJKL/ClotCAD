@@ -2,6 +2,8 @@
 
 Qt6-based 3D viewer for [cl-occt](https://github.com/torusJKL/cl-occt) using OCCT's Application Interactive Services (AIS/TKV3d). Renders shapes in a QOpenGLWidget with `AIS_ViewController` camera control, native Qt dock widgets, Slynk/SLY connectivity, and an LSP server for VS Code and other LSP-compatible editors.
 
+The source code is available at [github.com/torusJKL/ClotCAD](https://github.com/torusJKL/ClotCAD).
+
 ## Quickstart
 
 ```sh
@@ -252,7 +254,7 @@ Pre-built binaries are available for Linux:
 
 Both bundles include SBCL, OCCT, Qt6, Slynk, and Alive LSP — zero installation steps.
 
-**Source code:** https://github.com/<your-org>/clotcad (GPL-3.0)
+**Source code:** https://github.com/torusJKL/ClotCAD (GPL-3.0)
 
 ### From AppImage
 

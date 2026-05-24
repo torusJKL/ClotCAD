@@ -13,7 +13,7 @@ default:
     @echo ""
     @echo "Recipes:"
     @echo "  setup        Download + build OCCT {{occt-version}} (one-time)"
-    @echo "  submodules         Init submodule + symlink + wrap (requires OCCT built)"
+    @echo "  submodules   Init submodule + symlink + wrap (requires OCCT built)"
     @echo "  alive-lsp    Clone alive-lsp LSP server → lib/alive-lsp/"
     @echo "  viewer       Build shared library → lib/libclotcad.so"
     @echo "  core         Build SBCL core dump → ClotCAD.core"
@@ -21,6 +21,7 @@ default:
     @echo "  package-all  viewer + core + dist (run setup first)"
     @echo "  start        Launch viewer + Slynk (4005) + Alive LSP (4006)"
     @echo "  test         Run Lisp test suite"
+    @echo "  docs         Generate Staple documentation → docs/"
     @echo "  clean        Remove build artifacts"
 
 setup:
@@ -96,6 +97,17 @@ test:
       --eval '(sb-ext:quit)'
 
 _cheatsheet-version := `tag=$(git describe --tags --abbrev=0 2>/dev/null) && commits=$(git rev-list --count "$tag..HEAD" 2>/dev/null) && if [ "$commits" = "0" ]; then echo "$tag"; else echo "$tag-$commits"; fi || echo "unknown"`
+
+# Generate API documentation with Staple → docs/
+docs:
+    mkdir -p homepage/output
+    LD_LIBRARY_PATH=lib:{{occt-install}}/lib:{{clocct-dir}}/lib \
+    sbcl --noinform --quit \
+      --load ~/quicklisp/setup.lisp \
+      --eval "(push \"{{clocct-dir}}/\" asdf:*central-registry*)" \
+      --eval "(push \"{{root-dir}}/\" asdf:*central-registry*)" \
+      --eval "(ql:quickload '(:clotcad :staple-markdown :staple) :silent t)" \
+      --eval "(staple:generate :clotcad :output-directory #p\"{{root-dir}}/homepage/output/\" :if-exists :supersede)"
 
 # Build the ClotCAD cheatsheet PDF/A
 cheatsheet:
