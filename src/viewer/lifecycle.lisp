@@ -1,5 +1,8 @@
 (in-package :clotcad)
 
+(defvar *alive-server* nil
+  "Handle to the Alive LSP server instance, used for graceful shutdown.")
+
 (defun initialize-viewer (vwr)
   (%viewer-show-axis vwr 0)
   (%viewer-show-grid vwr 1)
@@ -103,15 +106,16 @@ Returns T if started, NIL if Alive LSP is not available.
 **See also:** `start-slynk`, `bootstrap`"
   (format t ";; Starting Alive LSP server on port ~D...~%" port)
   (handler-case
-      (let ((start (find-symbol "START" :alive/server)))
-        (if start
-            (progn
-              (sb-thread:make-thread
-               (lambda ()
-                 (funcall start :port port :default-package "CL-OCCT-USER"
-                                :log-fn #'log-remote-eval)
-                 (loop (sleep 1)))
-               :name "alive-lsp")
+      (let ((start-srv (find-symbol "START-SERVER" :alive/server))
+            (make-inst (find-symbol "MAKE-INSTANCE" :alive/server))
+            (lsp-server (find-symbol "LSP-SERVER" :alive/server))
+            (log-create (find-symbol "CREATE" :alive/logger))
+            (log-info (find-symbol "*INFO*" :alive/logger)))
+        (if (and start-srv make-inst lsp-server log-create log-info)
+            (let* ((log (funcall log-create *standard-output* (symbol-value log-info)))
+                   (server (funcall make-inst lsp-server)))
+              (setf *alive-server* server)
+              (funcall start-srv server log port "CLOTCAD-USER" #'log-remote-eval)
               (format t ";; Alive LSP server started on port ~D~%" port)
               t)
             (warn "Alive LSP not available; skipping.")))
@@ -131,9 +135,9 @@ based delivery path.
 
 **See also:** `start-slynk`, `start-alive`"
   (sb-sys:enable-interrupt sb-unix:sigint
-    (lambda (s) (declare (ignore s)) (sb-ext:exit 0)))
+    (lambda (s) (declare (ignore s)) (sb-ext:exit :code 0)))
   (handler-case (loop (sleep 1))
-    (sb-sys:interactive-interrupt () (sb-ext:exit 0))))
+    (sb-sys:interactive-interrupt () (sb-ext:exit :code 0))))
 
 (defun bootstrap ()
   "Start all services: Slynk, Alive LSP, and the 3D viewer.
@@ -167,3 +171,42 @@ based delivery path.
     (setf *viewer-running* nil)
     (%viewer-quit *viewer*)
     (setf *viewer* nil)))
+
+(defun quit-clotcad ()
+  "Stop all ClotCAD services and exit the Lisp process.
+
+  Stops the Slynk server, Alive LSP server, and 3D viewer (if
+  running), resets Lisp state, and calls `sb-ext:quit` to exit
+  cleanly. Works in all modes: `--viewer`, `--slynk`, `--alive`.
+
+  **Example:**
+
+      (quit-clotcad)
+
+  **See also:** `stop-viewer`, `bootstrap`"
+  (format t ";; Quitting ClotCAD...~%")
+
+  ;; 1. Schedule a deferred shutdown so the eval response reaches
+  ;;    the remote client before the process terminates. The viewer
+  ;;    and state reset are done here too — doing them inline would
+  ;;    unblock the main thread (in --viewer mode) which then calls
+  ;;    sb-ext:quit from run.sh before the response is sent.
+  (sb-thread:make-thread
+   (lambda ()
+     (sleep 0.1)
+     (when *viewer*
+       (stop-render-loop)
+       (%viewer-quit *viewer*)
+       (%viewer-destroy *viewer*)
+       (setf *viewer* nil)
+       (setf *viewer-running* nil)
+       (setf *viewer-queue* nil))
+     (setf *repl-log* nil
+           *repl-accumulator* ""
+           *import-forms* nil
+           *import-cancelled* nil)
+     (clrhash *displayed-models*)
+     (clrhash *selected*)
+     (sb-ext:quit))
+   :name "quit-clotcad-exit")
+  "Goodbye!")

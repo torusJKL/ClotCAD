@@ -1090,6 +1090,81 @@
   (assert-true (find-symbol "BOOTSTRAP" :clotcad)
                "bootstrap should be defined after loading ClotCAD"))
 
+;; --- quit-clotcad tests ---
+
+(deftest quit-clotcad-exists
+  (assert-true (fboundp 'quit-clotcad)
+               "quit-clotcad should be a defined function"))
+
+(deftest quit-clotcad-exported-from-clotcad
+  (assert-true (find-symbol "QUIT-CLOTCAD" :clotcad)
+               "quit-clotcad should be accessible from clotcad package")
+  (assert-true (find-symbol "QUIT-CLOTCAD" :clotcad-user)
+               "quit-clotcad should be accessible from clotcad-user package"))
+
+(deftest quit-clotcad-calls-viewer-cleanup
+  (let ((quit-called nil)
+        (viewer-quit-called nil)
+        (viewer-destroy-called nil))
+    ;; Set globals so the deferred thread (which doesn't inherit
+    ;; dynamic let-bindings) can see them.
+    (let ((old-viewer *viewer*)
+          (old-queue *viewer-queue*)
+          (old-running *viewer-running*)
+          (old-models *displayed-models*)
+          (old-select *selected*)
+          (old-repl-log *repl-log*)
+          (old-repl-acc *repl-accumulator*)
+          (old-import-forms *import-forms*)
+          (old-import-cancelled *import-cancelled*)
+          (old-render-timer *render-timer*))
+      (setf *viewer* (make-array 1)
+            *viewer-queue* nil
+            *viewer-running* t
+            *displayed-models* (make-hash-table :test 'equal)
+            *selected* (make-hash-table :test 'equal)
+            *repl-log* '((:a . "b"))
+            *repl-accumulator* "incomplete"
+            *import-forms* '((+ 1 2))
+            *import-cancelled* nil
+            *render-timer* t)
+      (let ((old-vq (symbol-function '%viewer-quit))
+            (old-vd (symbol-function '%viewer-destroy)))
+        (setf (symbol-function '%viewer-quit)
+              (lambda (vwr) (declare (ignore vwr)) (setf viewer-quit-called t))
+              (symbol-function '%viewer-destroy)
+              (lambda (vwr) (declare (ignore vwr)) (setf viewer-destroy-called t)))
+        (sb-ext:unlock-package :sb-ext)
+        (let ((old-quit (symbol-function 'sb-ext:quit)))
+          (setf (symbol-function 'sb-ext:quit)
+                (lambda (&key &allow-other-keys) (setf quit-called t)))
+          (unwind-protect
+              (progn
+                (quit-clotcad)
+                (sleep 2)
+                (assert-true viewer-quit-called
+                             "%viewer-quit should be called")
+                (assert-true viewer-destroy-called
+                             "%viewer-destroy should be called")
+                (assert-nil *viewer* "*viewer* should be nil after quit")
+                (assert-nil *viewer-running* "*viewer-running* should be nil")
+                (assert-nil *viewer-queue* "*viewer-queue* should be nil")
+                (assert-true quit-called "sb-ext:quit should be called"))
+            (setf (symbol-function 'sb-ext:quit) old-quit)))
+        (sb-ext:lock-package :sb-ext)
+        (setf (symbol-function '%viewer-quit) old-vq
+              (symbol-function '%viewer-destroy) old-vd))
+      (setf *viewer* old-viewer
+            *viewer-queue* old-queue
+            *viewer-running* old-running
+            *displayed-models* old-models
+            *selected* old-select
+            *repl-log* old-repl-log
+            *repl-accumulator* old-repl-acc
+            *import-forms* old-import-forms
+            *import-cancelled* old-import-cancelled
+            *render-timer* old-render-timer))))
+
 ;; --- Registration tests ---
 
 (deftest register-viewer-callbacks-sets-viewer
@@ -1568,6 +1643,9 @@
                  start-slynk-and-start-alive-exported-from-clotcad
                  bootstrap-handles-slynk-not-available
                  make-core-loads-systems
+                 quit-clotcad-exists
+                 quit-clotcad-exported-from-clotcad
+                 quit-clotcad-calls-viewer-cleanup
                  ;; Model layer tests
                  model-register-find
                  model-register-string-key

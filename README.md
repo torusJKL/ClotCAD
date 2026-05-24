@@ -147,6 +147,22 @@ commands) into a single namespace. Load it through nicknames:
 This is the default package when starting the viewer via `just start`.
 From a SLY REPL, type `(in-package :cad-user)` to switch.
 
+## Remote Shutdown
+
+Gracefully stop all services and exit the process from any connected
+REPL (SLY, Alive LSP, or the in-window REPL):
+
+```lisp
+(quit-clotcad)
+```
+
+This stops the Slynk server (port 4005), Alive LSP server (port 4006),
+and 3D viewer (if running), resets Lisp state, and exits cleanly.
+Works in all run modes (`--viewer`, `--slynk`, `--alive`).
+
+> **Note:** Calling `quit-clotcad` will disconnect the remote client
+> as the Lisp process exits. Reconnect to start a new session.
+
 ## Layout
 
 ```

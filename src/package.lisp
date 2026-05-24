@@ -80,12 +80,13 @@
    :*displayed-models*
    :*grid-visible*
    :*axis-visible*
-    :start-viewer
-    :stop-viewer
-    :start-slynk
-    :start-alive
-    :wait-forever
-    :bootstrap
+     :start-viewer
+     :stop-viewer
+     :quit-clotcad
+     :start-slynk
+     :start-alive
+     :wait-forever
+     :bootstrap
     :sync-viewer
    :display
    :clear-all
@@ -156,12 +157,13 @@
    :make-part
    :write-step
    :write-stl
-    :start-viewer
-    :stop-viewer
-    :start-slynk
-    :start-alive
-    :wait-forever
-    :bootstrap
+     :start-viewer
+     :stop-viewer
+     :quit-clotcad
+     :start-slynk
+     :start-alive
+     :wait-forever
+     :bootstrap
     :display
     :clear-all
    :show-grid
