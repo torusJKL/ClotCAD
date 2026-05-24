@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-05-24
+
+### Added
+
+- Parametric DSL and DAG layer restored as `src/model/` — `defmodel`, `param`,
+  `with-params`, `set-param!`, `set-params!`, `model-ref`, `model-color`,
+  `model-display-name`, `model-layer`, `write-dag-models-to-step`,
+  `read-step-into-dag`, `help`
+- Versioned documentation homepage deployed to gh-pages (Staple + Clip template)
+- API docstrings enriched with descriptions and examples
+- GitHub Actions workflow to auto-generate docs on tag push and deploy
+
+### Changed
+
+- Renamed project from cl-occt-viewer to ClotCAD
+- Renamed viewer workspace package from `CL-OCCT-USER` to `CLOTCAD-USER`
+  (nicknames `CAD-USER`, `OCCT-USER`)
+- Updated stale GitHub URLs to `torusJKL/ClotCAD` across README, homepage, and ASDF
+- Updated cl-occt submodule to 4207763
+- `def` now registers shape in DAG registry and appears grayed in Scene Tree
+- `display` now registers a simple model in the DAG registry
+- `show` resolves from DAG registry if not yet displayed
+- `resolve-shape` moved to model layer — looks up DAG registry only
+  (no viewer coupling, no broken reference to cl-occt.impl)
+- Package definitions consolidated to `src/package.lisp`
+
 ## [0.2.0] - 2026-05-23
 
 ### Added

@@ -8,45 +8,57 @@
 (defun show-grid (&optional (show t))
   "Show or hide the ground grid in the 3D viewport.
 
-  Example:
+  - **show** optional boolean, `t` to show (default), `nil` to hide
+
+  **Returns:** the updated grid visibility state.
+
+  **Example:**
 
       (show-grid nil)   ;; hide grid
       (show-grid t)     ;; show grid
 
-  See also: `toggle-grid`, `show-axis`"
+  **See also:** `toggle-grid`, `show-axis`"
   (%viewer-show-grid *viewer* (if show 1 0))
   (setf *grid-visible* (not (zerop (%viewer-is-grid-visible *viewer*)))))
 
 (defun show-axis (&optional (show t))
   "Show or hide the axis trihedron in the 3D viewport.
 
-  Example:
+  - **show** optional boolean, `t` to show (default), `nil` to hide
+
+  **Returns:** the updated axis visibility state.
+
+  **Example:**
 
       (show-axis nil)   ;; hide axis
       (show-axis t)     ;; show axis
 
-  See also: `toggle-axis`, `show-grid`"
+  **See also:** `toggle-axis`, `show-grid`"
   (%viewer-show-axis *viewer* (if show 1 0))
   (setf *axis-visible* (not (zerop (%viewer-is-axis-visible *viewer*)))))
 
 (defun toggle-grid ()
   "Toggle the ground grid on and off.
 
-  Example:
+  **Returns:** the updated grid visibility state.
+
+  **Example:**
 
       (toggle-grid)
 
-  See also: `show-grid`"
+  **See also:** `show-grid`"
   (show-grid (zerop (%viewer-is-grid-visible *viewer*))))
 
 (defun toggle-axis ()
   "Toggle the axis trihedron on and off.
 
-  Example:
+  **Returns:** the updated axis visibility state.
+
+  **Example:**
 
       (toggle-axis)
 
-  See also: `show-axis`"
+  **See also:** `show-axis`"
   (show-axis (zerop (%viewer-is-axis-visible *viewer*))))
 
 ;; --- ViewCube ---
@@ -83,58 +95,72 @@
 (defun show-viewcube (&optional (show t))
   "Show or hide the ViewCube in the 3D viewport.
 
-  Example:
+  - **show** optional boolean, `t` to show (default), `nil` to hide
+
+  **Returns:** the updated ViewCube visibility state.
+
+  **Example:**
 
       (show-viewcube nil)   ;; hide ViewCube
       (show-viewcube t)     ;; show ViewCube
 
-  See also: `toggle-viewcube`, `show-viewcube-axes`"
+  **See also:** `toggle-viewcube`, `show-viewcube-axes`"
   (%viewer-show-viewcube *viewer* (if show 1 0))
   (setf *viewcube-visible* (not (zerop (%viewer-is-viewcube-visible *viewer*)))))
 
 (defun toggle-viewcube ()
   "Toggle the ViewCube on and off.
 
-  Example:
+  **Returns:** the updated ViewCube visibility state.
+
+  **Example:**
 
       (toggle-viewcube)
 
-  See also: `show-viewcube`"
+  **See also:** `show-viewcube`"
   (show-viewcube (zerop (%viewer-is-viewcube-visible *viewer*))))
 
 (defun show-viewcube-axes (&optional (show t))
   "Show or hide the embedded trihedron axes inside the ViewCube.
 
-  Example:
+  - **show** optional boolean, `t` to show (default), `nil` to hide
+
+  **Returns:** the updated axis-visibility state.
+
+  **Example:**
 
       (show-viewcube-axes nil)   ;; hide axes inside ViewCube
 
-  See also: `show-viewcube`, `toggle-viewcube-axes`"
+  **See also:** `show-viewcube`, `toggle-viewcube-axes`"
   (%viewer-set-viewcube-draw-axes *viewer* (if show 1 0)))
 
 (defun toggle-viewcube-axes ()
   "Toggle the ViewCube's embedded trihedron axes.
 
-  Example:
+  **Returns:** the updated axis-visibility state.
+
+  **Example:**
 
       (toggle-viewcube-axes)
 
-  See also: `show-viewcube-axes`"
+  **See also:** `show-viewcube-axes`"
   (show-viewcube-axes (zerop (%viewer-get-viewcube-draw-axes *viewer*))))
 
 (defun set-view (orientation)
   "Set the camera to a standard orientation.
 
-  ORIENTATION is one of: `:top`, `:bottom`, `:front`, `:back`,
-  `:left`, `:right`, `:iso`.
+  - **orientation** one of `:top`, `:bottom`, `:front`, `:back`, `:left`,
+    `:right`, `:iso`
 
-  Example:
+  **Returns:** the orientation keyword on success.
+
+  **Example:**
 
       (set-view :top)    ;; looking down Z axis, X-Y plane
       (set-view :iso)    ;; isometric view
       (set-view :front)  ;; looking in -Y direction, X-Z plane
 
-  See also: `current-view`"
+  **See also:** `current-view`"
   (let ((int-val (view-keyword->int orientation)))
     (%viewer-set-view *viewer* int-val)
     (setf *current-view* orientation)))
@@ -146,11 +172,13 @@
   `:left`, `:right`, `:iso`, or NIL if the orientation
   does not match a standard view.
 
-  Example:
+  **Returns:** the orientation keyword or `nil`.
+
+  **Example:**
 
       (current-view)   ;; => :TOP (or NIL)
 
-  See also: `set-view`"
+  **See also:** `set-view`"
   (let ((int-val (%viewer-get-view-orientation *viewer*)))
     (or (view-int->keyword int-val)
         (progn
@@ -160,54 +188,68 @@
 (defun show-repl (&optional (show t))
   "Show or hide the REPL dock panel.
 
-  Example:
+  - **show** optional boolean, `t` to show (default), `nil` to hide
+
+  **Returns:** the updated REPL visibility state.
+
+  **Example:**
 
       (show-repl nil)   ;; hide REPL
       (show-repl t)     ;; show REPL
 
-  See also: `toggle-repl`, `show-scene-tree`"
+  **See also:** `toggle-repl`, `show-scene-tree`"
   (%viewer-show-dock *viewer* "REPLPanel" (if show 1 0)))
 
 (defun show-scene-tree (&optional (show t))
   "Show or hide the Scene Tree dock panel.
 
-  Example:
+  - **show** optional boolean, `t` to show (default), `nil` to hide
+
+  **Returns:** the updated Scene Tree visibility state.
+
+  **Example:**
 
       (show-scene-tree nil)   ;; hide Scene Tree
       (show-scene-tree t)     ;; show Scene Tree
 
-  See also: `toggle-scene-tree`, `show-repl`"
+  **See also:** `toggle-scene-tree`, `show-repl`"
   (%viewer-show-dock *viewer* "SceneTreePanel" (if show 1 0)))
 
 (defun toggle-repl ()
   "Toggle the REPL dock panel on and off.
 
-  Example:
+  **Returns:** the updated REPL visibility state.
+
+  **Example:**
 
       (toggle-repl)
 
-  See also: `show-repl`"
+  **See also:** `show-repl`"
   (%viewer-show-dock *viewer* "REPLPanel" -1))
 
 (defun toggle-scene-tree ()
   "Toggle the Scene Tree dock panel on and off.
 
-  Example:
+  **Returns:** the updated Scene Tree visibility state.
+
+  **Example:**
 
       (toggle-scene-tree)
 
-  See also: `show-scene-tree`"
+  **See also:** `show-scene-tree`"
   (%viewer-show-dock *viewer* "SceneTreePanel" -1))
 
 (defun set-view-aa (enable)
   "Enable or disable multi-sample anti-aliasing (MSAA).
 
-  Example:
+  - **enable** boolean, `t` to enable MSAA, `nil` to disable
+
+  **Example:**
 
       (set-view-aa t)     ;; enable AA
       (set-view-aa nil)   ;; disable AA
 
-  See also: `fit-view`"
+  **See also:** `fit-view`"
   (%viewer-set-antialiasing *viewer* (if enable 1 0)))
 
 (defun fit-view ()
@@ -215,11 +257,11 @@
 
   Adjusts the camera distance so all shapes are visible.
 
-  Example:
+  **Example:**
 
       (fit-view)
 
-  See also: `set-view`"
+  **See also:** `set-view`"
   (%viewer-fit-all *viewer*))
 
 (defun update-shape-count ()

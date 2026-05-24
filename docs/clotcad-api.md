@@ -84,7 +84,6 @@ Wrapper functions accept symbols, strings, or raw shapes.
 
 ```lisp
 (display name shape &key visible show-in-tree origin)       ; => shape
-(undisplay name)                                            ; => nil
 (clear-all)                                                 ; => nil
 (def name shape-form)                                       ; => shape
 (show &rest names)                                          ; => nil
@@ -95,8 +94,9 @@ Wrapper functions accept symbols, strings, or raw shapes.
 (resolve-shape designator)                                  ; => shape
 ```
 
-`display` shows a shape in the 3D scene with a name. `def` defines a shape hidden (for later `show`).
-`show`/`hide`/`toggle` control visibility by name. `resolve-shape` resolves a symbol, string, or raw value to a shape object.
+`display` shows a shape in the 3D scene and registers it in the DAG registry for future reference.
+`def` evaluates a shape form, stores it in the DAG registry, and shows it grayed in the Scene Tree.
+`show`/`hide`/`toggle` control visibility by name. `resolve-shape` resolves a symbol, string, or raw value to a shape object from the DAG registry.
 
 ## Selection
 
@@ -180,14 +180,23 @@ Models auto-track dependencies and re-evaluate when parameters change.
 ```lisp
 (param key)                                                 ; => value
 (model-ref name)                                            ; => shape
+(model-color name)                                          ; => color or nil
 (model-display-name name)                                   ; => string or nil
+(model-layer name)                                          ; => string or nil
+```
+
+### Variables
+
+```lisp
+*params*                       ; global parameter plist
+*model-registry*               ; DAG model registry hash table
 ```
 
 ### Mutation
 
 ```lisp
-(set-param! key value)                                      ; => nil
-(set-params! &rest key-values)                              ; => nil
+(set-param! key value)                                      ; => value
+(set-params! &rest key-values)                              ; => params plist
 ```
 
 ### Examples
@@ -231,6 +240,16 @@ Models auto-track dependencies and re-evaluate when parameters change.
 (read-step filename)                                        ; => shape
 (write-stl shape filename &key deflection)                  ; => nil
 (read-stl filename)                                         ; => shape
+
+;; DAG registry I/O (with metadata):
+(write-dag-models-to-step path)                             ; => nil
+(read-step-into-dag path)                                   ; => assembly
+```
+
+## Help
+
+```lisp
+(help)                                                      ; => values
 ```
 
 ## REPL & Import

@@ -94,38 +94,58 @@
     (process-import-tick)))
 
 (defun display (name shape &key (visible t) (show-in-tree t) (origin :display))
+  "Display a shape in the 3D viewport with the given name.
+
+  If a model with the same name already exists in the registry,
+  it is reused. Otherwise a new model is registered.
+
+  - **name** keyword or string naming the shape
+  - **shape** the `shape` object to display
+  - **visible** optional boolean, `t` to show immediately (default)
+  - **show-in-tree** optional boolean, `t` to appear in Scene Tree (default)
+  - **origin** optional keyword, `:display` (default) or `:def`
+
+  **Example:**
+
+      (display :my-box (make-box 10 20 30))
+      (display :hidden-sphere (make-sphere 5) :visible nil)"
   (let ((sname (string name)))
+    ;; Register a simple model in the DAG registry if not already present
+    (unless (find-model sname)
+      (register-model sname (make-model :name sname
+                                        :cached-shape shape)))
     (setf (gethash sname *displayed-models*)
           (list shape visible show-in-tree t origin))
     (queue-push :display sname shape visible show-in-tree)))
 
-(defun undisplay (name)
-  (let ((sname (string name)))
-    (remhash sname *displayed-models*)
-    (queue-push :remove sname)))
-
 (defun clear-all ()
+  "Remove all displayed shapes from the 3D viewport.
+
+  Clears both the display list and the viewer scene.
+
+  **Example:**
+
+      (clear-all)
+
+  **See also:** `display`"
   (clrhash *displayed-models*)
   (queue-push :clear nil))
 
-;; --- DAG bridge: auto-display models after propagation ---
+;; --- DAG bridge: update displayed shapes after propagation ---
 (defun viewer-refresh ()
-  (loop for name being the hash-keys of cl-occt.impl:*model-registry*
-        using (hash-value m)
-        when (gethash (string name) *displayed-models*)
-        do (let* ((entry (gethash (string name) *displayed-models*))
-                  (cached (cl-occt.impl:model-cached-shape m))
-                  (old-visible (second entry))
-                  (old-show-in-tree (third entry)))
-             (if cached
-                 (progn
-                   (setf (gethash (string name) *displayed-models*)
-                         (list cached old-visible old-show-in-tree t :display))
-                   (queue-push :display (string name) cached old-visible old-show-in-tree))
-                 (queue-push :remove (string name))))))
-
-(let ((original (symbol-function 'cl-occt.impl:propagate-changes)))
-  (setf (symbol-function 'cl-occt.impl:propagate-changes)
-        (lambda ()
-          (funcall original)
-          (viewer-refresh))))
+  (maphash (lambda (name m)
+             (declare (ignore m))
+             (let* ((sname name)
+                    (entry (gethash sname *displayed-models*)))
+               (when entry
+                 (let* ((m2 (find-model sname))
+                        (cached (if m2 (model-cached-shape m2) nil))
+                        (old-visible (second entry))
+                        (old-show-in-tree (third entry)))
+                   (if cached
+                       (progn
+                         (setf (gethash sname *displayed-models*)
+                               (list cached old-visible old-show-in-tree t :display))
+                         (queue-push :display sname cached old-visible old-show-in-tree))
+                       (queue-push :remove sname))))))
+           *model-registry*))

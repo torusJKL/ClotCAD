@@ -4,35 +4,27 @@
   "When non-nil, def-ined shapes appear in the Scene Tree.
    When nil, they are hidden from the tree but can still be operated on.")
 
-(defun resolve-shape (designator)
-  (etypecase designator
-    (cl-occt:shape designator)
-    (string (let ((entry (gethash designator *displayed-models*)))
-              (if entry
-                  (first entry)
-                  (error "~S does not name a known shape" designator))))
-    (symbol (let ((entry (gethash (string designator) *displayed-models*)))
-              (if entry
-                  (first entry)
-                  (let ((m (gethash designator cl-occt.impl:*model-registry*)))
-                    (if m
-                        (cl-occt.impl:model-cached-shape m)
-                        (error "~S does not name a known shape" designator))))))))
-
 (defmacro def (name shape-form)
   "Define a named shape without displaying it.
 
-  The shape is stored in the scene tree but hidden from the 3D view.
-  Use `show` to make it visible later.
+  The shape is stored in the DAG registry and the scene tree
+  (grayed). Use `show` to make it visible in the 3D view.
 
-  Example:
+  - **name** keyword or string naming the shape
+  - **shape-form** form that evaluates to a `shape` object
+
+  **Returns:** the shape value.
+
+  **Example:**
 
       (def :my-box (make-box 10 20 30))
       (show :my-box)
 
-  See also: `show`, `hide`, `toggle`"
+  **See also:** `show`, `hide`, `toggle`"
   `(let* ((shape ,shape-form)
           (sname (string ',name)))
+     (register-model sname (make-model :name sname
+                                       :cached-shape shape))
      (display ',name shape
               :visible nil
               :show-in-tree *show-defs-in-tree*
@@ -44,12 +36,14 @@
 
   Shapes must have been previously defined with `display` or `def`.
 
-  Example:
+  - **names** `&rest` of keywords or strings identifying shapes to show
+
+  **Example:**
 
       (def :box (make-box 10 20 30))
       (show :box)
 
-  See also: `hide`, `toggle`, `def`"
+  **See also:** `hide`, `toggle`, `def`"
   (dolist (name names)
     (let* ((sname (string name))
            (entry (gethash sname *displayed-models*)))
@@ -57,19 +51,27 @@
           (progn
             (setf (second entry) t)
             (queue-push :sync))
-          (error "~S is not currently displayed" name)))))
+          ;; Not yet displayed — resolve from registry and display
+          (let ((m (find-model sname)))
+            (if m
+                (let ((shape (model-cached-shape m)))
+                  (when shape
+                    (display name shape :visible t :show-in-tree t :origin :def)))
+                (error "~S does not name a known shape" name)))))))
 
 (defun hide (&rest names)
   "Hide one or more named shapes from the 3D view.
 
   Shapes remain in the scene tree and can be shown again with `show`.
 
-  Example:
+  - **names** `&rest` of keywords or strings identifying shapes to hide
+
+  **Example:**
 
       (hide :box)
       (hide :box :sphere)
 
-  See also: `show`, `toggle`"
+  **See also:** `show`, `toggle`"
   (dolist (name names)
     (let* ((sname (string name))
            (entry (gethash sname *displayed-models*)))
@@ -84,12 +86,14 @@
 
   Visible shapes become hidden, hidden shapes become visible.
 
-  Example:
+  - **names** `&rest` of keywords or strings identifying shapes to toggle
+
+  **Example:**
 
       (toggle :box)
       (toggle :box :sphere)
 
-  See also: `show`, `hide`"
+  **See also:** `show`, `hide`"
   (dolist (name names)
     (let* ((sname (string name))
            (entry (gethash sname *displayed-models*)))
@@ -105,12 +109,14 @@
   When NIL, shapes created with `def` are hidden from the tree
   but can still be operated on by name.
 
-  Example:
+  - **on** boolean, `t` to show def shapes in tree, `nil` to hide them
+
+  **Example:**
 
       (show-defs nil)   ;; hide def shapes from tree
       (show-defs t)     ;; show them again
 
-  See also: `toggle-defs`, `def`"
+  **See also:** `toggle-defs`, `def`"
   (setf *show-defs-in-tree* on)
   (maphash (lambda (name entry)
              (when (eq (fifth entry) :def)
@@ -121,11 +127,11 @@
 (defun toggle-defs ()
   "Toggle visibility of def-ined shapes in the Scene Tree.
 
-  Example:
+  **Example:**
 
       (toggle-defs)
 
-  See also: `show-defs`"
+  **See also:** `show-defs`"
   (show-defs (not *show-defs-in-tree*)))
 
 ;; --- Wrapper functions ---
@@ -136,7 +142,12 @@
   Subtracts OTHERS from SHAPE. Designators may be symbols,
   strings, or raw shapes.
 
-  Example:
+  - **shape** the base shape (designator)
+  - **others** `&rest` shapes to subtract (designators)
+
+  **Returns:** a new `shape` representing `shape` minus the volume of all `others`.
+
+  **Example:**
 
       (display :result (cut (make-box 10 10 10)
                             (make-sphere 5)))
@@ -144,7 +155,7 @@
       (def :b (make-sphere 15))
       (cut :a :b)
 
-  See also: `fuse`, `common`, `section`"
+  **See also:** `fuse`, `common`, `section`"
   (apply #'cl-occt:cut (resolve-shape shape) (mapcar #'resolve-shape others)))
 
 (defun fuse (shape &rest others)
@@ -153,12 +164,17 @@
   Merges OTHERS into SHAPE. Designators may be symbols,
   strings, or raw shapes.
 
-  Example:
+  - **shape** the base shape (designator)
+  - **others** `&rest` shapes to union (designators)
+
+  **Returns:** a new `shape` representing the union of `shape` and all `others`.
+
+  **Example:**
 
       (display :result (fuse (make-box 10 10 10)
                              (make-sphere 8)))
 
-  See also: `cut`, `common`, `section`"
+  **See also:** `cut`, `common`, `section`"
   (apply #'cl-occt:fuse (resolve-shape shape) (mapcar #'resolve-shape others)))
 
 (defun common (shape &rest others)
@@ -167,12 +183,17 @@
   Returns the volume shared by SHAPE and OTHERS. Designators
   may be symbols, strings, or raw shapes.
 
-  Example:
+  - **shape** the first shape (designator)
+  - **others** `&rest` shapes to intersect (designators)
+
+  **Returns:** a new `shape` representing the intersection of `shape` and all `others`.
+
+  **Example:**
 
       (display :result (common (make-box 10 10 10)
                                (make-sphere 8)))
 
-  See also: `cut`, `fuse`, `section`"
+  **See also:** `cut`, `fuse`, `section`"
   (apply #'cl-occt:common (resolve-shape shape) (mapcar #'resolve-shape others)))
 
 (defun section (shape &rest others)
@@ -181,12 +202,17 @@
   Returns the intersection curves between SHAPE and OTHERS,
   not a solid. Designators may be symbols, strings, or raw shapes.
 
-  Example:
+  - **shape** the first shape (designator)
+  - **others** `&rest` shapes to intersect (designators)
+
+  **Returns:** a new shape containing the intersection curves.
+
+  **Example:**
 
       (display :curves (section (make-box 10 10 10)
                                 (make-sphere 8)))
 
-  See also: `cut`, `fuse`, `common`"
+  **See also:** `cut`, `fuse`, `common`"
   (apply #'cl-occt:section (resolve-shape shape) (mapcar #'resolve-shape others)))
 
 (defun translate (shape dx dy dz)
@@ -194,11 +220,18 @@
 
   Designator may be a symbol, string, or raw shape.
 
-  Example:
+  - **shape** the shape to move (designator)
+  - **dx** displacement along X axis (double-float)
+  - **dy** displacement along Y axis (double-float)
+  - **dz** displacement along Z axis (double-float)
+
+  **Returns:** a new translated `shape`.
+
+  **Example:**
 
       (display :moved (translate (make-box 10 10 10) 20 0 0))
 
-  See also: `rotate`"
+  **See also:** `rotate`"
   (cl-occt:translate (resolve-shape shape) dx dy dz))
 
 (defun rotate (shape ax ay az angle-deg)
@@ -207,11 +240,19 @@
   The axis is defined by the vector (AX, AY, AZ). Designator
   may be a symbol, string, or raw shape.
 
-  Example:
+  - **shape** the shape to rotate (designator)
+  - **ax** X component of the rotation axis (double-float)
+  - **ay** Y component of the rotation axis (double-float)
+  - **az** Z component of the rotation axis (double-float)
+  - **angle-deg** rotation angle in degrees (double-float)
+
+  **Returns:** a new rotated `shape`.
+
+  **Example:**
 
       (display :rotated (rotate (make-box 10 10 10) 0 0 1 45))
 
-  See also: `translate`"
+  **See also:** `translate`"
   (cl-occt:rotate (resolve-shape shape) ax ay az angle-deg))
 
 (defun make-prism (shape dx dy dz)
@@ -219,7 +260,14 @@
 
   Designator may be a symbol, string, or raw shape.
 
-  Example:
+  - **shape** the face or wire to extrude (designator)
+  - **dx** extrusion vector X component (double-float)
+  - **dy** extrusion vector Y component (double-float)
+  - **dz** extrusion vector Z component (double-float)
+
+  **Returns:** a new extruded `shape`.
+
+  **Example:**
 
       (def :wire (make-wire (make-edge 0 0 10 0)
                             (make-edge 10 0 10 10)
@@ -228,7 +276,7 @@
       (display :face (make-face :wire))
       (display :prism (make-prism :face 0 0 20))
 
-  See also: `make-revol`"
+  **See also:** `make-revol`"
   (cl-occt:make-prism (resolve-shape shape) dx dy dz))
 
 (defun make-revol (shape ax ay az angle-deg)
@@ -236,14 +284,22 @@
 
   Designator may be a symbol, string, or raw shape.
 
-  Example:
+  - **shape** the shape to revolve (designator)
+  - **ax** revolution axis X component (double-float)
+  - **ay** revolution axis Y component (double-float)
+  - **az** revolution axis Z component (double-float)
+  - **angle-deg** revolution angle in degrees (double-float)
+
+  **Returns:** a new revolved `shape`.
+
+  **Example:**
 
       (display :revol (make-revol (make-face-on-plane
                                    (make-wire (make-circle2d 0 0 10))
                                    0 0 0 0 0 1)
                                   0 0 1 180))
 
-  See also: `make-prism`"
+  **See also:** `make-prism`"
   (cl-occt:make-revol (resolve-shape shape) ax ay az angle-deg))
 
 (defun make-compound (shapes)
@@ -251,27 +307,35 @@
 
   Each element of SHAPES may be a symbol, string, or raw shape.
 
-  Example:
+  - **shapes** a list of shape designators to group
+
+  **Returns:** a new compound `shape`.
+
+  **Example:**
 
       (display :assy (make-compound (list (make-box 10 10 10)
                                           (make-sphere 8))))
 
-  See also: `make-part`"
+  **See also:** `make-part`"
   (cl-occt:make-compound (mapcar #'resolve-shape shapes)))
 
 (defun make-part (shape &key name color location)
   "Create a part (top-level shape with metadata).
 
-  NAME is a string, COLOR is a keyword or RGB triple,
-  LOCATION is a gp_Trsf transformation.
+  - **shape** the base shape (designator)
+  - **name** optional string display name
+  - **color** optional keyword or RGB triple for the part
+  - **location** optional `gp_Trsf` transformation
 
-  Example:
+  **Returns:** a new part `shape`.
+
+  **Example:**
 
       (display :bolt (make-part (make-cylinder 5 20)
                                  :name \"M6 Bolt\"
                                  :color :cyan))
 
-  See also: `make-compound`"
+  **See also:** `make-compound`"
   (cl-occt:make-part (resolve-shape shape) :name name :color color :location location))
 
 (defun write-step (shape filename)
@@ -279,23 +343,29 @@
 
   Designator may be a symbol, string, or raw shape.
 
-  Example:
+  - **shape** the shape to export (designator)
+  - **filename** path string for the output `.step` file
+
+  **Example:**
 
       (write-step :result \"output.step\")
 
-  See also: `write-stl`"
+  **See also:** `write-stl`"
   (cl-occt:write-step (resolve-shape shape) filename))
 
 (defun write-stl (shape filename &key (deflection 0.1d0))
   "Export a shape to STL format.
 
-  DEFLECTION controls mesh quality (smaller = finer mesh).
   Designator may be a symbol, string, or raw shape.
 
-  Example:
+  - **shape** the shape to export (designator)
+  - **filename** path string for the output `.stl` file
+  - **deflection** optional mesh quality control, smaller = finer mesh (default `0.1d0`)
+
+  **Example:**
 
       (write-stl :result \"output.stl\")
       (write-stl :result \"output.stl\" :deflection 0.01)
 
-  See also: `write-step`"
+  **See also:** `write-step`"
   (cl-occt:write-stl (resolve-shape shape) filename :deflection deflection))

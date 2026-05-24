@@ -1,3 +1,2 @@
 (in-package :clotcad.impl)
 (in-package :clotcad)
-(in-package :clotcad-user)

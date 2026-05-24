@@ -572,15 +572,19 @@ Falls back to :light if system scheme is unknown or unavailable."
 (defun apply-theme (mode &key accent)
   "Apply a theme. MODE is :dark, :light, or :auto.
 ACCENT is an optional CSS hex color string, e.g. \"#0078d4\".
-Returns (values effective-mode effective-accent).
 
-Example:
+- **mode** one of `:dark`, `:light`, or `:auto`
+- **accent** optional CSS hex color string (e.g. `\"#0078d4\"`)
+
+**Returns:** (values effective-mode effective-accent).
+
+**Example:**
 
     (apply-theme :dark)                          ;; dark mode
     (apply-theme :light :accent \"#FF6600\")      ;; light + orange accent
     (apply-theme :auto)                          ;; follow system
 
-See also: `theme-dark`, `theme-light`, `theme-auto`, `set-accent`"
+**See also:** `theme-dark`, `theme-light`, `theme-auto`, `set-accent`"
   (let* ((effective-mode (%resolve-mode mode))
          (effective-accent (or accent *accent-color*))
          (palette (ecase effective-mode
@@ -598,15 +602,17 @@ See also: `theme-dark`, `theme-light`, `theme-auto`, `set-accent`"
 
 (defun set-accent (color-hex)
   "Change the accent color and reapply the current theme.
-COLOR-HEX is a CSS hex string like \"#FF6600\".
-Returns the accent color string.
 
-Example:
+  - **color-hex** CSS hex string like `\"#FF6600\"`
 
-    (set-accent \"#0078d4\")    ;; blue accent
-    (set-accent \"#FF6600\")    ;; orange accent
+  **Returns:** the accent color string.
 
-See also: `apply-theme`"
+  **Example:**
+
+      (set-accent \"#0078d4\")    ;; blue accent
+      (set-accent \"#FF6600\")    ;; orange accent
+
+  **See also:** `apply-theme`"
   (setf *accent-color* color-hex)
   (apply-theme *theme-mode*)
   color-hex)
@@ -614,23 +620,31 @@ See also: `apply-theme`"
 (defun theme-dark (&optional (accent *accent-color*))
   "Switch to dark theme, optionally with a new accent color.
 
-  Example:
+  - **accent** optional CSS hex color string
+
+  **Returns:** (values effective-mode effective-accent).
+
+  **Example:**
 
       (theme-dark)
       (theme-dark \"#FF6600\")   ;; dark + orange accent
 
-  See also: `theme-light`, `theme-auto`, `apply-theme`"
+  **See also:** `theme-light`, `theme-auto`, `apply-theme`"
   (apply-theme :dark :accent accent))
 
 (defun theme-light (&optional (accent *accent-color*))
   "Switch to light theme, optionally with a new accent color.
 
-  Example:
+  - **accent** optional CSS hex color string
+
+  **Returns:** (values effective-mode effective-accent).
+
+  **Example:**
 
       (theme-light)
       (theme-light \"#0078d4\")   ;; light + blue accent
 
-  See also: `theme-dark`, `theme-auto`, `apply-theme`"
+  **See also:** `theme-dark`, `theme-auto`, `apply-theme`"
   (apply-theme :light :accent accent))
 
 (defun theme-auto (&optional (accent *accent-color*))
@@ -638,25 +652,32 @@ See also: `apply-theme`"
 
   Automatically switches themes when the OS color scheme changes.
 
-  Example:
+  - **accent** optional CSS hex color string
+
+  **Returns:** (values effective-mode effective-accent).
+
+  **Example:**
 
       (theme-auto)
       (theme-auto \"#0078d4\")   ;; auto + blue accent
 
-  See also: `theme-dark`, `theme-light`, `apply-theme`"
+  **See also:** `theme-dark`, `theme-light`, `apply-theme`"
   (apply-theme :auto :accent accent))
 
 (defun set-font-size (size)
   "Set the UI font size and reapply the current theme.
-SIZE is a CSS font-size string like \"15px\" or \"1.1em\". Returns the size.
 
-Example:
+  - **size** CSS font-size string like `\"15px\"` or `\"1.1em\"`
 
-    (set-font-size \"15px\")    ;; larger
-    (set-font-size \"13px\")    ;; default
-    (set-font-size \"1.1em\")   ;; relative size
+  **Returns:** the font size string.
 
-See also: `apply-theme`"
+  **Example:**
+
+      (set-font-size \"15px\")    ;; larger
+      (set-font-size \"13px\")    ;; default
+      (set-font-size \"1.1em\")   ;; relative size
+
+  **See also:** `apply-theme`"
   (setf *font-size* size)
   (apply-theme *theme-mode*)
   size)
