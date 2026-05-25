@@ -43,7 +43,7 @@ case "${1:-}" in
     --slynk)     MODE="slynk"; shift ;;
     --alive)     MODE="alive"; shift ;;
     --help|-h)   usage ;;
-    *)           echo "Unknown mode: $1"; usage ;;
+    *)           MODE="viewer" ;;
 esac
 
 # Parse mode-specific flags
@@ -61,6 +61,8 @@ if [ "$MODE" = "viewer" ] || [ "$MODE" = "slynk" ] || [ "$MODE" = "alive" ]; the
                 INIT_FILE="$2"; shift 2 ;;
             --no-init)
                 NO_INIT="1"; shift ;;
+            --help|-h)
+                usage ;;
             *)
                 echo "Unknown option: $1"; exit 2 ;;
         esac
