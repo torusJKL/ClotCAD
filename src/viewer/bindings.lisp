@@ -211,3 +211,8 @@
 
 (defcfun (%viewer-is-shape-selected "viewer_is_shape_selected") :int
   (vwr :pointer) (name :string))
+
+;; --- Dialogs ---
+
+(defcfun (%viewer-show-message "viewer_show_message") :void
+  (vwr :pointer) (title :string) (message :string))

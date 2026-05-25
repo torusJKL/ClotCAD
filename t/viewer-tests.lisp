@@ -105,7 +105,8 @@
                                   %ss2 %cs %cscc %gv %gt %spc %sst %svc
                                   %gc %gao %ssc %stc %smsc %vst %vrh %vrs
                                    %vpd %sis %sip %sttc
-                                  %svc2 %ivcv %vsv %gvo %svcc %svc3 %svct %svci %svctr %svcsz %svcac %svcda %gvcda %svchc))))
+                                  %svc2 %ivcv %vsv %gvo %svcc %svc3 %svct %svci %svctr %svcsz %svcac %svcda %gvcda %svchc
+                                  %vsm))))
     `(let ((*viewer* (make-array 1))
            (*viewer-queue* nil)
            (*displayed-models* (make-hash-table :test 'equal))
@@ -167,10 +168,11 @@
                               %viewer-set-viewcube-transparency
                               %viewer-set-viewcube-size
                               %viewer-set-viewcube-axis-color
-                              %viewer-set-viewcube-draw-axes
-                              %viewer-get-viewcube-draw-axes
-                              %viewer-set-viewcube-hilight-color)
-                           old-syms))
+                               %viewer-set-viewcube-draw-axes
+                               %viewer-get-viewcube-draw-axes
+                               %viewer-set-viewcube-hilight-color
+                               %viewer-show-message)
+                            old-syms))
          (setf (symbol-function '%viewer-post-event) (lambda (vwr) (declare (ignore vwr)))
                (symbol-function '%viewer-sync-shapes)
                (lambda (vwr items count) (declare (ignore vwr items count)))
@@ -217,7 +219,8 @@
                    (symbol-function '%viewer-set-viewcube-axis-color) (lambda (vwr p r g b) (declare (ignore vwr p r g b)))
                    (symbol-function '%viewer-set-viewcube-draw-axes) (lambda (vwr s) (declare (ignore vwr s)) (setf mock-viewcube-state s))
                    (symbol-function '%viewer-get-viewcube-draw-axes) (lambda (vwr) (declare (ignore vwr)) mock-viewcube-state)
-                   (symbol-function '%viewer-set-viewcube-hilight-color) (lambda (vwr r g b) (declare (ignore vwr r g b))))
+                   (symbol-function '%viewer-set-viewcube-hilight-color) (lambda (vwr r g b) (declare (ignore vwr r g b)))
+                   (symbol-function '%viewer-show-message) (lambda (vwr title msg) (declare (ignore vwr title msg))))
             (unwind-protect
               (progn ,@body)
             (setf (symbol-function '%viewer-post-event) ,(nth 0 old-syms)
@@ -265,7 +268,8 @@
                         (symbol-function '%viewer-set-viewcube-axis-color) ,(nth 42 old-syms)
                         (symbol-function '%viewer-set-viewcube-draw-axes) ,(nth 43 old-syms)
                         (symbol-function '%viewer-get-viewcube-draw-axes) ,(nth 44 old-syms)
-                        (symbol-function '%viewer-set-viewcube-hilight-color) ,(nth 45 old-syms)))))))
+                        (symbol-function '%viewer-set-viewcube-hilight-color) ,(nth 45 old-syms)
+                        (symbol-function '%viewer-show-message) ,(nth 46 old-syms)))))))
 
 ;; --- Queue tests ---
 
