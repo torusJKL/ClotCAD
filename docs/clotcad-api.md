@@ -293,6 +293,44 @@ Modifier values: `:ctrl`, `:none`, `:alt`.
 (write-step :result "output.step")
 ```
 
+## Threading Macros
+
+Convenience macros for writing nested function calls as linear pipelines. Inspired by Clojure's threading macros.
+
+### Thread-first (->)
+
+Inserts the previous result as the first argument of each form.
+
+```lisp
+(-> 1 (+ 2) (* 3) (- 4))               ; => 5
+(-> 5 sqrt float)                       ; => 2.236068
+(-> 42 list)                            ; => (42)
+```
+
+### Thread-last (->>)
+
+Inserts the previous result as the last argument of each form.
+
+```lisp
+(->> '(1 2 3) (mapcar #'1+) (remove-if #'evenp))   ; => (3)
+(->> 3 (expt 2))                                    ; => 8
+(->> 5 (list 1 2))                                  ; => (1 2 5)
+```
+
+### Thread-as (as->)
+
+Threads a value through forms using a named binding. Each form's result is bound to the name for the next form.
+
+```lisp
+(as-> (list :foo :bar) v
+  (mapcar #'symbol-name v)
+  (first v)
+  (char v 0))
+;; => #\F
+```
+
+Bare symbols as forms are called with the threaded value as their single argument (applies to both `->` and `->>`).
+
 ## Viewer Interaction
 
 | Action | Mouse |

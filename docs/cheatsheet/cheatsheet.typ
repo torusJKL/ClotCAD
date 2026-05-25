@@ -214,6 +214,18 @@
   `help()`\
 ]
 
+= Threading Macros
+#concept-block[
+  `->>` (thread-last) inserts result at end:\
+  `(->> (make-box 10 10 10) (display :box))`\
+
+  `as->` lets you place var explicitly:\
+  `(as-> (make-box 10 10 10) v (display :box v))`\
+
+  `->` inserts result at start:\
+  `(-> (make-box 10 20 30) (translate 5 0 0))`\
+]
+
 = REPL & Import
 #concept-block[
   `cancel-import()`\

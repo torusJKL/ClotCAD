@@ -124,10 +124,14 @@
    :register-model
    :find-model
    :unregister-model
-   :dirty-model!
-   :topological-sort
-   :evaluate-model
-   :propagate-changes))
+    :dirty-model!
+    :topological-sort
+    :evaluate-model
+    :propagate-changes
+    ;; Threading macros
+    :->
+    :->>
+    :as->))
 
 (defpackage :clotcad
   (:use :cl :clotcad.impl)
@@ -222,8 +226,12 @@
    :*params*
    :*model-registry*
    :help
-   :write-dag-models-to-step
-   :read-step-into-dag))
+    :write-dag-models-to-step
+    :read-step-into-dag
+    ;; Threading macros
+    :->
+    :->>
+    :as->))
 
 (defpackage :clotcad-user
   (:use :cl :cl-occt :clotcad)
