@@ -42,6 +42,61 @@
        (error (e) (setf condition e)))
      (assert-true condition "expected an error but none was signaled")))
 
+;; --- Threading macros ---
+
+(deftest thread-first-basic
+  (assert-equal 5 (-> 1 (+ 2) (* 3) (- 4))))
+
+(deftest thread-first-symbol-forms
+  (assert-equal 2.236068 (-> 5 sqrt float)))
+
+(deftest thread-first-single-form
+  (assert-equal '(42) (-> 42 list)))
+
+(deftest thread-first-no-forms
+  (assert-eq :foo (-> :foo)))
+
+(deftest thread-first-expansion
+  (assert-equal '(g (f x a b) c)
+                (macroexpand-1 '(-> x (f a b) (g c)))))
+
+(deftest thread-last-basic
+  (assert-equal '(3) (->> '(1 2 3) (mapcar #'1+) (remove-if #'evenp))))
+
+(deftest thread-last-symbol-form
+  (assert-equal 8 (->> 3 (expt 2))))
+
+(deftest thread-last-single-form
+  (assert-equal '(1 2 5) (->> 5 (list 1 2))))
+
+(deftest thread-last-expansion
+  (assert-equal '(g c (f a b x))
+                (macroexpand-1 '(->> x (f a b) (g c)))))
+
+(deftest thread-as-basic
+  (assert-equal #\F
+    (as-> (list :foo :bar) v
+      (mapcar #'symbol-name v)
+      (first v)
+      (char v 0))))
+
+(deftest thread-as-single-form
+  (assert-equal 20 (as-> 10 x (* x 2))))
+
+(deftest thread-as-no-forms
+  (assert-eq :foo (as-> :foo v)))
+
+(deftest thread-first-exported
+  (assert-true (find-symbol "->" :clotcad-user) "-> not found in clotcad-user"))
+
+(deftest thread-last-exported
+  (assert-true (find-symbol "->>" :clotcad-user) "->> not found in clotcad-user"))
+
+(deftest thread-as-exported
+  (let ((sym (find-symbol "AS->" :clotcad)))
+    (assert-eq :external (nth-value 1 (find-symbol "AS->" :clotcad))
+               "AS-> not external in clotcad")))
+
 ;; --- Mock viewer for queue + ui tests ---
 
 (defmacro with-mocked-viewer (&body body)
@@ -1664,7 +1719,23 @@
                  model-ref-basic
                  model-ref-unknown-error
                  model-metadata-accessors
-                 model-metadata-defaults-to-nil))
+                 model-metadata-defaults-to-nil
+               ;; Threading macros
+               thread-first-basic
+               thread-first-symbol-forms
+               thread-first-single-form
+               thread-first-no-forms
+               thread-first-expansion
+               thread-last-basic
+               thread-last-symbol-form
+               thread-last-single-form
+               thread-last-expansion
+               thread-as-basic
+               thread-as-single-form
+               thread-as-no-forms
+               thread-first-exported
+               thread-last-exported
+               thread-as-exported))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"
             (test-result-pass *test-result*)

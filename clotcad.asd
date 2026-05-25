@@ -9,7 +9,8 @@
   :serial t
   :components
    ((:file "package")
-    (:module "model"
+     (:file "threading")
+     (:module "model"
      :components
         ((:file "package")
          (:file "model")
