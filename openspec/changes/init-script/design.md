@@ -33,7 +33,9 @@ ClotCAD has no mechanism for user-level initialization at startup. Users who wan
 
 6. **`--no-init` flag** — When `--no-init` is passed, no init file is loaded regardless of whether the default path exists or `--init` was also given. This is a pure override for troubleshooting or CI environments where init file side effects are unwanted.
 
-7. **No changes to C++** — All init-file logic is pure Lisp. The C++ library is not involved.
+7. **Bind `*package*` to `clotcad-user` during read and eval** — Symbols are interned at READ time, not eval time. Both `load-init-file-headless` and `load-init-file-ui` must bind `*package*` around the `with-open-file` / `read` loop so that symbols like `apply-theme`, `display`, `make-box` are interned in `clotcad-user` from the start. `process-import-tick` also binds `*package*` around eval as a safety net for forms read in the wrong package (e.g., the existing File > Import Lisp path).
+
+8. **No changes to C++** — All init-file logic is pure Lisp. The C++ library is not involved.
 
 ## Risks / Trade-offs
 

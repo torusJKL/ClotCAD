@@ -6,6 +6,7 @@
 - [x] 1.4 Add `load-init-file-ui` function — reads a Lisp file, populates `*import-forms*`, and posts a wake event to trigger the `process-import-tick` pipeline
 - [x] 1.5 Add `load-init-file-headless` function — reads a Lisp file and evaluates each form synchronously with error handling (catch errors, print to stderr, continue)
 - [x] 1.6 Add `load-init-file` dispatcher — checks `*no-init*`, then checks if the init file exists, warns if `--init` path doesn't exist, returns nil gracefully when no init file
+- [x] 1.7 Fix `*package*` binding — wrap BOTH `read` and `eval` with `*package*` bound to `clotcad-user`. Symbols are interned at read time, so the binding must surround `with-open-file` / `read` in `load-init-file-headless` and `load-init-file-ui`. `process-import-tick` retains the eval-time binding as a safety net.
 
 ## 2. Wire init-file loading into startup paths
 
