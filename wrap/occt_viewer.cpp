@@ -1038,6 +1038,13 @@ void viewer_set_import_status(occt_viewer vwr, int show, int current, int total)
   }
 }
 
+void viewer_show_message(occt_viewer vwr, const char* title, const char* message)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s || !s->window) return;
+  QMessageBox::warning(s->window, QString::fromUtf8(title), QString::fromUtf8(message));
+}
+
 void viewer_set_visibility_callback(occt_viewer vwr, visibility_fn fn)
 {
   auto* s = (ViewerState*)vwr;

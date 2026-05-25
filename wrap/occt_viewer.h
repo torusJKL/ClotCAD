@@ -109,6 +109,9 @@ void viewer_sync_tree_selection(occt_viewer vwr);
 void viewer_select_names(occt_viewer vwr, const char** names, int count);
 int  viewer_is_shape_selected(occt_viewer vwr, const char* name);
 
+// --- Dialogs ---
+void viewer_show_message(occt_viewer vwr, const char* title, const char* message);
+
 #ifdef __cplusplus
 }
 #endif

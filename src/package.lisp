@@ -72,8 +72,10 @@
    :%viewer-set-mouse-selection-scheme
    :%viewer-sync-tree-selection
    :%viewer-select-names
-   :%viewer-is-shape-selected
-   ;; Exported Lisp variables and functions
+    :%viewer-is-shape-selected
+    ;; Dialogs
+    :%viewer-show-message
+    ;; Exported Lisp variables and functions
    :*viewer*
    :*viewer-queue*
    :*queue-lock*
