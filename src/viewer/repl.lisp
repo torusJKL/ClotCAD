@@ -14,6 +14,18 @@
 (defvar *qt-control-modifier* #x04000000)
 (defvar *qt-alt-modifier* #x08000000)
 
+;; --- Init file loading ---
+(defvar *init-file-path* nil
+  "Path to an init file to evaluate at startup. Set by `--init` CLI argument
+or defaulted to ~/.config/clotcad/init.lisp. When nil, the default path is
+checked.")
+(defvar *no-init* nil
+  "When t, skip loading any init file at startup. Set by `--no-init` CLI flag.")
+(defvar *init-loaded* nil
+  "When t, the init file has already been loaded this session.
+Prevents double-loading when both bootstrap and start-viewer call their
+respective loaders.")
+
 ;; --- Lisp file import state ---
 (defvar *import-forms* nil
   "List of remaining forms to evaluate during Lisp file import.")
@@ -25,6 +37,77 @@
   "Total number of forms in the current import.")
 (defvar *import-done* 0
   "Number of forms completed in the current import.")
+
+(defun resolve-init-file-path ()
+  "Return the path to the init file, or nil if loading is suppressed.
+Checks `*no-init*` first. If set, returns nil.
+If `*init-file-path*` is set, returns its truename (or warns if missing).
+Otherwise checks the default ~/.config/clotcad/init.lisp.
+Returns nil when the file does not exist (no warning for default path)."
+  (cond
+    (*no-init*
+     nil)
+    (*init-file-path*
+     (let ((path (pathname *init-file-path*)))
+       (if (probe-file path)
+           (truename path)
+           (progn
+             (format *error-output* ";; Warning: init file not found: ~A~%" *init-file-path*)
+             nil))))
+    (t
+     (let ((path (merge-pathnames ".config/clotcad/init.lisp" (user-homedir-pathname))))
+       (when (probe-file path)
+         (truename path))))))
+
+(defun load-init-file-ui (vwr)
+  "Load an init file and evaluate its forms asynchronously via the
+import-tick pipeline. Reads the file, populates `*import-forms*`,
+and posts a wake event. Returns t if forms were queued, nil otherwise."
+  (when *init-loaded*
+    (return-from load-init-file-ui nil))
+  (let ((path (resolve-init-file-path)))
+    (unless path
+      (return-from load-init-file-ui nil))
+    (format t ";; Loading init file: ~A~%" path)
+    (with-open-file (f path :direction :input)
+      (let ((*read-eval* nil)
+            (forms '()))
+        (loop for form = (read f nil vwr)
+              until (eq form vwr)
+              do (push form forms))
+        (setf *import-forms* (nreverse forms)
+              *import-total* (length forms)
+              *import-done* 0
+              *import-cancelled* nil)
+        (setf *init-loaded* t)
+        (when *import-forms*
+          (%viewer-post-event vwr))))))
+
+(defun load-init-file-headless ()
+  "Load an init file and evaluate its forms synchronously.
+Each form is eval'd with error handling — errors are printed
+to stderr but do not abort remaining forms. Returns t if forms
+were evaluated, nil if no init file."
+  (when *init-loaded*
+    (return-from load-init-file-headless nil))
+  (let ((path (resolve-init-file-path)))
+    (unless path
+      (return-from load-init-file-headless nil))
+    (format t ";; Loading init file: ~A~%" path)
+    (with-open-file (f path :direction :input)
+      (let ((*read-eval* nil)
+            (forms '()))
+        (loop for form = (read f nil path)
+              until (eq form path)
+              do (push form forms))
+        (setf forms (nreverse forms))
+        (dolist (form forms)
+          (handler-case
+              (eval form)
+            (error (e)
+              (format *error-output* ";; Init file error: ~A~%" e)))))
+      (setf *init-loaded* t)
+      t)))
 
 (defun process-import-tick ()
   (when (or *import-cancelled* (null *import-forms*))

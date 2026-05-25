@@ -1892,3 +1892,96 @@
       (assert-nil (model-color 'plain))
       (assert-nil (model-display-name 'plain))
       (assert-nil (model-layer 'plain)))))
+
+;; --- Init file loading tests ---
+
+(deftest resolve-init-file-path-no-init-flag
+  (let ((clotcad::*no-init* t)
+        (clotcad::*init-file-path* nil))
+    (assert-nil (clotcad::resolve-init-file-path)
+                "resolve-init-file-path should return nil when *no-init* is t")))
+
+(deftest resolve-init-file-path-invalid-path
+  (let ((clotcad::*no-init* nil)
+        (clotcad::*init-file-path* "/nonexistent/path.lisp"))
+    (assert-nil (clotcad::resolve-init-file-path)
+                "resolve-init-file-path should return nil when the file doesn't exist")))
+
+(deftest resolve-init-file-path-default-is-nil-when-missing
+  (let ((clotcad::*no-init* nil)
+        (clotcad::*init-file-path* nil))
+    (assert-nil (clotcad::resolve-init-file-path)
+                "resolve-init-file-path should return nil when default path doesn't exist")))
+
+(deftest load-init-file-headless-basic
+  (let* ((tmpname (format nil "/tmp/clotcad-init-test-~A-~A.lisp"
+                          (get-universal-time) (random 1000000)))
+         (init-path (pathname tmpname))
+         (*read-eval* t))
+    (unwind-protect
+         (progn
+           (with-open-file (f init-path :direction :output :if-exists :supersede)
+             (format f "(setf *test-init-val* 42)~%")
+             (format f "(setf *test-init-val* (+ *test-init-val* 1))~%"))
+           (let ((clotcad::*no-init* nil)
+                 (clotcad::*init-file-path* tmpname)
+                 (clotcad::*init-loaded* nil))
+             (clotcad::load-init-file-headless)
+             (assert-equal 43 *test-init-val*
+                           "values set in init file should be available after loading")))
+      (ignore-errors (delete-file init-path))
+      (makunbound '*test-init-val*))))
+
+(deftest load-init-file-headless-error-continues
+  (let* ((tmpname (format nil "/tmp/clotcad-init-test-~A-~A.lisp"
+                          (get-universal-time) (random 1000000)))
+         (init-path (pathname tmpname))
+         (*read-eval* t))
+    (unwind-protect
+         (progn
+           (with-open-file (f init-path :direction :output :if-exists :supersede)
+             (format f "(setf *test-init-after-error* nil)~%")
+             (format f "(error \"test error\")~%")
+             (format f "(setf *test-init-after-error* t)~%"))
+           (let ((clotcad::*no-init* nil)
+                 (clotcad::*init-file-path* tmpname)
+                 (clotcad::*init-loaded* nil))
+             (clotcad::load-init-file-headless)
+             (assert-true *test-init-after-error*
+                          "forms after an error should still be evaluated")))
+      (ignore-errors (delete-file init-path))
+      (makunbound '*test-init-after-error*))))
+
+(deftest bootstrap-calls-load-init-file-headless
+  (let ((*viewer* (make-array 1))
+        (*viewer-queue* nil)
+        (*displayed-models* (make-hash-table :test 'equal))
+        (*queue-lock* (sb-thread:make-mutex))
+        (*grid-visible* t)
+        (*axis-visible* t)
+        (start-viewer-called nil)
+        (load-init-called nil))
+    (let ((old-start (symbol-function 'start-viewer))
+          (old-create (symbol-function '%viewer-create))
+          (old-show (symbol-function '%viewer-show))
+          (old-run (symbol-function '%viewer-run))
+          (old-load (symbol-function 'clotcad::load-init-file-headless)))
+      (setf (symbol-function '%viewer-create) (lambda (title w h) (declare (ignore title w h)) *viewer*)
+            (symbol-function '%viewer-show) (lambda (vwr) (declare (ignore vwr)))
+            (symbol-function '%viewer-run) (lambda (vwr) (declare (ignore vwr)))
+            (symbol-function 'clotcad::load-init-file-headless)
+            (lambda () (setf load-init-called t))
+            (symbol-function 'start-viewer)
+            (lambda (&key &allow-other-keys) (setf start-viewer-called t)))
+      (unwind-protect
+           (progn
+             (bootstrap)
+             (assert-true load-init-called
+                          "bootstrap should call load-init-file-headless")
+             (assert-true start-viewer-called
+                          "bootstrap should call start-viewer"))
+        (setf (symbol-function 'start-viewer) old-start
+              (symbol-function '%viewer-create) old-create
+              (symbol-function '%viewer-show) old-show
+              (symbol-function '%viewer-run) old-run
+              (symbol-function 'clotcad::load-init-file-headless) old-load)))))

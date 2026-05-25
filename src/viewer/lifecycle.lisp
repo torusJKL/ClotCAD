@@ -56,6 +56,7 @@ in INITIALIZE-VIEWER after the viewer window exists.")
     (%viewer-show vwr)
     (initialize-viewer vwr)
     (start-render-loop)
+    (load-init-file-ui vwr)
     (%viewer-run vwr)
     (stop-render-loop)
     (setf *viewer-running* nil)
@@ -194,6 +195,7 @@ based delivery path.
       (clotcad:bootstrap)   ;; run from the distribution entry point
 
   **See also:** `start-viewer`, `stop-viewer`, `start-slynk`, `start-alive`"
+  (load-init-file-headless)
   (start-slynk :port 4005)
   (start-alive :port 4006)
   (format t ";; Starting viewer...~%")
