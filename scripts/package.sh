@@ -45,8 +45,8 @@ cp "$ROOT_DIR/lib/cl-occt/lib/libocctwrap.so" "$DIST_DIR/lib/"
 
 # 3. OCCT shared libraries
 echo "  → OCCT libraries"
-OCCT_LIBS=$(ldd "$DIST_DIR/lib/libclotcad.so" "$DIST_DIR/lib/libocctwrap.so" 2>/dev/null \
-  | grep -oP '/\S+libTK\w+\.so[.\d]*' | sort -u)
+OCCT_LIBS=$(LD_LIBRARY_PATH= ldd "$DIST_DIR/lib/libclotcad.so" "$DIST_DIR/lib/libocctwrap.so" 2>/dev/null \
+  | grep -oP '/\S+libTK\w+\.so[.\d]*' | sort -u || true)
 if [ -z "$OCCT_LIBS" ]; then
   # Fallback: copy all OCCT libs from .local
   cp "$ROOT_DIR"/.local/lib/libTK*.so* "$DIST_DIR/lib/occt/"
@@ -63,9 +63,9 @@ echo "  → Qt6 libraries"
 QT6_PLUGIN_LIBS="libQt6Core.so.6 libQt6Gui.so.6 libQt6Widgets.so.6 libQt6OpenGL.so.6 libQt6OpenGLWidgets.so.6 libQt6DBus.so.6 libQt6XcbQpa.so.6 libQt6WaylandClient.so.6"
 QT_LIB_DIR="/usr/lib/x86_64-linux-gnu"
 for lib in $QT6_PLUGIN_LIBS; do
-  found=$(find "$QT_LIB_DIR" -name "$lib" 2>/dev/null | head -1)
+  found=$(find "$QT_LIB_DIR" -name "$lib" 2>/dev/null | head -1 || true)
   if [ -z "$found" ]; then
-    found=$(ldconfig -p 2>/dev/null | grep "$lib" | head -1 | awk '{print $NF}')
+    found=$(ldconfig -p 2>/dev/null | grep "$lib" | head -1 | awk '{print $NF}' || true)
   fi
   if [ -n "$found" ]; then
     cp -L "$found" "$DIST_DIR/lib/"
@@ -78,18 +78,18 @@ done
 echo "  → ICU libraries"
 qt6core="$DIST_DIR/lib/libQt6Core.so.6"
 if [ -f "$qt6core" ]; then
-  ICU_LIBS=$(readelf -d "$qt6core" 2>/dev/null | grep -oP 'libicu\w+\.so\.\d+')
+  ICU_LIBS=$(readelf -d "$qt6core" 2>/dev/null | grep -oP 'libicu\w+\.so\.\d+' || true)
   for lib in $ICU_LIBS; do
-    found=$(find "$QT_LIB_DIR" -name "$lib" 2>/dev/null | head -1)
-    [ -z "$found" ] && found=$(ldconfig -p 2>/dev/null | grep " $lib " | head -1 | awk '{print $NF}')
+    found=$(find "$QT_LIB_DIR" -name "$lib" 2>/dev/null | head -1 || true)
+    [ -z "$found" ] && found=$(ldconfig -p 2>/dev/null | grep " $lib " | head -1 | awk '{print $NF}' || true)
     if [ -n "$found" ]; then
       cp -L "$found" "$DIST_DIR/lib/"
       # Check for transitive ICU deps
-      trans=$(readelf -d "$found" 2>/dev/null | grep -oP 'libicu\w+\.so\.\d+')
+      trans=$(readelf -d "$found" 2>/dev/null | grep -oP 'libicu\w+\.so\.\d+' || true)
       for t in $trans; do
         [ -f "$DIST_DIR/lib/$t" ] && continue
-        tf=$(find "$QT_LIB_DIR" -name "$t" 2>/dev/null | head -1)
-        [ -z "$tf" ] && tf=$(ldconfig -p 2>/dev/null | grep " $t " | head -1 | awk '{print $NF}')
+        tf=$(find "$QT_LIB_DIR" -name "$t" 2>/dev/null | head -1 || true)
+        [ -z "$tf" ] && tf=$(ldconfig -p 2>/dev/null | grep " $t " | head -1 | awk '{print $NF}' || true)
         [ -n "$tf" ] && cp -L "$tf" "$DIST_DIR/lib/"
       done
     else
@@ -101,9 +101,9 @@ fi
 # Qt6 platform plugins
 echo "  → Qt6 platform plugins"
 for plugin in libqxcb.so libqwayland.so; do
-  found=$(find "$QT_LIB_DIR/qt6" -name "$plugin" -path "*/plugins/platforms/*" 2>/dev/null | head -1)
+  found=$(find "$QT_LIB_DIR/qt6" -name "$plugin" -path "*/plugins/platforms/*" 2>/dev/null | head -1 || true)
   if [ -z "$found" ]; then
-    found=$(find /usr/lib /usr -name "$plugin" -path "*/qt6/*/platforms/*" 2>/dev/null | head -1)
+    found=$(find /usr/lib /usr -name "$plugin" -path "*/qt6/*/platforms/*" 2>/dev/null | head -1 || true)
   fi
   if [ -n "$found" ]; then
     cp -L "$found" "$DIST_DIR/lib/plugins/platforms/"
@@ -115,9 +115,9 @@ done
 # xcbglintegrations plugins (required for OpenGL/GLX/EGL contexts)
 echo "  → xcbglintegrations plugins"
 for plugin in libqxcb-glx-integration.so libqxcb-egl-integration.so; do
-  found=$(find "$QT_LIB_DIR/qt6" -name "$plugin" -path "*/xcbglintegrations/*" 2>/dev/null | head -1)
+  found=$(find "$QT_LIB_DIR/qt6" -name "$plugin" -path "*/xcbglintegrations/*" 2>/dev/null | head -1 || true)
   if [ -z "$found" ]; then
-    found=$(find /usr/lib /usr -name "$plugin" -path "*/qt6/*/xcbglintegrations/*" 2>/dev/null | head -1)
+    found=$(find /usr/lib /usr -name "$plugin" -path "*/qt6/*/xcbglintegrations/*" 2>/dev/null | head -1 || true)
   fi
   if [ -n "$found" ]; then
     mkdir -p "$DIST_DIR/lib/plugins/xcbglintegrations"
@@ -130,9 +130,9 @@ done
 # Wayland shell integration plugins
 echo "  → Wayland shell integration plugins"
 for plugin in libqt-shell.so libivi-shell.so; do
-  found=$(find "$QT_LIB_DIR/qt6" -name "$plugin" -path "*/wayland-shell-integration/*" 2>/dev/null | head -1)
+  found=$(find "$QT_LIB_DIR/qt6" -name "$plugin" -path "*/wayland-shell-integration/*" 2>/dev/null | head -1 || true)
   if [ -z "$found" ]; then
-    found=$(find /usr/lib /usr -name "$plugin" -path "*/qt6/*/wayland-shell-integration/*" 2>/dev/null | head -1)
+    found=$(find /usr/lib /usr -name "$plugin" -path "*/qt6/*/wayland-shell-integration/*" 2>/dev/null | head -1 || true)
   fi
   if [ -n "$found" ]; then
     mkdir -p "$DIST_DIR/lib/plugins/wayland-shell-integration"
