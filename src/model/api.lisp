@@ -415,6 +415,8 @@
   (format t "  (read-stl path)                — import from STL~%")
   (format t "~&Introspection:~%")
   (format t "  (help)                         — show this help~%")
+  (format t "  (doc symbol)                   — print documentation~%")
+  (format t "  (apropos pattern)              — search API symbols~%")
   (format t "  *params*                       — global parameter plist~%")
   (format t "  *model-registry*               — registered models~%")
   (values))
