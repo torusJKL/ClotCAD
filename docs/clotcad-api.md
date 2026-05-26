@@ -246,6 +246,17 @@ Models auto-track dependencies and re-evaluate when parameters change.
 (read-step-into-dag path)                                   ; => assembly
 ```
 
+## Introspection
+
+```lisp
+(doc name)                                                  ; => nil
+(apropos pattern &key packages case-insensitive)            ; => nil
+```
+
+`doc` prints the documentation string and arglist (if applicable) for any symbol, string, or function object. Works with functions, macros, variables, types, structures, and CLOS classes without requiring a type argument.
+
+`apropos` searches for external symbols matching a substring. By default searches only `:clotcad` and `:cl-occt` packages. Use `:packages t` for all packages, or `:packages '(:pkg1 :pkg2)` for specific packages. Results are grouped by package with type annotations.
+
 ## Help
 
 ```lisp

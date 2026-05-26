@@ -1737,9 +1737,25 @@
                thread-as-basic
                thread-as-single-form
                thread-as-no-forms
-               thread-first-exported
-               thread-last-exported
-               thread-as-exported))
+                thread-first-exported
+                thread-last-exported
+                thread-as-exported
+                ;; Introspection tests
+                doc-on-function-shows-name-arglist-and-docstring
+                doc-on-variable-shows-name-and-docstring
+                doc-on-macro-shows-arglist-and-docstring
+                doc-on-undocumented-symbol-shows-message
+                doc-on-string-resolves-symbol
+                doc-on-function-object-works
+                doc-on-cffi-callback-no-error
+                doc-returns-nil
+                apropos-substring-matching-default-packages
+                apropos-all-packages
+                apropos-explicit-packages
+                apropos-no-matches
+                apropos-returns-nil
+                apropos-case-insensitive-nil-requires-exact-case
+                apropos-symbol-pattern-works))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"
             (test-result-pass *test-result*)
@@ -1985,3 +2001,95 @@
               (symbol-function '%viewer-show) old-show
               (symbol-function '%viewer-run) old-run
               (symbol-function 'clotcad::load-init-file-headless) old-load)))))
+
+;; --- Introspection tests ---
+
+(deftest doc-on-function-shows-name-arglist-and-docstring
+  (let ((output (with-output-to-string (*standard-output*)
+                  (doc 'cancel-import))))
+    (assert-true (search "CANCEL-IMPORT" output) "should include symbol name")
+    (assert-true (search "Cancel" output) "should include docstring")))
+
+(deftest doc-on-variable-shows-name-and-docstring
+  (let ((output (with-output-to-string (*standard-output*)
+                  (doc '*repl-accumulator*))))
+    (assert-true (search "REPL-ACCUMULATOR" output) "should include variable name")
+    (assert-true (search "Accumulates" output) "should include docstring")))
+
+(deftest doc-on-macro-shows-arglist-and-docstring
+  (let ((output (with-output-to-string (*standard-output*)
+                  (doc 'defmodel))))
+    (assert-true (search "DEFMODEL" output) "should include symbol name")
+    (assert-true (search "parametric" output) "should include docstring")))
+
+(deftest doc-on-undocumented-symbol-shows-message
+  (let* ((sym (gensym "UNDOC-TEST-"))
+         (output (with-output-to-string (*standard-output*)
+                   (doc-impl sym))))
+    (assert-true (search "No documentation found" output) "should show no-doc message")))
+
+(deftest doc-on-string-resolves-symbol
+  (let ((sym-output (with-output-to-string (*standard-output*)
+                      (doc 'cancel-import)))
+        (str-output (with-output-to-string (*standard-output*)
+                      (doc "cancel-import"))))
+    (assert-true (search "CANCEL-IMPORT" str-output) "string lookup should find symbol")
+    (assert-equal sym-output str-output "string and symbol lookup should match")))
+
+(deftest doc-on-function-object-works
+  (let ((output (with-output-to-string (*standard-output*)
+                  (doc #'cancel-import))))
+    (assert-true (search "Cancel" output) "function object should show docstring")))
+
+(deftest doc-on-cffi-callback-no-error
+  (assert-true
+    (stringp (with-output-to-string (*standard-output*)
+               (doc 'eval-string)))
+    "should not error on CFFI callback"))
+
+(deftest doc-returns-nil
+  (let ((output (with-output-to-string (*standard-output*)
+                  (assert-nil (doc 'help) "doc should return nil"))))
+    (declare (ignore output))))
+
+(deftest apropos-substring-matching-default-packages
+  (let ((output (with-output-to-string (*standard-output*)
+                  (apropos "cancel"))))
+    (assert-true (search "CANCEL-IMPORT" output) "should find CANCEL-IMPORT")
+    (assert-true (search "function" output) "should show type annotation")))
+
+(deftest apropos-all-packages
+  (let ((output (with-output-to-string (*standard-output*)
+                  (apropos "car" :packages t))))
+    (assert-true (search "CAR" output) "should find CAR from CL")))
+
+(deftest apropos-explicit-packages
+  (let ((output (with-output-to-string (*standard-output*)
+                  (apropos "defmodel" :packages '(:clotcad)))))
+    (assert-true (search "DEFMODEL" output) "should find DEFMODEL in :clotcad")
+    (assert-true (search "macro" output) "should show macro type")))
+
+(deftest apropos-no-matches
+  (let ((output (with-output-to-string (*standard-output*)
+                  (apropos "xyznonexistent"))))
+    (assert-true (search "No matches" output) "should show no matches message")))
+
+(deftest apropos-returns-nil
+  (let ((output (with-output-to-string (*standard-output*)
+                  (assert-nil (apropos "cancel") "apropos should return nil"))))
+    (declare (ignore output))))
+
+(deftest apropos-case-insensitive-nil-requires-exact-case
+  (let ((lower-output (with-output-to-string (*standard-output*)
+                        (apropos "make" :case-insensitive nil)))
+        (upper-output (with-output-to-string (*standard-output*)
+                        (apropos "MAKE" :case-insensitive nil))))
+    (assert-true (search "No matches" lower-output) "lowercase should not match uppercase symbols")
+    (assert-true (search "MAKE" upper-output) "uppercase should match uppercase symbols")))
+
+(deftest apropos-symbol-pattern-works
+  (let ((sym-output (with-output-to-string (*standard-output*)
+                      (apropos "cancel")))
+        (str-output (with-output-to-string (*standard-output*)
+                      (apropos 'cancel))))
+    (assert-equal sym-output str-output "symbol and string patterns should match")))

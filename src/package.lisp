@@ -137,6 +137,7 @@
 
 (defpackage :clotcad
   (:use :cl :clotcad.impl)
+  (:shadow :apropos)
   (:import-from :cl-occt :shape :shape-p
                :ais-clear-selected :ais-set-selected
                :ais-add-or-remove-selected
@@ -209,8 +210,11 @@
    :clear-selection
    :selected-shapes
    :apply-selection-schemes
-   ;; Lisp import/export
-   :cancel-import
+    ;; Introspection
+    :doc
+    :apropos
+    ;; Lisp import/export
+    :cancel-import
    :replay-speed
    :result-export
    :export-repl-history
@@ -240,5 +244,6 @@
   (:shadowing-import-from :clotcad
    :cut :fuse :common :section :translate :rotate
    :make-prism :make-revol :make-compound :make-part
-   :write-step :write-stl)
+   :write-step :write-stl
+   :apropos)
   (:nicknames :cad-user :occt-user))
