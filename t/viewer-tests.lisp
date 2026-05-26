@@ -1755,7 +1755,18 @@
                 apropos-no-matches
                 apropos-returns-nil
                 apropos-case-insensitive-nil-requires-exact-case
-                apropos-symbol-pattern-works))
+                apropos-symbol-pattern-works
+                ;; Category browsing tests
+                coerce-packages-nil
+                coerce-packages-t
+                coerce-packages-list
+                coerce-packages-single
+                find-categories-exact-match
+                find-categories-partial-match
+                find-categories-no-match
+                find-categories-multiple-matches
+                category-tree-output-no-category-found
+                category-detail-shows-functions))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"
             (test-result-pass *test-result*)
@@ -2093,3 +2104,80 @@
         (str-output (with-output-to-string (*standard-output*)
                       (apropos 'cancel))))
     (assert-equal sym-output str-output "symbol and string patterns should match")))
+
+;; --- Category browsing tests ---
+
+(deftest coerce-packages-nil
+  (assert-nil (%coerce-packages nil)))
+
+(deftest coerce-packages-t
+  (assert-eq t (%coerce-packages t)))
+
+(deftest coerce-packages-list
+  (let ((result (%coerce-packages '(:cl-occt :clotcad))))
+    (assert-equal 2 (length result))
+    (assert-eq :cl-occt (first result))
+    (assert-eq :clotcad (second result))))
+
+(deftest coerce-packages-single
+  (let ((result (%coerce-packages :cl-occt)))
+    (assert-equal 1 (length result))
+    (assert-eq :cl-occt (first result))))
+
+(deftest find-categories-exact-match
+  (let ((*category-fn-index*
+          (let ((h (make-hash-table :test 'equal)))
+            (setf (gethash "fillet" h) '(fillet-edge fillet-edges))
+            h)))
+    (let ((result (%find-categories :fillet)))
+      (assert-equal 1 (length result))
+      (destructuring-bind (display stem fns) (first result)
+        (assert-true (search "Fillet" display :test 'char=))
+        (assert-equal "fillet" stem)
+        (assert-equal 2 (length fns))))))
+
+(deftest find-categories-partial-match
+  (let ((*category-fn-index*
+          (let ((h (make-hash-table :test 'equal)))
+            (setf (gethash "io" h) '(write-step read-step))
+            (setf (gethash "primitives" h) '(make-box make-sphere))
+            h)))
+    (let ((result (%find-categories :file)))
+      (assert-equal 1 (length result))
+      (destructuring-bind (display stem fns) (first result)
+        (assert-true (search "File" display :test 'char=))))))
+
+(deftest find-categories-no-match
+  (let ((*category-fn-index*
+          (let ((h (make-hash-table :test 'equal)))
+            (setf (gethash "primitives" h) '(make-box))
+            h)))
+    (assert-nil (%find-categories :boogers))))
+
+(deftest find-categories-multiple-matches
+  (let ((*category-fn-index*
+          (let ((h (make-hash-table :test 'equal)))
+            (setf (gethash "faces" h) '(make-edge make-wire))
+            (setf (gethash "face-filling" h) '(fill-face))
+            h)))
+    (let ((result (%find-categories :face)))
+      (assert-equal 2 (length result)))))
+
+(deftest category-tree-output-no-category-found
+  (let ((*category-fn-index* (make-hash-table :test 'equal)))
+    (let ((output (with-output-to-string (*standard-output*)
+                    (%print-category-detail :nonexistent))))
+      (assert-true (search "No category found" output :test 'char=)
+                   "should show no-category message"))))
+
+(deftest category-detail-shows-functions
+  (let ((*category-fn-index*
+          (let ((h (make-hash-table :test 'equal)))
+            (setf (gethash "primitives" h)
+                  (list (lambda (x) (declare (ignore x)) x)))
+            h)))
+    (let ((output (with-output-to-string (*standard-output*)
+                    (%print-category-detail :primitives))))
+      ;; If sb-introspect not available, prints unavailable message
+      (unless (find-package :sb-introspect)
+        (assert-true (search "not available" output :test 'char=))))))

@@ -250,12 +250,18 @@ Models auto-track dependencies and re-evaluate when parameters change.
 
 ```lisp
 (doc name)                                                  ; => nil
-(apropos pattern &key packages case-insensitive)            ; => nil
+(apropos &optional pattern &key packages case-insensitive)  ; => nil
 ```
 
 `doc` prints the documentation string and arglist (if applicable) for any symbol, string, or function object. Works with functions, macros, variables, types, structures, and CLOS classes without requiring a type argument.
 
-`apropos` searches for external symbols matching a substring. By default searches only `:clotcad` and `:cl-occt` packages. Use `:packages t` for all packages, or `:packages '(:pkg1 :pkg2)` for specific packages. Results are grouped by package with type annotations.
+`apropos` has three modes:
+
+**Category tree** (no argument): `(apropos)` lists every capability category derived from source file introspection, with function counts and representative function names. This is the primary discovery mechanism — see what the system can do without needing to know function names.
+
+**Keyword category lookup**: `(apropos :fillet)` shows all functions in a category with full signatures and docstrings. The keyword is matched partially and case-insensitively against display names and filename stems — `:file` matches "File I/O", `:face` matches both "Faces" and "Face Filling". If multiple categories match, a filtered list is shown. If no category matches, prints "No category found" (no fallthrough to substring search).
+
+**Substring search** (string or bare symbol): `(apropos "box")` or `(apropos box)` — existing behavior. Searches for external symbols matching a substring. By default searches only `:clotcad` and `:cl-occt` packages. Use `:packages t` for all packages, or `:packages :cl-occt` / `:packages '(:cl-occt :clotcad)` for specific packages. Results are grouped by package with type annotations.
 
 ## Help
 

@@ -3,9 +3,14 @@
 (defun %print-lambda-list-item (item stream)
   (cond
     ((symbolp item)
-     (if (char= #\& (char (symbol-name item) 0))
-         (princ (symbol-name item) stream)
-         (prin1 item stream)))
+     (cond
+       ((char= #\& (char (symbol-name item) 0))
+        (princ (symbol-name item) stream))
+       ((keywordp item)
+        (princ ":" stream)
+        (princ (symbol-name item) stream))
+       (t
+        (princ (symbol-name item) stream))))
     ((listp item)
      (princ "(" stream)
      (loop for first = t then nil
@@ -144,38 +149,261 @@
      `(doc-impl ',name))))
 
 ;; ---
+;; Category infrastructure
+;; ---
+
+(defparameter *category-display-names*
+  '((:primitives . "Primitives")
+    (:booleans . "Booleans")
+    (:fillet . "Fillets")
+    (:chamfer . "Chamfers")
+    (:transforms . "Transforms")
+    (:sweep . "Sweeps")
+    (:loft . "Loft")
+    (:faces . "Construction")
+    (:topology . "Topology")
+    (:compounds . "Compounds")
+    (:assembly . "Assembly")
+    (:blend . "Blends")
+    (:draft . "Draft")
+    (:offset . "Offsets")
+    (:shell . "Shell")
+    (:helix . "Helix")
+    (:hole-prism-revol . "Features")
+    (:local-ops . "Local Operations")
+    (:pipe-feature . "Pipe")
+    (:face-filling . "Face Filling")
+    (:shape-fix . "Shape Fix")
+    (:shape-process . "Shape Processing")
+    (:shape-rebuild . "Shape Conversion")
+    (:mass-properties . "Mass Properties")
+    (:shape-analysis . "Shape Analysis")
+    (:geom2d . "2D Geometry")
+    (:curves . "Curves")
+    (:surfaces . "Surfaces")
+    (:geom-algorithms . "Geometric Algorithms")
+    (:text . "Text")
+    (:io . "File I/O")
+    (:errors . "Error Handling")
+    (:shape . "Shape")
+    (:viewer . "Viewer")
+    (:viewer-background . "Background")
+    (:viewer-camera . "Camera")
+    (:viewer-colors . "Colors")
+    (:viewer-defaults . "Viewer Defaults")
+    (:viewer-dimensions . "Dimensions")
+    (:viewer-drawer . "Drawer")
+    (:viewer-grid . "Grid")
+    (:viewer-lighting . "Lighting")
+    (:viewer-object-props . "Object Properties")
+    (:viewer-rendering . "Rendering")
+    (:viewer-text-labels . "Text Labels")
+    (:queue . "Queue")
+    (:ops . "Viewer Ops")
+    (:select . "Selection")
+    (:ui . "UI")
+    (:render . "Render")
+    (:repl . "REPL")
+    (:theme . "Theme")
+    (:lifecycle . "Lifecycle")
+    (:introspect . "Introspection")
+    (:model . "Model")
+    (:params . "Params")
+    (:propagation . "Propagation")
+    (:api . "Parametric API")))
+
+(defvar *category-fn-index* nil
+  "Cached mapping of category stem → list of function symbols.
+  Built lazily by %ensure-category-index.")
+
+(defun %try-load-sb-introspect ()
+  (ignore-errors (require :sb-introspect))
+  (find-package :sb-introspect))
+
+(defun %category-display-name (stem)
+  (let ((key (intern (string-upcase stem) :keyword)))
+    (or (cdr (assoc key *category-display-names*))
+        (string-capitalize stem))))
+
+(defun %build-category-index (&key (packages t))
+  (unless (%try-load-sb-introspect)
+    (return-from %build-category-index (make-hash-table :test 'equal)))
+  (let* ((find-src (find-symbol "FIND-DEFINITION-SOURCE" :sb-introspect))
+         (get-path (find-symbol "DEFINITION-SOURCE-PATHNAME" :sb-introspect))
+         (index (make-hash-table :test 'equal)))
+    (unless (and find-src get-path)
+      (return-from %build-category-index index))
+    (flet ((scan-package (pkg)
+             (do-external-symbols (sym pkg)
+               (when (fboundp sym)
+                 (let ((fn (or (macro-function sym) (symbol-function sym))))
+                   (handler-case
+                       (let* ((src (funcall find-src fn))
+                              (path (when src (funcall get-path src)))
+                              (stem (when path (pathname-name path))))
+                         (when stem
+                           (pushnew sym (gethash stem index))))
+                     (error () nil)))))))
+      (if (eq packages t)
+          (progn
+            (scan-package (find-package :cl-occt))
+            (scan-package (find-package :clotcad)))
+          (dolist (p packages)
+            (let ((pkg (find-package p)))
+              (when pkg
+                (scan-package pkg))))))
+    (maphash (lambda (stem fns)
+               (setf (gethash stem index)
+                     (sort fns (lambda (a b)
+                                 (string-lessp (symbol-name a) (symbol-name b))))))
+             index)
+    index))
+
+(defun %ensure-category-index (&key (packages t))
+  (or *category-fn-index*
+      (setf *category-fn-index* (%build-category-index :packages packages))))
+
+(defun %rebuild-category-index ()
+  (setf *category-fn-index* nil))
+
+(defun %coerce-packages (packages)
+  (cond
+    ((null packages) nil)
+    ((eq packages t) t)
+    ((listp packages) packages)
+    (t (list packages))))
+
+(defun %find-categories (keyword &optional (index *category-fn-index*))
+  (let ((pattern (string-downcase (symbol-name keyword)))
+        (matches '()))
+    (maphash (lambda (stem fns)
+               (let ((display (%category-display-name stem)))
+                 (when (or (search pattern (string-downcase display))
+                           (search pattern (string-downcase stem)))
+                   (push (list display stem fns) matches))))
+             index)
+    (sort matches (lambda (a b) (string-lessp (first a) (first b))))))
+
+(defun %print-category-tree (&key (stream t) (index *category-fn-index*))
+  (unless (find-package :sb-introspect)
+    (format stream "~&sb-introspect not available — cannot build category index~%")
+    (return-from %print-category-tree nil))
+  (let ((compact (typep *standard-output* 'string-stream)))
+    (format stream "~&── ClotCAD Capabilities (by source) ────────────────────~2%")
+    (let ((sorted-categories '()))
+      (maphash (lambda (stem fns)
+                 (push (list (%category-display-name stem) stem fns) sorted-categories))
+               index)
+      (setf sorted-categories
+            (sort sorted-categories (lambda (a b) (string-lessp (first a) (first b)))))
+      (dolist (cat sorted-categories)
+        (let ((display (first cat))
+              (fns (third cat)))
+          (if compact
+              (format stream "  ~A~40T~2D~%" display (length fns))
+              (progn
+                (format stream "  ~A~40T~2D — " display (length fns))
+                (let ((names (mapcar (lambda (s) (string-downcase (symbol-name s)))
+                                     (subseq fns 0 (min 5 (length fns))))))
+                  (if (> (length fns) 5)
+                      (format stream "~{~A, ~}...~%" names)
+                      (format stream "~{~A, ~}~%" names)))))))
+      (format stream "~%  Details: (apropos :<category>)")
+      (format stream "  Search:  (apropos <pattern>)~%"))
+    t))
+
+(defun %get-fn-arglist (fn)
+  ;; 1. Try sb-introspect:function-arglist (public API)
+  (let ((get-args (and (find-package :sb-introspect)
+                       (find-symbol "FUNCTION-ARGLIST" :sb-introspect))))
+    (when get-args
+      (let ((result (handler-case (funcall get-args fn)
+                      (error () :error))))
+        (unless (or (null result) (eq result :error))
+          (return-from %get-fn-arglist result)))))
+  ;; 2. Try sb-kernel:%fun-lambda-list (internal but fast)
+  (let ((result (ignore-errors (sb-kernel:%fun-lambda-list fn))))
+    (unless (or (null result) (eq result :unknown))
+      (return-from %get-fn-arglist result)))
+  ;; 3. Try function-lambda-expression (parses from source/debug info)
+  (multiple-value-bind (expr err)
+      (ignore-errors (function-lambda-expression fn))
+    (declare (ignore err))
+    (when (and expr (consp expr) (eq (first expr) 'lambda) (consp (second expr)))
+      (return-from %get-fn-arglist (second expr))))
+  nil)
+
+(defun %print-fn-entry (sym)
+  (let* ((fn (or (macro-function sym) (symbol-function sym)))
+         (args (%get-fn-arglist fn))
+         (docstr (documentation sym 'function)))
+    (format t "~%>>  ~(~A~)" (symbol-name sym))
+    (if args
+        (format t " (~{~(~A~)~^ ~})" args)
+        (format t " [no-args]"))
+    (terpri)
+    (when (and docstr (not (string= docstr "")))
+      (with-input-from-string (s docstr)
+        (loop for line = (read-line s nil nil)
+              while line
+              do (format t "    ~A~%" line))))
+    (terpri)
+    (terpri)))
+
+(defun %print-category-detail (keyword &key (stream t) (index *category-fn-index*)
+                                         (packages t))
+  (unless (find-package :sb-introspect)
+    (format stream "~&sb-introspect not available — cannot look up categories~%")
+    (return-from %print-category-detail nil))
+  (let ((matches (%find-categories keyword index)))
+    (cond
+      ((null matches)
+       (format stream "~&No category found matching ~S~%" keyword)
+       nil)
+      ((= 1 (length matches))
+       (destructuring-bind (display stem fns) (first matches)
+         (declare (ignore stem))
+         (format stream "~&── ~A ────────────────────────────────────────~2%" display)
+         (dolist (sym (sort fns (lambda (a b)
+                                  (string-lessp (symbol-name a) (symbol-name b)))))
+           (%print-fn-entry sym))
+         t))
+      (t
+       (format stream "~&── Matching categories ──────────────────────────~2%")
+       (dolist (match matches)
+         (destructuring-bind (display stem fns) match
+           (declare (ignore stem fns))
+           (format stream "  ~A~30T~2D ~:Pfunction~%" display (length fns))))
+       (format stream "~%  Drill in: (apropos :<category>)~%")
+       t))))
+
+
+;; ---
 ;; apropos
 ;; ---
 
-(defun apropos-impl (pattern &key (packages nil packages-supplied-p) (case-insensitive t))
-  "Search for symbols matching the given pattern.
+(defun %apropos-tree (&key (packages t))
+  (%ensure-category-index :packages packages)
+  (%print-category-tree))
 
-  By default searches only CLOTCAD and CL-OCCT packages.
+(defun %apropos-category (keyword &key (packages t))
+  (%ensure-category-index :packages packages)
+  (%print-category-detail keyword))
 
-  - **pattern** a string or symbol to search for
-  - **:packages** if `t`, search all packages; if a list of package
-    names/designators, search those packages; if nil (default),
-    search `:clotcad` and `:cl-occt`
-  - **:case-insensitive** when t (default), match is case-insensitive
-
-  **Example:**
-
-      (apropos \"make\")
-      (apropos \"def\" :packages t)
-      (apropos \"map\" :packages '(:cl))
-
-  **See also:** `doc`"
+(defun %apropos-substring-search (pattern &key (packages nil packages-supplied-p)
+                                            (case-insensitive t))
   (let* ((pattern-str (etypecase pattern
                          (string pattern)
                          (symbol (symbol-name pattern))))
-         (target-packages
+         (raw-packages
            (cond
-             (packages-supplied-p
-              (if (eq packages t)
-                  (list-all-packages)
-                  (mapcar #'find-package packages)))
-             (t
-              (list (find-package :clotcad) (find-package :cl-occt)))))
+             ((null packages) (list :clotcad :cl-occt))
+             ((eq packages t) t)
+             (t packages)))
+         (target-packages
+           (if (eq raw-packages t)
+               (list-all-packages)
+               (mapcar #'find-package (%coerce-packages raw-packages))))
          (matches '()))
     (dolist (pkg target-packages)
       (when pkg
@@ -191,14 +419,15 @@
                            ((find-class sym nil) :class)
                            (t :symbol))))
                 (push (list sym cat) matches)))))))
-    (setf matches (sort matches (lambda (a b)
-                                  (let ((pkg-a (package-name (symbol-package (car a))))
-                                        (pkg-b (package-name (symbol-package (car b))))
-                                        (name-a (symbol-name (car a)))
-                                        (name-b (symbol-name (car b))))
-                                    (if (string= pkg-a pkg-b)
-                                        (string-lessp name-a name-b)
-                                        (string-lessp pkg-a pkg-b))))))
+    (when matches
+      (setf matches (sort matches (lambda (a b)
+                                    (let ((pkg-a (package-name (symbol-package (car a))))
+                                          (pkg-b (package-name (symbol-package (car b))))
+                                          (name-a (symbol-name (car a)))
+                                          (name-b (symbol-name (car b))))
+                                      (if (string= pkg-a pkg-b)
+                                          (string-lessp name-a name-b)
+                                          (string-lessp pkg-a pkg-b)))))))
     (let ((printed? nil)
           (current-pkg nil))
       (dolist (match matches)
@@ -214,27 +443,32 @@
         (format t "~&No matches found for ~S~%" pattern-str))))
   (values))
 
-(defmacro apropos (pattern &key (packages nil packages-supplied-p) (case-insensitive t))
-  "Search for symbols matching the given pattern.
+(defun apropos-impl (pattern &key (packages nil packages-supplied-p) (case-insensitive t))
+  (%apropos-substring-search pattern
+                              :packages (when packages-supplied-p
+                                          (%coerce-packages packages))
+                              :case-insensitive case-insensitive))
 
-  A macro that quotes its symbol argument so bare symbols work
-  without explicit quoting.
-
-  **Example:**
-
-      (apropos box)              ;; bare symbol — automatically quoted
-      (apropos \"make\")          ;; string — passed through
-      (apropos \"def\" :packages t)
-
-  **See also:** `doc`"
-  (let ((quoted-pattern
-          (cond
-            ((stringp pattern) pattern)
-            ((and (consp pattern) (member (car pattern) '(function quote)))
-             pattern)
-            (t `',pattern))))
-    `(apropos-impl ,quoted-pattern
-                   ,@(when packages-supplied-p `(:packages ,packages))
-                   :case-insensitive ,case-insensitive)))
+(defmacro apropos (&optional (pattern nil pattern-supplied-p)
+                    &key (packages nil packages-supplied-p) (case-insensitive t))
+  (cond
+    ((not pattern-supplied-p)
+     (if packages-supplied-p
+         `(%apropos-tree :packages ',packages)
+         `(%apropos-tree)))
+    ((keywordp pattern)
+     (if packages-supplied-p
+         `(%apropos-category ',pattern :packages ',packages)
+         `(%apropos-category ',pattern)))
+    (t
+     (let ((quoted-pattern
+             (cond
+               ((stringp pattern) pattern)
+               ((and (consp pattern) (member (car pattern) '(function quote)))
+                pattern)
+               (t `',pattern))))
+       `(apropos-impl ,quoted-pattern
+                      ,@(when packages-supplied-p `(:packages ,packages))
+                      :case-insensitive ,case-insensitive)))))
 
 
