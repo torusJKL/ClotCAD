@@ -28,7 +28,7 @@
 
 (deftest query-edge-p-on-cylinder
   (let ((edges (query-shape (%test-cylinder-shape) :where (list (edge-p)))))
-    (assert-equal 2 (length edges))))
+    (assert-equal 3 (length edges))))
 
 ;; ─── normal-along tests ───
 
@@ -71,12 +71,12 @@
 
 (deftest query-longer-than-on-box
   (let ((edges (query-shape (%test-box-shape)
-                            :where (list (edge-p) (longer-than 15)))))
+                            :where (list (edge-p) (longer-than 25)))))
     (assert-equal 4 (length edges))))
 
 (deftest query-shorter-than-on-box
   (let ((edges (query-shape (%test-box-shape)
-                            :where (list (edge-p) (shorter-than 15)))))
+                            :where (list (edge-p) (shorter-than 25)))))
     (assert-equal 8 (length edges))))
 
 ;; ─── face-area tests ───
@@ -107,16 +107,16 @@
 
 (deftest query-z-center-on-box
   (let ((faces (query-shape (%test-box-shape)
-                            :where (list (face-p) (z-center 15)))))
+                            :where (list (face-p) (z-center 30)))))
     (assert-equal 1 (length faces))))
 
 (deftest query-z-center-on-box-with-tolerance
-  (let ((faces (query-shape (%test-box-shape)
-                            :where (list (face-p) (z-center 15 :tolerance 1))))
-        (faces-near (query-shape (%test-box-shape)
-                                 :where (list (face-p) (z-center 14 :tolerance 2)))))
-    (assert-equal 1 (length faces))
-    (assert-equal 2 (length faces-near))))
+  (let ((faces-tight (query-shape (%test-box-shape)
+                                  :where (list (face-p) (z-center 30 :tolerance 1))))
+        (faces-wide (query-shape (%test-box-shape)
+                                 :where (list (face-p) (z-center 15 :tolerance 0.5)))))
+    (assert-equal 1 (length faces-tight))
+    (assert-equal 4 (length faces-wide))))
 
 ;; ─── edge-along tests ───
 

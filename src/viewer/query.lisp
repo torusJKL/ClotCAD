@@ -342,6 +342,25 @@
 
 ;; ─── Public query entry point ───
 
+(defun %subshape-bbox-key (shape)
+  (multiple-value-bind (xmin ymin zmin xmax ymax zmax)
+      (cl-occt:subshape-bounding-box shape)
+    (if xmin
+        (list (cl-occt:shape-type shape)
+              (float xmin 1.0d0) (float ymin 1.0d0) (float zmin 1.0d0)
+              (float xmax 1.0d0) (float ymax 1.0d0) (float zmax 1.0d0))
+        nil)))
+
+(defun %deduplicate-subshapes (shapes)
+  (let ((seen (make-hash-table :test #'equal)))
+    (remove-if
+     (lambda (s)
+       (let ((key (%subshape-bbox-key s)))
+         (if (or (null key) (gethash key seen))
+             t
+             (progn (setf (gethash key seen) t) nil))))
+     shapes)))
+
 (defun query-shape (designator &key (where nil) (coordinate-system :local))
   "Query subshapes of a 3D shape by a pipeline of predicate closures.
 
@@ -361,9 +380,10 @@
    **See also:** `top-face`, `bottom-face`, `longest-edge`, `largest-face`"
   (declare (ignore coordinate-system))
   (let* ((shape (resolve-shape designator))
-         (subshapes (append (cl-occt:map-shape-subshapes shape :face)
-                            (cl-occt:map-shape-subshapes shape :edge)
-                            (cl-occt:map-shape-subshapes shape :vertex))))
+         (subshapes (%deduplicate-subshapes
+                     (append (cl-occt:map-shape-subshapes shape :face)
+                             (cl-occt:map-shape-subshapes shape :edge)
+                             (cl-occt:map-shape-subshapes shape :vertex)))))
     (dolist (pred where subshapes)
       (setf subshapes (funcall pred subshapes)))))
 
