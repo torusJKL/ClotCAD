@@ -9,7 +9,10 @@
   looked up in the model registry, or symbols converted to strings
   first. Signals an error if the name is not found.
 
-  - **designator** a `shape`, string name, or keyword/symbol
+  Compound symbols (e.g. `:my-box/top-face`) are resolved by splitting
+  on `/`, looking up the model, and resolving the named subshape.
+
+  - **designator** a `shape`, string name, symbol, or compound symbol
 
   **Returns:** a `shape` object.
 
@@ -18,15 +21,22 @@
       (resolve-shape :my-box)
       (resolve-shape \"my-box\")
       (resolve-shape some-shape)
+      (resolve-shape :my-box/top-face)
 
-  **See also:** `model-ref`"
+  **See also:** `model-ref`, `face-ref`"
   (etypecase designator
     (cl-occt:shape designator)
     (string (let ((m (clotcad.impl:find-model designator)))
               (if m
                   (clotcad.impl:model-cached-shape m)
                   (error "~S does not name a known shape" designator))))
-    (symbol (resolve-shape (string designator)))))
+    (symbol (let ((compound (%resolve-compound-symbol designator)))
+              (if compound
+                  compound
+                  (let ((m (clotcad.impl:find-model (string designator))))
+                    (if m
+                        (clotcad.impl:model-cached-shape m)
+                        (error "~S does not name a known shape" designator))))))))
 
 ;; --- Model metadata accessors ---
 
@@ -363,58 +373,25 @@
 ;; --- Help ---
 
 (defun help ()
-  "Display an overview of available ClotCAD commands and models.
+  "Display a quick-start overview of ClotCAD.
 
-  Prints categorized summaries of primitives, boolean operations,
-  transforms, viewer commands, parametric DSL, and I/O functions.
+  For full API discovery use `(browse)` and `(doc ...)`.
 
-  **Example:**
+  **Examples:**
 
       (help)
+      (browse)
+      (browse :primitives)
+      (doc make-box)
 
-  **See also:** `describe`, `*params*`, `*model-registry*`"
+  **See also:** `browse`, `doc`"
   (format t "~&ClotCAD — Common Lisp parametric CAD with 3D viewer~2%")
-  (format t "~&3D Primitives:~%")
-  (format t "  (make-box dx dy dz)            — rectangular box~%")
-  (format t "  (make-cylinder radius height)  — cylinder~%")
-  (format t "  (make-sphere radius)           — sphere~%")
-  (format t "  (make-cone r1 r2 height)       — cone~%")
-  (format t "  (make-torus major minor)       — torus~%")
-  (format t "~&Boolean Operations:~%")
-  (format t "  (cut shape &rest shapes)       — subtract shapes~%")
-  (format t "  (fuse shape &rest shapes)      — union shapes~%")
-  (format t "  (common shape &rest shapes)    — intersect shapes~%")
-  (format t "  (section shape &rest shapes)   — intersection curves~%")
-  (format t "~&Transforms:~%")
-  (format t "  (translate shape dx dy dz)     — move shape~%")
-  (format t "  (rotate shape ax ay az deg)    — rotate shape~%")
-  (format t "~&Viewer:~%")
-  (format t "  (display name shape)           — show in 3D scene~%")
-  (format t "  (def name shape-form)          — define hidden shape~%")
-  (format t "  (show name)                    — make visible~%")
-  (format t "  (hide name)                    — make invisible~%")
-  (format t "  (clear-all)                    — remove all from scene~%")
-  (format t "~&Parametric DSL:~%")
-  (format t "  (defmodel name (keys) body)    — define parametric model~%")
-  (format t "    body may include :color, :name, :layer metadata clauses~%")
-  (format t "  (param key)                    — read parameter value~%")
-  (format t "  (model-ref name)               — reference another model's shape~%")
-  (format t "  (model-color name)             — get model's color~%")
-  (format t "  (model-display-name name)      — get model's display name~%")
-  (format t "  (model-layer name)             — get model's layer~%")
-  (format t "  (set-param! key value)         — set global parameter~%")
-  (format t "  (set-params! &rest kv)         — batch set parameters~%")
-  (format t "  (with-params (&rest kv) body)  — local parameter scope~%")
-  (format t "~&STEP I/O:~%")
-  (format t "  (write-step shape path)        — export single shape~%")
-  (format t "  (read-step path)               — import single shape~%")
-  (format t "  (write-dag-models-to-step path)— export all DAG models~%")
-  (format t "  (read-step-into-dag path)      — import into DAG registry~%")
-  (format t "~&STL I/O:~%")
-  (format t "  (write-stl shape path)         — export to STL~%")
-  (format t "  (read-stl path)                — import from STL~%")
-  (format t "~&Introspection:~%")
-  (format t "  (help)                         — show this help~%")
-  (format t "  *params*                       — global parameter plist~%")
-  (format t "  *model-registry*               — registered models~%")
+  (format t "~&Quick start:~%")
+  (format t "  (display \"my-box\" (make-box 10 10 10))~%")
+  (format t "  (display \"cut\" (cut (make-box 10 10 10) (make-sphere 8)))~%")
+  (format t "  (defmodel my-part (:w :h) (make-box (param :w) (param :h) 10))~%")
+  (format t "  (display \"my-part\" (my-part :w 10 :h 20))~2%")
+  (format t "  Explore:  (browse)               — full API catalog~%")
+  (format t "            (browse :primitives)    — drill into a category~%")
+  (format t "  Details:  (doc make-box)          — documentation for any symbol~%")
   (values))

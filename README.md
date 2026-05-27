@@ -15,6 +15,30 @@ just start         # Launch viewer + Slynk (4005) + Alive LSP (4006)
 From Emacs: `M-x sly-connect` (port 4005).
 From VS Code: connect to `localhost:4006` via the alive-lsp extension.
 
+### AI Agent Skill
+
+An example [Agent Skill](https://agentskills.io) for AI coding agents is available in `docs/SKILL.md`.
+Copy it to your project to give AI agents context for interacting with ClotCAD:
+
+```sh
+# Claude Code
+mkdir -p .claude/skills/clotcad
+cp docs/SKILL.md .claude/skills/clotcad/SKILL.md
+
+# OpenCode, Codex, Pi
+mkdir -p .agents/skills/clotcad
+cp docs/SKILL.md .agents/skills/clotcad/SKILL.md
+```
+
+The skill covers connecting via `slyc`, headless startup (`ClotCAD.AppImage --slynk`),
+shape creation, geometry inspection (for visionless agents), boolean operations,
+export (STEP/STL), error handling, and API discovery via `doc`/`browse`/`help`.
+
+> **Note**: The AI agent connects to an **already-running** ClotCAD viewer instance
+> (or headless `--slynk` session). It does not launch ClotCAD itself.
+> [`slyc`](https://github.com/torusJKL/slyc) must be installed separately by the user —
+> the skill only instructs the agent how to invoke it.
+
 ## Usage
 
 The viewer starts in the `CL-OCCT-USER` package, which gives you
@@ -132,6 +156,45 @@ To change the modifiers from Lisp:
 ```
 
 Accepts `:ctrl`, `:none`, and `:alt` for each modifier.
+
+### Debugger Hook
+
+The viewer installs a global `sb-ext:*invoke-debugger-hook*` at startup that catches
+unhandled conditions on **non-Slynk threads** (render loop, Qt callbacks like
+`drain-queue-callback`). Instead of entering the SBCL debugger (which would freeze
+the UI or hang a worker thread), the hook logs the error to `*repl-log*` and returns.
+
+This means errors on the render loop or in Qt callbacks are **silently caught**.
+To check whether any such errors have occurred:
+
+```lisp
+*debugger-invocation-count*   ;; → 0 if none, > 0 if any were caught
+,errors                        ;; show last 5 caught errors
+,errors 10                     ;; show last 10 caught errors
+```
+
+The `,errors` command prints each entry with the condition type, message, thread,
+and available restarts. Entries are also written to `*repl-log*`:
+
+```lisp
+(reverse *repl-log*)           ;; browse all REPL activity including hook entries
+```
+
+> **Note:** Errors during SLY eval are handled by Slynk's own debugger protocol
+> and never reach this hook — you will always see the SLY debugger for remote
+> eval errors.
+
+The `,errors`, `,abort`, and `,debug` commands only work in the **GUI REPL**
+(they're intercepted before Lisp parsing). From SLY or `slyc`, use the
+equivalent Lisp functions:
+
+```lisp
+*debugger-invocation-count*   ;; → number of caught errors
+(show-errors)                  ;; print last 5 errors
+(show-errors 10)               ;; print last 10 errors
+(abort-stuck-threads)          ;; abort all tracked stuck threads
+(abort-all-threads)            ;; iterate all threads and abort any in debugger
+```
 
 ## Workspace Package
 

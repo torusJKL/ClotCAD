@@ -8,6 +8,29 @@ Users interact via an in-window REPL or a remote SLY/LSP connection.
 Functions are available in the `CLOTCAD-USER` package (nicknames: `CAD-USER`, `OCCT-USER`),
 which combines `CL-OCCT` (modeling kernel) and `CLOTCAD` (viewer commands).
 
+## Help
+
+```lisp
+(help)                                                      ; => values
+```
+
+## Introspection
+
+```lisp
+(doc name)                                                  ; => nil
+(browse &optional pattern &key packages case-insensitive)  ; => nil
+```
+
+`doc` prints the documentation string and arglist (if applicable) for any symbol, string, or function object. Works with functions, macros, variables, types, structures, and CLOS classes without requiring a type argument.
+
+`browse` has three modes:
+
+**Category tree** (no argument): `(browse)` lists every capability category derived from source file introspection, with function counts and representative function names. This is the primary discovery mechanism — see what the system can do without needing to know function names.
+
+**Keyword category lookup**: `(browse :fillet)` shows all functions in a category with full signatures and docstrings. The keyword is matched partially and case-insensitively against display names and filename stems — `:file` matches "File I/O", `:face` matches both "Faces" and "Face Filling". If multiple categories match, a filtered list is shown. If no category matches, prints "No category found" (no fallthrough to substring search).
+
+**Substring search** (string or bare symbol): `(browse "box")` or `(browse box)` — existing behavior. Searches for external symbols matching a substring. By default searches only `:clotcad` and `:cl-occt` packages. Use `:packages t` for all packages, or `:packages :cl-occt` / `:packages '(:cl-occt :clotcad)` for specific packages. Results are grouped by package with type annotations.
+
 ## 3D Primitives
 
 ```lisp
@@ -96,7 +119,8 @@ Wrapper functions accept symbols, strings, or raw shapes.
 
 `display` shows a shape in the 3D scene and registers it in the DAG registry for future reference.
 `def` evaluates a shape form, stores it in the DAG registry, and shows it grayed in the Scene Tree.
-`show`/`hide`/`toggle` control visibility by name. `resolve-shape` resolves a symbol, string, or raw value to a shape object from the DAG registry.
+`show`/`hide`/`toggle` control visibility by name. These also work with compound symbols (`:my-box/top-face`) to show/hide/toggle named subshapes (child nodes) in the scene tree.
+`resolve-shape` resolves a symbol, string, or raw value to a shape object from the DAG registry. Compound symbols (`:my-box/top-face`) are supported — the model part is looked up in the registry and the subshape part resolves a named subshape.
 
 ## Selection
 
@@ -106,6 +130,278 @@ Wrapper functions accept symbols, strings, or raw shapes.
 (clear-selection)                                           ; => nil
 (selected-shapes)                                           ; => list
 (apply-selection-schemes &key click ctrl-click shift-click) ; => nil
+```
+
+## Subshape Queries
+
+Find faces, edges, and vertices by spatial and topological properties.
+
+```lisp
+(query-shape designator &key where coordinate-system)              ; => list
+```
+
+`query-shape` resolves the designator, enumerates all faces, edges, and
+vertices, then applies each predicate closure in `where` left-to-right
+as a pipeline. Each predicate is a function that returns a closure —
+use `(list ...)` to combine them.
+
+### Predicate Constructors
+
+Each predicate constructor returns a closure suitable for use in `:where`.
+
+```lisp
+(face-p)                                                           ; => closure
+(edge-p)                                                           ; => closure
+(vertex-p)                                                         ; => closure
+(surface-type :plane)                                              ; => closure
+(curve-type :circle)                                               ; => closure
+(normal-along dx dy dz &key angle-deg)                             ; => closure
+(edge-along dx dy dz &key angle-deg)                               ; => closure
+(longer-than value)                                                ; => closure
+(shorter-than value)                                               ; => closure
+(larger-than value)                                                ; => closure
+(smaller-than value)                                               ; => closure
+(x-center value &key tolerance)                                    ; => closure
+(y-center value &key tolerance)                                    ; => closure
+(z-center value &key tolerance)                                    ; => closure
+(radius-around value &key tolerance)                               ; => closure
+(max-by function)                                                  ; => closure
+(min-by function)                                                  ; => closure
+```
+
+Spatial predicates accept `:angle-deg` (default 1°) and `:tolerance` (default 1e-6).
+
+### Convenience Accessors
+
+```lisp
+(top-face designator)                                              ; => face
+(bottom-face designator)                                           ; => face
+(longest-edge designator)                                          ; => edge
+(shortest-edge designator)                                         ; => edge
+(largest-face designator)                                          ; => face
+(smallest-face designator)                                         ; => face
+```
+
+### Examples
+
+```lisp
+;; Top face of a box
+(query-shape (make-box 10 20 30) :where (list (face-p) (normal-along 0 0 1)))
+=> (#<FACE ...>)
+
+;; Longest edge
+(longest-edge (make-box 10 20 30))
+=> #<EDGE ...>
+
+;; Largest planar face with normal in +Z (same as top-face)
+(query-shape :my-box :where
+  (list (face-p) (surface-type :plane) (normal-along 0 0 1) (max-by #'face-area)))
+=> (#<FACE ...>)
+
+;; Circular edges near radius 5
+(query-shape (make-cylinder 5 20)
+             :where (list (edge-p) (radius-around 5 :tolerance 0.1)))
+=> (#<EDGE ...> #<EDGE ...>)
+```
+
+## Named Subshapes
+
+Give stable names to faces, edges, and vertices. Named subshapes are stored as queries that are re-evaluated on each access, so they survive shape recomputation (e.g. after `defmodel` parameter changes). Named subshapes appear as children of their parent model in the Scene Tree, but are **invisible by default** — use `show` with a compound symbol to make them visible.
+
+```lisp
+(name-subshape model name &key where coordinate-system)       ; => keyword
+(face-ref model name)                                          ; => face
+(edge-ref model name)                                          ; => edge
+(vertex-ref model name)                                        ; => vertex
+(list-named-subshapes model)                                   ; => list
+(remove-named-subshape model name)                             ; => keyword
+```
+
+`name-subshape` registers a named query on a model. `face-ref`, `edge-ref`, and `vertex-ref` resolve the stored query and return the matching subshape (signaling an error if the type doesn't match). `list-named-subshapes` returns all registered names. `remove-named-subshape` removes a registration.
+
+Compound symbols like `:my-box/top-face` work in any function that accepts a shape designator (e.g., `resolve-shape`, `cut`, `fuse`, `display`). The symbol is split on `/`: the model part resolves to the model's cached shape, the subshape part resolves via `face-ref`/`edge-ref`/`vertex-ref`.
+
+### Examples
+
+```lisp
+;; Register named subshapes on a box
+(def :my-box (make-box 10 20 30))
+
+(name-subshape :my-box :top-face
+  :where (list (face-p) (normal-along 0 0 1) (max-by #'z-center)))
+;; => :TOP-FACE
+
+(name-subshape :my-box :longest-edge
+  :where (list (edge-p) (max-by #'cl-occt:edge-length)))
+;; => :LONGEST-EDGE
+
+;; Resolve by name
+(face-ref :my-box :top-face)          ;; => #<FACE ...>
+(edge-ref :my-box :longest-edge)      ;; => #<EDGE ...>
+
+;; List and remove
+(list-named-subshapes :my-box)        ;; => (:TOP-FACE :LONGEST-EDGE)
+(remove-named-subshape :my-box :top-face)
+
+;; Compound symbols in any designator position
+(resolve-shape :my-box/longest-edge)  ;; resolves to the edge (same as edge-ref)
+(cut :my-box :my-box/longest-edge)    ;; cuts the edge from the box
+
+;; Show/hide named subshapes (invisible by default)
+(show :my-box)                        ;; parent must be visible first
+(show :my-box/top-face)               ;; make child visible
+(hide :my-box/top-face)               ;; hide child
+(toggle :my-box/top-face)             ;; toggle child visibility
+```
+
+## Coordinate Frames
+
+Construct 3D coordinate frames from face geometry (planar or curved) or from raw parameters.
+Frames provide the position and orientation of a face in 3D space.
+
+```lisp
+(make-frame-on-face face &key u v point)                          ; => frame
+(make-frame-on-plane ox oy oz nx ny nz &key up-x up-y up-z)       ; => frame
+(frame-origin frame)                                               ; => list
+(frame-x-axis frame)                                               ; => list
+(frame-y-axis frame)                                               ; => list
+(frame-z-axis frame)                                               ; => list
+(frame-to-location frame)                                          ; => location
+```
+
+`make-frame-on-face` derives a coordinate frame from a face: origin at the face center
+(or specified UV/3D point), Z = face normal, X/Y = face UV tangent directions.
+For non-planar faces, produces a tangent plane at the given point.
+
+`make-frame-on-plane` constructs a frame from a point and normal direction with
+optional up vector. The frame is right-handed: X = cross(Z, UP), Y = cross(Z, X).
+
+`frame-to-location` converts a frame to an OCCT location for use with `move-shape`.
+
+### Examples
+
+```lisp
+;; Frame from the top face of a box
+(let* ((box (make-box 10 20 30))
+       (f (make-frame-on-face (top-face box))))
+  (frame-origin f))                        ;; => (5.0 10.0 30.0)
+  (frame-z-axis f)                         ;; => (0.0 0.0 1.0)
+
+;; Frame at face UV corner
+(make-frame-on-face (top-face box) :u 0.0 :v 0.0)
+
+;; Frame from a point on the face
+(make-frame-on-face (top-face box) :point '(5 10 30))
+
+;; Frame on the XY plane (Z up)
+(make-frame-on-plane 0 0 0 0 0 1)
+
+;; Frame with custom up direction
+(make-frame-on-plane 0 0 0 1 0 0 :up-x 0 :up-y 0 :up-z 1)
+
+;; Place a shape on a face using a frame
+(let* ((box (make-box 10 20 30))
+       (f (make-frame-on-face (top-face box)))
+       (loc (frame-to-location f)))
+  (move-shape (make-sphere 5) loc))
+```
+
+## Sketching on Faces
+
+Create 2D profiles on the face of an existing shape using sketch primitives. Coordinates are relative to the face's natural coordinate frame.
+
+### Point Constructor
+
+```lisp
+(pnt x y)                                              ; => sketch-point
+```
+
+`pnt` creates a 2D point for use within sketch primitives. `x` and `y` are relative to the sketch's coordinate frame.
+
+### Sketch Entry Point
+
+```lisp
+(sketch-on-face face-designator &body primitives &key result-type)  ; => face/wire/list
+```
+
+Evaluates sketch primitives on a face's coordinate frame. `face-designator` is any resolvable face (symbol, compound symbol like `:my-box/top-face`, or raw shape).
+
+`result-type` controls the return value:
+- **`:face`** (default) — single face (compound face with holes when multiple primitives enclose each other)
+- **`:faces`** — list of separate faces, one per primitive
+- **`:wire`** — single wire shape positioned on the face's plane
+
+### Sketch Primitives
+
+Each primitive creates a closed wire in the sketch's local 2D coordinate system.
+
+```lisp
+(rect corner width height)                              ; => wire
+(circle center radius)                                  ; => wire
+(slot center width height radius)                       ; => wire
+(polygon &rest points)                                  ; => wire
+(line-chain &rest points &key closed)                   ; => wire
+```
+
+- `rect` — rectangle from bottom-left corner, with width and height
+- `circle` — circle from center and radius
+- `slot` — rectangle with rounded corners (4 straight edges + 4 corner arcs)
+- `polygon` — closed polygon from 3+ points
+- `line-chain` — open or closed chain of line segments from 2+ points
+
+Points can be `sketch-point` from `pnt` or vertex designators (like `:my-box/edge-start`) — see "Positional References" below.
+
+### Extrude Convenience
+
+```lisp
+(extrude-from-face face-designator sketch &key depth direction)     ; => shape
+```
+
+Shorthand: sketch on a face, extrude along the face normal (into the body), and boolean cut from the parent. `face-designator` must be a compound symbol like `:box/top-face` to determine the parent body.
+
+### Positional References
+
+Any primitive that accepts a point also accepts a vertex designator (compound symbol resolving to a vertex). The vertex's 3D position is projected onto the sketch plane as local 2D coordinates. This ties sketches to existing geometry for parametric behavior.
+
+### Examples
+
+```lisp
+;; Basic rectangle on a face
+(sketch-on-face :my-box/top-face (rect (pnt 2 2) 6 6))
+
+;; Rectangle with a circular hole
+(sketch-on-face :my-box/top-face
+  (rect (pnt 2 2) 8 8) (circle (pnt 6 6) 2))
+
+;; Multiple separate faces
+(sketch-on-face :my-box/top-face
+  (rect (pnt 2 2) 6 6) (circle (pnt 5 5) 1)
+  :result-type :faces)
+
+;; Extract positioned wire
+(sketch-on-face :my-box/top-face
+  (rect (pnt 2 2) 6 6) :result-type :wire)
+
+;; Slot
+(sketch-on-face :my-box/top-face
+  (slot (pnt 0 0) 12 6 2))
+
+;; Polygon (triangle)
+(sketch-on-face :my-box/top-face
+  (polygon (pnt 0 0) (pnt 5 0) (pnt 2.5 5)))
+
+;; Open line chain
+(sketch-on-face :my-box/top-face
+  (line-chain (pnt 0 0) (pnt 5 0) (pnt 5 5)))
+
+;; Vertex reference in primitives
+(display :result (sketch-on-face :box/top-face
+                   (rect :box/edge-start 10 10)))
+
+;; Extrude from face (pocket)
+(extrude-from-face :box/top-face
+  (sketch-on-face :box/top-face (circle (pnt 5 5) 2))
+  :depth 15)
 ```
 
 ## Compounds & Assemblies
@@ -139,7 +435,11 @@ Orientation values: `:top`, `:bottom`, `:front`, `:back`, `:left`, `:right`, `:i
 (toggle-viewcube)                                           ; => nil
 (show-viewcube-axes &optional show)                         ; => nil
 (toggle-viewcube-axes)                                      ; => nil
+(set-viewcube-font-height height)                            ; => height
+(set-trihedron-font-size size)                               ; => size
 ```
+
+`set-viewcube-font-height` sets the ViewCube label font height in logical pixels (auto-scaled for high-DPI displays). Default: 16. `set-trihedron-font-size` sets the trihedron axis label font size in logical pixels (auto-scaled for high-DPI). Default: 16. Both are also settable via theme palette keys `:viewcube-font-height` and `:trihedron-font-size`.
 
 ## Dock Panels
 
@@ -244,12 +544,6 @@ Models auto-track dependencies and re-evaluate when parameters change.
 ;; DAG registry I/O (with metadata):
 (write-dag-models-to-step path)                             ; => nil
 (read-step-into-dag path)                                   ; => assembly
-```
-
-## Help
-
-```lisp
-(help)                                                      ; => values
 ```
 
 ## REPL & Import

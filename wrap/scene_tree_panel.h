@@ -33,6 +33,7 @@ signals:
 public:
   void setShapeCheckState(const QString& name, bool checked);
   void setShapeTreeVisible(const QString& name, bool visible);
+  void addChildShape(const QString& parentName, const QString& childName);
 
 public slots:
   void addShape(const QString& name);

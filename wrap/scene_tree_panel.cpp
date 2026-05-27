@@ -30,15 +30,34 @@ void SceneTreePanel::addShape(const QString& name)
   myTree->blockSignals(false);
 }
 
+bool removeChildRecursive(QTreeWidgetItem* parent, const QString& name)
+{
+  for (int i = 0; i < parent->childCount(); ++i)
+  {
+    QTreeWidgetItem* child = parent->child(i);
+    if (child->text(0) == name)
+    {
+      delete parent->takeChild(i);
+      return true;
+    }
+    if (removeChildRecursive(child, name))
+      return true;
+  }
+  return false;
+}
+
 void SceneTreePanel::removeShape(const QString& name)
 {
   for (int i = 0; i < myTree->topLevelItemCount(); ++i)
   {
-    if (myTree->topLevelItem(i)->text(0) == name)
+    QTreeWidgetItem* item = myTree->topLevelItem(i);
+    if (item->text(0) == name)
     {
       delete myTree->takeTopLevelItem(i);
       return;
     }
+    if (removeChildRecursive(item, name))
+      return;
   }
 }
 
@@ -47,15 +66,29 @@ void SceneTreePanel::clearAll()
   myTree->clear();
 }
 
+QTreeWidgetItem* findItemRecursive(QTreeWidgetItem* parent, const QString& name)
+{
+  if (parent->text(0) == name)
+    return parent;
+  for (int i = 0; i < parent->childCount(); ++i)
+  {
+    QTreeWidgetItem* found = findItemRecursive(parent->child(i), name);
+    if (found)
+      return found;
+  }
+  return nullptr;
+}
+
 void SceneTreePanel::setShapeCheckState(const QString& name, bool checked)
 {
   for (int i = 0; i < myTree->topLevelItemCount(); ++i)
   {
     QTreeWidgetItem* item = myTree->topLevelItem(i);
-    if (item->text(0) == name)
+    QTreeWidgetItem* found = findItemRecursive(item, name);
+    if (found)
     {
       myTree->blockSignals(true);
-      item->setCheckState(0, checked ? Qt::Checked : Qt::Unchecked);
+      found->setCheckState(0, checked ? Qt::Checked : Qt::Unchecked);
       myTree->blockSignals(false);
       return;
     }
@@ -67,9 +100,29 @@ void SceneTreePanel::setShapeTreeVisible(const QString& name, bool visible)
   for (int i = 0; i < myTree->topLevelItemCount(); ++i)
   {
     QTreeWidgetItem* item = myTree->topLevelItem(i);
-    if (item->text(0) == name)
+    QTreeWidgetItem* found = findItemRecursive(item, name);
+    if (found)
     {
-      item->setHidden(!visible);
+      found->setHidden(!visible);
+      return;
+    }
+  }
+}
+
+void SceneTreePanel::addChildShape(const QString& parentName, const QString& childName)
+{
+  for (int i = 0; i < myTree->topLevelItemCount(); ++i)
+  {
+    QTreeWidgetItem* parent = myTree->topLevelItem(i);
+    if (parent->text(0) == parentName)
+    {
+      myTree->blockSignals(true);
+      QTreeWidgetItem* child = new QTreeWidgetItem(parent);
+      child->setText(0, childName);
+      child->setFlags(child->flags() | Qt::ItemIsUserCheckable);
+      child->setCheckState(0, Qt::Checked);
+      parent->setExpanded(true);
+      myTree->blockSignals(false);
       return;
     }
   }

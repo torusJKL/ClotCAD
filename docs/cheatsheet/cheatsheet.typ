@@ -226,6 +226,13 @@
   `(-> (make-box 10 20 30) (translate 5 0 0))`\
 ]
 
+= Introspection
+#concept-block[
+  `doc(name)`\
+  `browse(pattern, ..options)`\
+]
+Prints docstring & arglist for any symbol. Searches API symbols by substring.
+
 = REPL & Import
 #concept-block[
   `cancel-import()`\
@@ -233,5 +240,5 @@
   `result-export(flag)`\
   `export-repl-history(path)`\
   `set-repl-history-key(modifier)`\
-  `set-repl-submit-key(modifier)`\
+  `set-repl-submit-key(modifier)`
 ]

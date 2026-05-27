@@ -6,6 +6,7 @@
    :%viewer-create
    :%viewer-destroy
    :%viewer-show
+   :%viewer-set-window-state
    :%viewer-run
    :%viewer-quit
    :%viewer-is-running
@@ -48,6 +49,8 @@
    :%viewer-set-viewcube-draw-axes
    :%viewer-get-viewcube-draw-axes
    :%viewer-set-viewcube-hilight-color
+   :%viewer-set-viewcube-font-height
+   :%viewer-get-device-pixel-ratio
    ;; Dock panels
    :%viewer-show-dock
    ;; Quality
@@ -60,6 +63,7 @@
    :%viewer-get-view
    :%viewer-get-trihedron
    :%viewer-set-trihedron-text-color
+   :%viewer-set-trihedron-font-size
    :%viewer-set-placeholder-color
    :%viewer-set-status-text
    :%viewer-set-import-status
@@ -73,21 +77,24 @@
    :%viewer-sync-tree-selection
    :%viewer-select-names
    :%viewer-is-shape-selected
-   ;; Exported Lisp variables and functions
-   :*viewer*
+   ;; Dialogs
+   :%viewer-show-message
+    ;; Exported Lisp variables and functions
+    :*viewer*
+    :*viewer-thread*
    :*viewer-queue*
    :*queue-lock*
    :*displayed-models*
    :*grid-visible*
    :*axis-visible*
-     :start-viewer
-     :stop-viewer
-     :quit-clotcad
-     :start-slynk
-     :start-alive
-     :wait-forever
-     :bootstrap
-    :sync-viewer
+   :start-viewer
+   :stop-viewer
+   :quit-clotcad
+   :start-slynk
+   :start-alive
+   :wait-forever
+   :bootstrap
+   :sync-viewer
    :display
    :clear-all
    :register-viewer-callbacks
@@ -111,12 +118,12 @@
    :model-model-deps
    :model-dependents
    :model-dirty
-    :model-cached-shape
-    :model-last-param-hash
-    :model-color-val
-    :model-display-name-val
-    :model-layer-val
-    :normalize-name
+   :model-cached-shape
+   :model-last-param-hash
+   :model-color-val
+   :model-display-name-val
+   :model-layer-val
+   :normalize-name
    :*model-registry*
    :*params*
    :*after-propagation-hook*
@@ -128,18 +135,21 @@
     :topological-sort
     :evaluate-model
     :propagate-changes
-    ;; Threading macros
-    :->
-    :->>
-    :as->))
+     :propagate-named-subshapes
+     :model-named-subshapes
+     :model-named-subshape-cache
+     ;; Threading macros
+     :->
+     :->>
+     :as->))
 
 (defpackage :clotcad
   (:use :cl :clotcad.impl)
   (:import-from :cl-occt :shape :shape-p
-               :ais-clear-selected :ais-set-selected
-               :ais-add-or-remove-selected
-               :ais-hilight-selected :ais-is-selected
-               :*selection-scheme-map*)
+   :ais-clear-selected :ais-set-selected
+   :ais-add-or-remove-selected
+                :ais-hilight-selected :ais-is-selected
+                :*selection-scheme-map*)
   (:export
    :*show-defs-in-tree*
    :resolve-shape
@@ -161,15 +171,15 @@
    :make-part
    :write-step
    :write-stl
-     :start-viewer
-     :stop-viewer
-     :quit-clotcad
-     :start-slynk
-     :start-alive
-     :wait-forever
-     :bootstrap
-    :display
-    :clear-all
+   :start-viewer
+   :stop-viewer
+   :quit-clotcad
+   :start-slynk
+   :start-alive
+   :wait-forever
+   :bootstrap
+   :display
+   :clear-all
    :show-grid
    :show-axis
    :toggle-grid
@@ -195,6 +205,8 @@
    :theme-light
    :theme-auto
    :set-font-size
+   :set-viewcube-font-height
+   :set-trihedron-font-size
    :*theme-mode*
    :*accent-color*
    :*font-size*
@@ -207,12 +219,24 @@
    :clear-selection
    :selected-shapes
    :apply-selection-schemes
+    ;; Debugger
+    :global-debugger-hook
+    :abort-all-threads
+    :abort-stuck-threads
+    :show-errors
+    :*debugger-invocation-count*
+    ;; Introspection
+    :doc
+    :browse
    ;; Lisp import/export
    :cancel-import
    :replay-speed
    :result-export
    :export-repl-history
-   :log-remote-eval
+    :log-remote-eval
+    :*repl-log*
+    :*repl-accumulator*
+    :*stuck-threads*
    ;; Parametric DSL
    :defmodel
    :param
@@ -226,17 +250,72 @@
    :*params*
    :*model-registry*
    :help
-    :write-dag-models-to-step
+   :write-dag-models-to-step
     :read-step-into-dag
-    ;; Threading macros
-    :->
-    :->>
-    :as->))
+     ;; Coordinate frames
+     :frame
+     :frame-origin
+     :frame-x-axis
+     :frame-y-axis
+     :frame-z-axis
+     :make-frame-on-face
+     :make-frame-on-plane
+     :frame-to-location
+     ;; Subshape queries
+     :query-shape
+    :face-p
+    :edge-p
+    :vertex-p
+    :normal-along
+    :surface-type
+    :curve-type
+    :longer-than
+    :shorter-than
+    :larger-than
+    :smaller-than
+    :max-by
+    :min-by
+    :x-center
+    :y-center
+    :z-center
+    :edge-along
+    :radius-around
+    :top-face
+    :bottom-face
+    :longest-edge
+    :largest-face
+    :shortest-edge
+     :smallest-face
+      ;; Named subshapes
+      :name-subshape
+      :face-ref
+      :edge-ref
+      :vertex-ref
+      :list-named-subshapes
+      :remove-named-subshape
+      ;; Sketch helpers
+      :sketch-point
+      :sketch-point-x
+      :sketch-point-y
+      :pnt
+      :sketch-on-face
+      :rect
+      :circle
+      :slot
+      :polygon
+      :line-chain
+      :extrude-from-face
+      ;; Threading macros
+      :->
+      :->>
+      :as->))
 
 (defpackage :clotcad-user
   (:use :cl :cl-occt :clotcad)
   (:shadowing-import-from :clotcad
    :cut :fuse :common :section :translate :rotate
    :make-prism :make-revol :make-compound :make-part
-   :write-step :write-stl)
+   :write-step :write-stl
+   :surface-type :curve-type
+   :longer-than :shorter-than :larger-than :smaller-than)
   (:nicknames :cad-user :occt-user))

@@ -33,6 +33,11 @@
 (defun param-hash ()
   (sxhash *params*))
 
+(defun propagate-named-subshapes (name)
+  (let ((m (find-model name)))
+    (when m
+      (setf (model-named-subshape-cache m) nil))))
+
 (defun evaluate-model (name)
   (let* ((sname (string name))
          (m (find-model sname))
@@ -56,6 +61,7 @@
           (setf (model-display-name-val m) name-val))
         (when layer-val
           (setf (model-layer-val m) layer-val))
+        (propagate-named-subshapes sname)
         shape))))
 
 (defun propagate-changes ()

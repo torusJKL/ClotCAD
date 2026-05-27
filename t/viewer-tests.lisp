@@ -105,7 +105,8 @@
                                   %ss2 %cs %cscc %gv %gt %spc %sst %svc
                                   %gc %gao %ssc %stc %smsc %vst %vrh %vrs
                                    %vpd %sis %sip %sttc
-                                  %svc2 %ivcv %vsv %gvo %svcc %svc3 %svct %svci %svctr %svcsz %svcac %svcda %gvcda %svchc))))
+                                  %svc2 %ivcv %vsv %gvo %svcc %svc3 %svct %svci %svctr %svcsz %svcac %svcda %gvcda %svchc
+                                  %vsm %vcfh %vtfs %vgdpr %vsws))))
     `(let ((*viewer* (make-array 1))
            (*viewer-queue* nil)
            (*displayed-models* (make-hash-table :test 'equal))
@@ -128,49 +129,54 @@
         (let (,@(mapcar (lambda (s sym)
                            `(,sym (symbol-function (quote ,s))))
                          '(%viewer-post-event %viewer-sync-shapes
-                           %viewer-fit-all %viewer-show-grid
-                           %viewer-show-axis %viewer-set-antialiasing
-                           %viewer-set-eval-callback
-                           %viewer-set-file-op-callback
-                           %viewer-append-repl-output
-                           %viewer-show-dock
-                           %viewer-is-grid-visible
-                           %viewer-is-axis-visible
-                           %viewer-set-stylesheet
-                           %viewer-color-scheme
-                           %viewer-set-color-scheme-callback
-                            %viewer-get-view
-                            %viewer-get-trihedron
-                             %viewer-set-placeholder-color
-                             %viewer-set-trihedron-text-color
-                             %viewer-set-status-text
-                            %viewer-set-visibility-callback
-                            %viewer-get-context
-                            %viewer-get-ais-object
-                            %viewer-set-selection-callback
-                            %viewer-set-tree-selection-callback
-                             %viewer-set-mouse-selection-scheme
-                             %viewer-sync-tree-selection
-                             %viewer-set-repl-history-modifier
-                             %viewer-set-repl-submit-modifier
-                             %viewer-post-event-delayed
-                              %viewer-set-import-status
-                              %viewer-set-icon-palette
-                              %viewer-show-viewcube
-                              %viewer-is-viewcube-visible
-                              %viewer-set-view
-                              %viewer-get-view-orientation
-                              %viewer-set-viewcube-callback
-                              %viewer-set-viewcube-color
-                              %viewer-set-viewcube-text-color
-                              %viewer-set-viewcube-inner-color
-                              %viewer-set-viewcube-transparency
-                              %viewer-set-viewcube-size
-                              %viewer-set-viewcube-axis-color
+                          %viewer-fit-all %viewer-show-grid
+                          %viewer-show-axis %viewer-set-antialiasing
+                          %viewer-set-eval-callback
+                          %viewer-set-file-op-callback
+                          %viewer-append-repl-output
+                          %viewer-show-dock
+                          %viewer-is-grid-visible
+                          %viewer-is-axis-visible
+                          %viewer-set-stylesheet
+                          %viewer-color-scheme
+                          %viewer-set-color-scheme-callback
+                           %viewer-get-view
+                           %viewer-get-trihedron
+                            %viewer-set-placeholder-color
+                            %viewer-set-trihedron-text-color
+                            %viewer-set-status-text
+                           %viewer-set-visibility-callback
+                           %viewer-get-context
+                           %viewer-get-ais-object
+                           %viewer-set-selection-callback
+                           %viewer-set-tree-selection-callback
+                            %viewer-set-mouse-selection-scheme
+                            %viewer-sync-tree-selection
+                            %viewer-set-repl-history-modifier
+                            %viewer-set-repl-submit-modifier
+                            %viewer-post-event-delayed
+                             %viewer-set-import-status
+                             %viewer-set-icon-palette
+                             %viewer-show-viewcube
+                             %viewer-is-viewcube-visible
+                             %viewer-set-view
+                             %viewer-get-view-orientation
+                             %viewer-set-viewcube-callback
+                             %viewer-set-viewcube-color
+                             %viewer-set-viewcube-text-color
+                             %viewer-set-viewcube-inner-color
+                             %viewer-set-viewcube-transparency
+                             %viewer-set-viewcube-size
+                             %viewer-set-viewcube-axis-color
                               %viewer-set-viewcube-draw-axes
                               %viewer-get-viewcube-draw-axes
-                              %viewer-set-viewcube-hilight-color)
-                           old-syms))
+                               %viewer-set-viewcube-hilight-color
+                               %viewer-show-message
+                               %viewer-set-viewcube-font-height
+                               %viewer-set-trihedron-font-size
+                               %viewer-get-device-pixel-ratio
+                               %viewer-set-window-state)
+                            old-syms))
          (setf (symbol-function '%viewer-post-event) (lambda (vwr) (declare (ignore vwr)))
                (symbol-function '%viewer-sync-shapes)
                (lambda (vwr items count) (declare (ignore vwr items count)))
@@ -217,8 +223,13 @@
                    (symbol-function '%viewer-set-viewcube-axis-color) (lambda (vwr p r g b) (declare (ignore vwr p r g b)))
                    (symbol-function '%viewer-set-viewcube-draw-axes) (lambda (vwr s) (declare (ignore vwr s)) (setf mock-viewcube-state s))
                    (symbol-function '%viewer-get-viewcube-draw-axes) (lambda (vwr) (declare (ignore vwr)) mock-viewcube-state)
-                   (symbol-function '%viewer-set-viewcube-hilight-color) (lambda (vwr r g b) (declare (ignore vwr r g b))))
-            (unwind-protect
+                   (symbol-function '%viewer-set-viewcube-hilight-color) (lambda (vwr r g b) (declare (ignore vwr r g b)))
+                    (symbol-function '%viewer-show-message) (lambda (vwr title msg) (declare (ignore vwr title msg)))
+                    (symbol-function '%viewer-set-viewcube-font-height) (lambda (vwr height) (declare (ignore vwr height)))
+                    (symbol-function '%viewer-set-trihedron-font-size) (lambda (vwr size) (declare (ignore vwr size)))
+                    (symbol-function '%viewer-get-device-pixel-ratio) (lambda (vwr) (declare (ignore vwr)) 1.0d0)
+                    (symbol-function '%viewer-set-window-state) (lambda (vwr maximized) (declare (ignore vwr maximized))))
+             (unwind-protect
               (progn ,@body)
             (setf (symbol-function '%viewer-post-event) ,(nth 0 old-syms)
                   (symbol-function '%viewer-sync-shapes) ,(nth 1 old-syms)
@@ -265,7 +276,12 @@
                         (symbol-function '%viewer-set-viewcube-axis-color) ,(nth 42 old-syms)
                         (symbol-function '%viewer-set-viewcube-draw-axes) ,(nth 43 old-syms)
                         (symbol-function '%viewer-get-viewcube-draw-axes) ,(nth 44 old-syms)
-                        (symbol-function '%viewer-set-viewcube-hilight-color) ,(nth 45 old-syms)))))))
+                         (symbol-function '%viewer-set-viewcube-hilight-color) ,(nth 45 old-syms)
+                         (symbol-function '%viewer-show-message) ,(nth 46 old-syms)
+                         (symbol-function '%viewer-set-viewcube-font-height) ,(nth 47 old-syms)
+                         (symbol-function '%viewer-set-trihedron-font-size) ,(nth 48 old-syms)
+                          (symbol-function '%viewer-get-device-pixel-ratio) ,(nth 49 old-syms)
+                          (symbol-function '%viewer-set-window-state) ,(nth 50 old-syms)))))))
 
 ;; --- Queue tests ---
 
@@ -455,6 +471,66 @@
 (deftest show-errors-on-unknown
   (with-mocked-viewer
     (assert-error (show :unknown))))
+
+(deftest show-compound-symbol-sets-subshape-visible
+  (with-mocked-viewer
+    (with-clean-registry
+      (let ((shape (cl-occt:make-box 10 20 30)))
+        (register-model "MY-BOX" (make-model :name "MY-BOX" :cached-shape shape))
+        (setf (gethash "MY-BOX" *displayed-models*) (list shape t t t :def))
+        (name-subshape :my-box :top-face
+          :where (list (face-p) (normal-along 0 0 1)))
+        (let ((m (find-model "MY-BOX")))
+          (assert-nil (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))
+        (show :my-box/top-face)
+        (let ((m (find-model "MY-BOX")))
+          (assert-true (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))))))
+
+(deftest hide-compound-symbol-sets-subshape-invisible
+  (with-mocked-viewer
+    (with-clean-registry
+      (let ((shape (cl-occt:make-box 10 20 30)))
+        (register-model "MY-BOX" (make-model :name "MY-BOX" :cached-shape shape))
+        (setf (gethash "MY-BOX" *displayed-models*) (list shape t t t :def))
+        (name-subshape :my-box :top-face
+          :where (list (face-p) (normal-along 0 0 1)))
+        (show :my-box/top-face)
+        (hide :my-box/top-face)
+        (let ((m (find-model "MY-BOX")))
+          (assert-nil (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))))))
+
+(deftest toggle-compound-symbol-flips-subshape-visible
+  (with-mocked-viewer
+    (with-clean-registry
+      (let ((shape (cl-occt:make-box 10 20 30)))
+        (register-model "MY-BOX" (make-model :name "MY-BOX" :cached-shape shape))
+        (setf (gethash "MY-BOX" *displayed-models*) (list shape t t t :def))
+        (name-subshape :my-box :top-face
+          :where (list (face-p) (normal-along 0 0 1)))
+        ;; Initially invisible
+        (let ((m (find-model "MY-BOX")))
+          (assert-nil (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))
+        (toggle :my-box/top-face)
+        ;; Now visible
+        (let ((m (find-model "MY-BOX")))
+          (assert-true (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))
+        (toggle :my-box/top-face)
+        ;; Back to invisible
+        (let ((m (find-model "MY-BOX")))
+          (assert-nil (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))))))
+
+(deftest show-compound-symbol-errors-on-unknown-model
+  (with-mocked-viewer
+    (with-clean-registry
+      (assert-error (show :nonexistent/top-face)))))
+
+(deftest show-compound-symbol-errors-on-unknown-subshape
+  (with-mocked-viewer
+    (with-clean-registry
+      (let ((shape (cl-occt:make-box 10 20 30)))
+        (register-model "MY-BOX" (make-model :name "MY-BOX" :cached-shape shape))
+        (setf (gethash "MY-BOX" *displayed-models*) (list shape t t t :def))
+        (assert-error (show :my-box/nonexistent))))))
 
 (deftest hide-errors-on-unknown
   (with-mocked-viewer
@@ -1464,7 +1540,11 @@
            (old-svcac (symbol-function '%viewer-set-viewcube-axis-color))
            (old-svcda (symbol-function '%viewer-set-viewcube-draw-axes))
            (old-gvcda (symbol-function '%viewer-get-viewcube-draw-axes))
-           (old-svchc (symbol-function '%viewer-set-viewcube-hilight-color)))
+           (old-svchc (symbol-function '%viewer-set-viewcube-hilight-color))
+           (old-svcsz (symbol-function '%viewer-set-viewcube-size))
+           (old-svcfh (symbol-function '%viewer-set-viewcube-font-height))
+           (old-stfs (symbol-function '%viewer-set-trihedron-font-size))
+           (old-gdpr (symbol-function '%viewer-get-device-pixel-ratio)))
       (setf (symbol-function '%viewer-show-axis)
             (lambda (vwr show) (declare (ignore vwr)) (push show show-axis-args))
             (symbol-function '%viewer-show-grid)
@@ -1506,7 +1586,15 @@
             (symbol-function '%viewer-get-viewcube-draw-axes)
             (lambda (vwr) (declare (ignore vwr)) 1)
             (symbol-function '%viewer-set-viewcube-hilight-color)
-            (lambda (vwr r g b) (declare (ignore vwr r g b))))
+            (lambda (vwr r g b) (declare (ignore vwr r g b)))
+            (symbol-function '%viewer-set-viewcube-size)
+            (lambda (vwr sz) (declare (ignore vwr sz)))
+            (symbol-function '%viewer-set-viewcube-font-height)
+            (lambda (vwr height) (declare (ignore vwr height)))
+            (symbol-function '%viewer-set-trihedron-font-size)
+            (lambda (vwr size) (declare (ignore vwr size)))
+            (symbol-function '%viewer-get-device-pixel-ratio)
+            (lambda (vwr) (declare (ignore vwr)) 1.0d0))
       (unwind-protect
            (progn
              (initialize-viewer *viewer*)
@@ -1536,7 +1624,11 @@
               (symbol-function '%viewer-set-viewcube-axis-color) old-svcac
               (symbol-function '%viewer-set-viewcube-draw-axes) old-svcda
               (symbol-function '%viewer-get-viewcube-draw-axes) old-gvcda
-              (symbol-function '%viewer-set-viewcube-hilight-color) old-svchc)))))
+               (symbol-function '%viewer-set-viewcube-hilight-color) old-svchc
+               (symbol-function '%viewer-set-viewcube-size) old-svcsz
+               (symbol-function '%viewer-set-viewcube-font-height) old-svcfh
+               (symbol-function '%viewer-set-trihedron-font-size) old-stfs
+               (symbol-function '%viewer-get-device-pixel-ratio) old-gdpr)))))
 
 ;; --- Selection tests ---
 
@@ -1630,11 +1722,51 @@
                resolve-shape-errors-on-unknown-symbol
                resolve-shape-errors-on-unknown-string
                def-stores-shape def-sets-visible-nil def-does-not-affect-previous-def-visibility def-respects-show-defs-in-tree
-               show-sets-visible-t hide-sets-visible-nil toggle-flips-visible toggle-flips-visible-from-invisible
-               show-triggers-sync
-               show-errors-on-unknown hide-errors-on-unknown toggle-errors-on-unknown
-               show-defs-updates-global show-defs-retroactively-updates-def-shapes
-               toggle-defs-flips-def-shapes
+                show-sets-visible-t hide-sets-visible-nil toggle-flips-visible toggle-flips-visible-from-invisible
+                show-triggers-sync
+                show-errors-on-unknown hide-errors-on-unknown toggle-errors-on-unknown
+                show-defs-updates-global show-defs-retroactively-updates-def-shapes
+                toggle-defs-flips-def-shapes
+                show-compound-symbol-sets-subshape-visible
+                hide-compound-symbol-sets-subshape-invisible
+                toggle-compound-symbol-flips-subshape-visible
+                show-compound-symbol-errors-on-unknown-model
+                show-compound-symbol-errors-on-unknown-subshape
+                ;; Naming tests
+                name-subshape-stores-query
+                name-subshape-defaults-to-invisible
+                name-subshape-errors-on-unknown-model
+                name-subshape-overwrites-existing
+                name-subshape-accepts-string-name
+                face-ref-returns-face
+                edge-ref-returns-edge
+                vertex-ref-returns-vertex
+                face-ref-errors-on-unknown-name
+                face-ref-errors-on-type-mismatch
+                face-ref-errors-on-unknown-model
+                list-named-subshapes-returns-names
+                list-named-subshapes-empty-when-none
+                list-named-subshapes-errors-on-unknown-model
+                remove-named-subshape-removes
+                remove-named-subshape-errors-on-unknown
+                named-subshape-survives-defmodel-recompute
+                propagate-named-subshapes-clears-cache
+                parse-compound-symbol-splits
+                parse-compound-symbol-returns-nil-for-plain
+                parse-compound-symbol-handles-multiple-slashes
+                resolve-compound-symbol-resolves-via-face-ref
+                resolve-compound-symbol-returns-nil-for-plain
+                resolve-compound-symbol-errors-on-unknown-model
+                resolve-shape-handles-compound-symbol
+                resolve-shape-still-resolves-plain-symbols
+                named-subshape-survives-recomputation
+                name-subshape-exported-from-clotcad
+                face-ref-exported-from-clotcad
+                edge-ref-exported-from-clotcad
+                vertex-ref-exported-from-clotcad
+                list-named-subshapes-exported-from-clotcad
+                remove-named-subshape-exported-from-clotcad
+                naming-functions-available-in-clotcad-user
                wrapper-cut-resolves-and-delegates wrapper-translate-resolves
                wrapper-make-prism-resolves
                wrapper-make-compound-resolves-list wrapper-make-part-resolves
@@ -1733,9 +1865,73 @@
                thread-as-basic
                thread-as-single-form
                thread-as-no-forms
-               thread-first-exported
-               thread-last-exported
-               thread-as-exported))
+                thread-first-exported
+                thread-last-exported
+                thread-as-exported
+                ;; Introspection tests
+                doc-on-function-shows-name-arglist-and-docstring
+                doc-on-variable-shows-name-and-docstring
+                doc-on-macro-shows-arglist-and-docstring
+                doc-on-undocumented-symbol-shows-message
+                doc-on-string-resolves-symbol
+                doc-on-function-object-works
+                doc-on-cffi-callback-no-error
+                doc-returns-nil
+browse-substring-matching-default-packages
+                browse-all-packages
+                browse-explicit-packages
+                browse-no-matches
+                browse-returns-nil
+                browse-case-insensitive-nil-requires-exact-case
+                browse-symbol-pattern-works
+                ;; Category browsing tests
+                coerce-packages-nil
+                coerce-packages-t
+                coerce-packages-list
+                coerce-packages-single
+                find-categories-exact-match
+                find-categories-partial-match
+                find-categories-no-match
+                find-categories-multiple-matches
+                category-tree-output-no-category-found
+                 category-detail-shows-functions
+                  ;; Window state tests
+                  set-initial-window-state-maximized
+                  set-initial-window-state-not-maximized
+                  ;; Sketch tests
+                  pnt-creates-sketch-point
+                  pnt-double-float-coercion
+                  rect-creates-four-edges
+                  rect-correct-coordinates
+                  circle-creates-one-edge
+                  polygon-creates-n-edges-for-n-points
+                  polygon-errors-with-less-than-3-points
+                  line-chain-open-creates-2-edges-for-3-points
+                  line-chain-closed-creates-3-edges-for-3-points
+                  line-chain-errors-with-less-than-2-points
+                  slot-creates-wire
+                  resolve-sketch-point-with-pnt
+                  resolve-sketch-point-errors-without-frame
+                  project-vertex-to-sketch
+                  assemble-sketch-result-face-default
+                  assemble-sketch-result-faces-mode
+                  assemble-sketch-result-wire-mode
+                  assemble-sketch-result-empty-errors
+                  sketch-on-face-binds-frame
+                  extrude-from-face-exists
+                  extrude-from-face-calls-prism-and-cut
+                   sketch-symbols-exported-from-clotcad
+                   sketch-symbols-accessible-in-clotcad-user
+                   ;; Debugger tests
+                   global-debugger-hook-logs-on-worker-thread
+                   global-debugger-hook-skips-viewer-on-worker
+                   global-debugger-hook-failure-is-caught
+                   handle-repl-command-abort-with-no-stuck-threads
+                   handle-repl-command-debug-with-no-stuck-threads
+                   handle-repl-command-unknown
+                   handle-repl-command-non-command-passes-through
+                   abort-all-threads-is-safe-when-none-stuck
+                   eval-string-command-dispatch-works))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"
             (test-result-pass *test-result*)
@@ -1888,3 +2084,476 @@
       (assert-nil (model-color 'plain))
       (assert-nil (model-display-name 'plain))
       (assert-nil (model-layer 'plain)))))
+
+;; --- Init file loading tests ---
+
+(deftest resolve-init-file-path-no-init-flag
+  (let ((clotcad::*no-init* t)
+        (clotcad::*init-file-path* nil))
+    (assert-nil (clotcad::resolve-init-file-path)
+                "resolve-init-file-path should return nil when *no-init* is t")))
+
+(deftest resolve-init-file-path-invalid-path
+  (let ((clotcad::*no-init* nil)
+        (clotcad::*init-file-path* "/nonexistent/path.lisp"))
+    (assert-nil (clotcad::resolve-init-file-path)
+                "resolve-init-file-path should return nil when the file doesn't exist")))
+
+(deftest resolve-init-file-path-default-is-nil-when-missing
+  (let ((clotcad::*no-init* nil)
+        (clotcad::*init-file-path* nil))
+    (assert-nil (clotcad::resolve-init-file-path)
+                "resolve-init-file-path should return nil when default path doesn't exist")))
+
+(deftest load-init-file-headless-basic
+  (let* ((tmpname (format nil "/tmp/clotcad-init-test-~A-~A.lisp"
+                          (get-universal-time) (random 1000000)))
+         (init-path (pathname tmpname))
+         (*read-eval* t))
+    (unwind-protect
+         (progn
+           (with-open-file (f init-path :direction :output :if-exists :supersede)
+             (format f "(setf *test-init-val* 42)~%")
+             (format f "(setf *test-init-val* (+ *test-init-val* 1))~%"))
+           (let ((clotcad::*no-init* nil)
+                 (clotcad::*init-file-path* tmpname)
+                 (clotcad::*init-loaded* nil))
+             (clotcad::load-init-file-headless)
+             (assert-equal 43 *test-init-val*
+                           "values set in init file should be available after loading")))
+      (ignore-errors (delete-file init-path))
+      (makunbound '*test-init-val*))))
+
+(deftest load-init-file-headless-error-continues
+  (let* ((tmpname (format nil "/tmp/clotcad-init-test-~A-~A.lisp"
+                          (get-universal-time) (random 1000000)))
+         (init-path (pathname tmpname))
+         (*read-eval* t))
+    (unwind-protect
+         (progn
+           (with-open-file (f init-path :direction :output :if-exists :supersede)
+             (format f "(setf *test-init-after-error* nil)~%")
+             (format f "(error \"test error\")~%")
+             (format f "(setf *test-init-after-error* t)~%"))
+           (let ((clotcad::*no-init* nil)
+                 (clotcad::*init-file-path* tmpname)
+                 (clotcad::*init-loaded* nil))
+             (clotcad::load-init-file-headless)
+             (assert-true *test-init-after-error*
+                          "forms after an error should still be evaluated")))
+      (ignore-errors (delete-file init-path))
+      (makunbound '*test-init-after-error*))))
+
+(deftest bootstrap-calls-load-init-file-headless
+  (let ((*viewer* (make-array 1))
+        (*viewer-queue* nil)
+        (*displayed-models* (make-hash-table :test 'equal))
+        (*queue-lock* (sb-thread:make-mutex))
+        (*grid-visible* t)
+        (*axis-visible* t)
+        (start-viewer-called nil)
+        (load-init-called nil))
+    (let ((old-start (symbol-function 'start-viewer))
+          (old-create (symbol-function '%viewer-create))
+          (old-show (symbol-function '%viewer-show))
+          (old-run (symbol-function '%viewer-run))
+          (old-load (symbol-function 'clotcad::load-init-file-headless)))
+      (setf (symbol-function '%viewer-create) (lambda (title w h) (declare (ignore title w h)) *viewer*)
+            (symbol-function '%viewer-show) (lambda (vwr) (declare (ignore vwr)))
+            (symbol-function '%viewer-run) (lambda (vwr) (declare (ignore vwr)))
+            (symbol-function 'clotcad::load-init-file-headless)
+            (lambda () (setf load-init-called t))
+            (symbol-function 'start-viewer)
+            (lambda (&key &allow-other-keys) (setf start-viewer-called t)))
+      (unwind-protect
+           (progn
+             (bootstrap)
+             (assert-true load-init-called
+                          "bootstrap should call load-init-file-headless")
+             (assert-true start-viewer-called
+                          "bootstrap should call start-viewer"))
+        (setf (symbol-function 'start-viewer) old-start
+              (symbol-function '%viewer-create) old-create
+              (symbol-function '%viewer-show) old-show
+              (symbol-function '%viewer-run) old-run
+              (symbol-function 'clotcad::load-init-file-headless) old-load)))))
+
+;; --- Introspection tests ---
+
+(deftest doc-on-function-shows-name-arglist-and-docstring
+  (let ((output (with-output-to-string (*standard-output*)
+                  (doc 'cancel-import))))
+    (assert-true (search "CANCEL-IMPORT" output) "should include symbol name")
+    (assert-true (search "Cancel" output) "should include docstring")))
+
+(deftest doc-on-variable-shows-name-and-docstring
+  (let ((output (with-output-to-string (*standard-output*)
+                  (doc '*repl-accumulator*))))
+    (assert-true (search "REPL-ACCUMULATOR" output) "should include variable name")
+    (assert-true (search "Accumulates" output) "should include docstring")))
+
+(deftest doc-on-macro-shows-arglist-and-docstring
+  (let ((output (with-output-to-string (*standard-output*)
+                  (doc 'defmodel))))
+    (assert-true (search "DEFMODEL" output) "should include symbol name")
+    (assert-true (search "parametric" output) "should include docstring")))
+
+(deftest doc-on-undocumented-symbol-shows-message
+  (let* ((sym (gensym "UNDOC-TEST-"))
+         (output (with-output-to-string (*standard-output*)
+                   (doc-impl sym))))
+    (assert-true (search "No documentation found" output) "should show no-doc message")))
+
+(deftest doc-on-string-resolves-symbol
+  (let ((sym-output (with-output-to-string (*standard-output*)
+                      (doc 'cancel-import)))
+        (str-output (with-output-to-string (*standard-output*)
+                      (doc "cancel-import"))))
+    (assert-true (search "CANCEL-IMPORT" str-output) "string lookup should find symbol")
+    (assert-equal sym-output str-output "string and symbol lookup should match")))
+
+(deftest doc-on-function-object-works
+  (let ((output (with-output-to-string (*standard-output*)
+                  (doc #'cancel-import))))
+    (assert-true (search "Cancel" output) "function object should show docstring")))
+
+(deftest doc-on-cffi-callback-no-error
+  (assert-true
+    (stringp (with-output-to-string (*standard-output*)
+               (doc 'eval-string)))
+    "should not error on CFFI callback"))
+
+(deftest doc-returns-nil
+  (let ((output (with-output-to-string (*standard-output*)
+                  (assert-nil (doc 'help) "doc should return nil"))))
+    (declare (ignore output))))
+
+(deftest browse-substring-matching-default-packages
+  (let ((output (with-output-to-string (*standard-output*)
+                  (browse "cancel"))))
+    (assert-true (search "CANCEL-IMPORT" output) "should find CANCEL-IMPORT")
+    (assert-true (search "function" output) "should show type annotation")))
+
+(deftest browse-all-packages
+  (let ((output (with-output-to-string (*standard-output*)
+                  (browse "car" :packages t))))
+    (assert-true (search "CAR" output) "should find CAR from CL")))
+
+(deftest browse-explicit-packages
+  (let ((output (with-output-to-string (*standard-output*)
+                  (browse "defmodel" :packages '(:clotcad)))))
+    (assert-true (search "DEFMODEL" output) "should find DEFMODEL in :clotcad")
+    (assert-true (search "macro" output) "should show macro type")))
+
+(deftest browse-no-matches
+  (let ((output (with-output-to-string (*standard-output*)
+                  (browse "xyznonexistent"))))
+    (assert-true (search "No matches" output) "should show no matches message")))
+
+(deftest browse-returns-nil
+  (let ((output (with-output-to-string (*standard-output*)
+                  (assert-nil (browse "cancel") "browse should return nil"))))
+    (declare (ignore output))))
+
+(deftest browse-case-insensitive-nil-requires-exact-case
+  (let ((lower-output (with-output-to-string (*standard-output*)
+                        (browse "make" :case-insensitive nil)))
+        (upper-output (with-output-to-string (*standard-output*)
+                        (browse "MAKE" :case-insensitive nil))))
+    (assert-true (search "No matches" lower-output) "lowercase should not match uppercase symbols")
+    (assert-true (search "MAKE" upper-output) "uppercase should match uppercase symbols")))
+
+(deftest browse-symbol-pattern-works
+  (let ((sym-output (with-output-to-string (*standard-output*)
+                      (browse "cancel")))
+        (str-output (with-output-to-string (*standard-output*)
+                      (browse 'cancel))))
+    (assert-equal sym-output str-output "symbol and string patterns should match")))
+
+;; --- Category browsing tests ---
+
+(deftest coerce-packages-nil
+  (assert-nil (%coerce-packages nil)))
+
+(deftest coerce-packages-t
+  (assert-eq t (%coerce-packages t)))
+
+(deftest coerce-packages-list
+  (let ((result (%coerce-packages '(:cl-occt :clotcad))))
+    (assert-equal 2 (length result))
+    (assert-eq :cl-occt (first result))
+    (assert-eq :clotcad (second result))))
+
+(deftest coerce-packages-single
+  (let ((result (%coerce-packages :cl-occt)))
+    (assert-equal 1 (length result))
+    (assert-eq :cl-occt (first result))))
+
+(deftest find-categories-exact-match
+  (let ((*category-fn-index*
+          (let ((h (make-hash-table :test 'equal)))
+            (setf (gethash "fillet" h) '(fillet-edge fillet-edges))
+            h)))
+    (let ((result (%find-categories :fillet)))
+      (assert-equal 1 (length result))
+      (destructuring-bind (display stem fns) (first result)
+        (assert-true (search "Fillet" display :test 'char=))
+        (assert-equal "fillet" stem)
+        (assert-equal 2 (length fns))))))
+
+(deftest find-categories-partial-match
+  (let ((*category-fn-index*
+          (let ((h (make-hash-table :test 'equal)))
+            (setf (gethash "io" h) '(write-step read-step))
+            (setf (gethash "primitives" h) '(make-box make-sphere))
+            h)))
+    (let ((result (%find-categories :file)))
+      (assert-equal 1 (length result))
+      (destructuring-bind (display stem fns) (first result)
+        (assert-true (search "File" display :test 'char=))))))
+
+(deftest find-categories-no-match
+  (let ((*category-fn-index*
+          (let ((h (make-hash-table :test 'equal)))
+            (setf (gethash "primitives" h) '(make-box))
+            h)))
+    (assert-nil (%find-categories :boogers))))
+
+(deftest find-categories-multiple-matches
+  (let ((*category-fn-index*
+          (let ((h (make-hash-table :test 'equal)))
+            (setf (gethash "faces" h) '(make-edge make-wire))
+            (setf (gethash "face-filling" h) '(fill-face))
+            h)))
+    (let ((result (%find-categories :face)))
+      (assert-equal 2 (length result)))))
+
+(deftest category-tree-output-no-category-found
+  (let ((*category-fn-index* (make-hash-table :test 'equal)))
+    (let ((output (with-output-to-string (*standard-output*)
+                    (%print-category-detail :nonexistent))))
+      (unless (find-package :sb-introspect)
+        (assert-true (search "not available" output :test 'char=)
+                     "should show sb-introspect unavailable message")))))
+
+(deftest category-detail-shows-functions
+  (let ((*category-fn-index*
+          (let ((h (make-hash-table :test 'equal)))
+            (setf (gethash "primitives" h)
+                  (list (lambda (x) (declare (ignore x)) x)))
+            h)))
+    (let ((output (with-output-to-string (*standard-output*)
+                    (%print-category-detail :primitives))))
+      ;; If sb-introspect not available, prints unavailable message
+      (unless (find-package :sb-introspect)
+        (assert-true (search "not available" output :test 'char=))))))
+
+;; --- Merge group tests ---
+
+(deftest apply-merge-groups-merges-source-into-target
+  (let ((index (let ((h (make-hash-table :test 'equal)))
+                 (setf (gethash "booleans" h) '(boolean-op1 boolean-op2))
+                 (setf (gethash "bop-splitter" h) '(split-thing))
+                 (setf (gethash "bop-utilities" h) '(util-fn))
+                 h))
+        (*category-merge-groups*
+          '((:booleans :bop-splitter :bop-utilities))))
+    (%apply-merge-groups index)
+    (let ((target (gethash "booleans" index)))
+      (assert-true target "target stem should still exist")
+      (assert-equal 3 (length target)
+                     "target should contain its own + merged functions"))
+    (assert-nil (gethash "bop-splitter" index)
+                "bop-splitter stem should be removed")
+    (assert-nil (gethash "bop-utilities" index)
+                "bop-utilities stem should be removed")))
+
+(deftest apply-merge-groups-unmerged-stems-remain
+  (let ((index (let ((h (make-hash-table :test 'equal)))
+                 (setf (gethash "primitives" h) '(make-box))
+                 (setf (gethash "animation" h) '(animate-start))
+                 h))
+        (*category-merge-groups*
+          '((:booleans :bop-splitter))))
+    (%apply-merge-groups index)
+    (assert-true (gethash "primitives" index)
+                 "unmerged stem should remain")
+    (assert-true (gethash "animation" index)
+                 "unmerged stem should remain")))
+
+(deftest apply-merge-groups-empty-groups-noop
+  (let ((index (let ((h (make-hash-table :test 'equal)))
+                 (setf (gethash "primitives" h) '(make-box))
+                 h))
+        (*category-merge-groups* nil))
+    (%apply-merge-groups index)
+    (assert-equal 1 (hash-table-count index)
+                   "no groups should not change index")))
+
+(deftest apply-merge-groups-sorts-after-merge
+  (let ((index (let ((h (make-hash-table :test 'equal)))
+                 (setf (gethash "target" h) '(z-fn))
+                 (setf (gethash "source" h) '(a-fn))
+                 h))
+        (*category-merge-groups*
+          '((:target :source))))
+    (%apply-merge-groups index)
+    (let ((result (gethash "target" index)))
+      (assert-equal 2 (length result))
+      ;; After merge, sort by symbol-name; a-fn < z-fn
+      (assert-eq 'a-fn (first result)))))
+
+(deftest apply-merge-groups-target-not-in-index
+  (let ((index (let ((h (make-hash-table :test 'equal)))
+                 (setf (gethash "source-only" h) '(only-fn))
+                 h))
+        (*category-merge-groups*
+          '((:new-target :source-only))))
+    (%apply-merge-groups index)
+    (let ((result (gethash "new-target" index)))
+      (assert-true result "target should be created from source")
+      (assert-eql 1 (length result)))
+    (assert-nil (gethash "source-only" index)
+                "source stem should be removed")))
+
+(deftest merge-groups-do-not-affect-substring-search
+  (let ((output (with-output-to-string (*standard-output*)
+                  (browse "make"))))
+    (assert-true (search "make-box" output :test 'char=)
+                 "substring search should find make-box regardless of category grouping")
+    (assert-true (search "make-cylinder" output :test 'char=)
+                 "substring search should find make-cylinder regardless of category grouping")))
+
+(deftest category-display-name-new-entries
+  (assert-equal "Graphic3D" (%category-display-name "graphic3d"))
+  (assert-equal "OCAF" (%category-display-name "ocaf"))
+  (assert-equal "XCAF" (%category-display-name "xcaf"))
+  (assert-equal "Shape Utilities" (%category-display-name "shape-utilities"))
+  (assert-equal "Advanced Modeling" (%category-display-name "advanced-modeling"))
+  (assert-equal "Materials & Texture" (%category-display-name "materials-texture"))
+  (assert-equal "Meshing" (%category-display-name "meshing"))
+  (assert-equal "2D Constraints" (%category-display-name "2d-constraints"))
+  (assert-equal "Animation" (%category-display-name "animation"))
+  (assert-equal "Normal Projection" (%category-display-name "normal-project"))
+  (assert-equal "Transfer Parameters" (%category-display-name "transfer-params"))
+  (assert-equal "Selection (OCCT)" (%category-display-name "selection")))
+
+(deftest category-display-name-fallback-for-unmapped
+  (assert-equal "Widget" (%category-display-name "widget")
+                "unmapped stem should use string-capitalize fallback"))
+
+;; --- Window state tests ---
+
+(deftest set-initial-window-state-maximized
+  (let ((called-with nil))
+    (let ((old (symbol-function '%viewer-set-window-state)))
+      (setf (symbol-function '%viewer-set-window-state)
+            (lambda (vwr val) (declare (ignore vwr)) (push val called-with)))
+      (unwind-protect
+           (progn
+             (set-initial-window-state nil t)
+             (assert-equal '(1) called-with
+                           "set-initial-window-state with t should call %viewer-set-window-state with 1"))
+        (setf (symbol-function '%viewer-set-window-state) old)))))
+
+(deftest set-initial-window-state-not-maximized
+  (let ((called-with nil))
+    (let ((old (symbol-function '%viewer-set-window-state)))
+      (setf (symbol-function '%viewer-set-window-state)
+            (lambda (vwr val) (declare (ignore vwr)) (push val called-with)))
+      (unwind-protect
+           (progn
+             (set-initial-window-state nil nil)
+             (assert-equal '(0) called-with
+                           "set-initial-window-state with nil should call %viewer-set-window-state with 0"))
+        (setf (symbol-function '%viewer-set-window-state) old)))))
+
+;; --- Debugger tests ---
+
+(deftest global-debugger-hook-logs-on-worker-thread
+  (let ((*repl-log* '())
+        (*viewer* nil)
+        (*viewer-thread* nil)
+        (*stuck-threads* (make-hash-table :test 'eq)))
+    (global-debugger-hook (make-condition 'simple-error :format-control "hook test") nil)
+    (let ((logged (and (plusp (length *repl-log*))
+                       (cdar *repl-log*))))
+      (assert-true (and logged (search "hook test" logged :test 'char=))
+                   "hook should log the error message"))))
+
+(deftest global-debugger-hook-skips-viewer-on-worker
+  (let ((*repl-log* '())
+        (*viewer* (make-array 1))
+        (*viewer-thread* nil)
+        (*stuck-threads* (make-hash-table :test 'eq))
+        (viewer-called nil))
+    (let ((old (symbol-function '%viewer-append-repl-output)))
+      (unwind-protect
+           (progn
+             (setf (symbol-function '%viewer-append-repl-output)
+                   (lambda (vwr text) (declare (ignore vwr text)) (setf viewer-called t)))
+             (global-debugger-hook (make-condition 'simple-error :format-control "test") nil)
+             (assert-nil viewer-called "should not call viewer on worker thread"))
+        (setf (symbol-function '%viewer-append-repl-output) old)))))
+
+(deftest global-debugger-hook-failure-is-caught
+  (let ((*repl-log* '())
+        (*viewer* nil)
+        (*viewer-thread* nil)
+        (*stuck-threads* (make-hash-table :test 'eq)))
+    (handler-case
+        (progn
+          (global-debugger-hook (make-condition 'simple-error :format-control "test") nil)
+          (assert-true t "hook returned without error"))
+      (error (e)
+        (error (format nil "hook should not signal: ~A" e))))))
+
+(deftest handle-repl-command-abort-with-no-stuck-threads
+  (let ((*stuck-threads* (make-hash-table :test 'eq)))
+    (multiple-value-bind (handled output)
+        (handle-repl-command ",abort")
+      (assert-true handled "should recognize command")
+      (assert-true (search "No threads" output :test 'char=)
+                   "should report that no threads are stuck"))))
+
+(deftest handle-repl-command-debug-with-no-stuck-threads
+  (let ((*stuck-threads* (make-hash-table :test 'eq)))
+    (multiple-value-bind (handled output)
+        (handle-repl-command ",debug")
+      (assert-true handled "should recognize command")
+      (assert-true (search "No threads" output :test 'char=)
+                   "should report that no threads are stuck"))))
+
+(deftest handle-repl-command-unknown
+  (let ((*stuck-threads* (make-hash-table :test 'eq)))
+    (multiple-value-bind (handled output)
+        (handle-repl-command ",nonsense-cmd")
+      (assert-true handled "should recognize command prefix")
+      (assert-true (search "Unknown" output :test 'char=)
+                   "should report unknown command"))))
+
+(deftest handle-repl-command-non-command-passes-through
+  (multiple-value-bind (handled output)
+      (handle-repl-command "(+ 1 2)")
+    (assert-nil handled "non-command should not be handled")
+    (assert-nil output "non-command should return nil output")))
+
+(deftest abort-all-threads-is-safe-when-none-stuck
+  (let ((*stuck-threads* (make-hash-table :test 'eq)))
+    (let ((result (abort-all-threads)))
+      (assert-true (listp result) "should return a list")
+      (assert-nil result "should be empty when no threads stuck"))))
+
+(deftest eval-string-command-dispatch-works
+  (with-mocked-viewer
+    (setf *repl-accumulator* "")
+    (let ((*stuck-threads* (make-hash-table :test 'eq))
+          (*repl-log* '()))
+      ;; Simulate the eval-string callback's command dispatch logic directly
+      (let ((full-code ",debug"))
+        (multiple-value-bind (handled output)
+            (handle-repl-command full-code)
+          (when handled
+            (sb-ext:atomic-push (cons full-code output) *repl-log*)))
+        (assert-true (search "No threads" (cdar *repl-log*) :test 'char=)
+                     "eval-string should dispatch command")))))

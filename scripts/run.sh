@@ -15,13 +15,20 @@ Modes:
 Options:
   -p, --port PORT       Set Slynk port (default: 4005)
   -a, --alive-port PORT Set Alive LSP port (default: 4006)
+  -i, --init FILE       Load FILE as init script instead of ~/.config/clotcad/init.lisp
+  --no-init             Do not load any init script
+  --width W             Viewer window width in pixels (viewer mode only)
+  --height H            Viewer window height in pixels (viewer mode only)
 
 Examples:
-  $0                    Start viewer with default ports
+  $0                    Start viewer maximized (default)
+  $0 --width 1280 --height 720  Start viewer at 1280x720 non-maximized
   $0 --slynk            Start headless Slynk on port 4005
   $0 --slynk -p 4007    Start headless Slynk on port 4007
   $0 --alive            Start headless Alive LSP on port 4006
   $0 --alive -a 4008    Start headless Alive LSP on port 4008
+  $0 --init ~/my-setup.lisp  Start viewer with custom init script
+  $0 --no-init          Start viewer without loading any init script
 EOF
     exit 1
 }
@@ -29,6 +36,10 @@ EOF
 MODE=""
 SLYNK_PORT=4005
 ALIVE_PORT=4006
+INIT_FILE=""
+NO_INIT=""
+VIEWER_WIDTH=""
+VIEWER_HEIGHT=""
 
 # Parse mode from first argument
 case "${1:-}" in
@@ -37,7 +48,7 @@ case "${1:-}" in
     --slynk)     MODE="slynk"; shift ;;
     --alive)     MODE="alive"; shift ;;
     --help|-h)   usage ;;
-    *)           echo "Unknown mode: $1"; usage ;;
+    *)           MODE="viewer" ;;
 esac
 
 # Parse mode-specific flags
@@ -50,33 +61,89 @@ if [ "$MODE" = "viewer" ] || [ "$MODE" = "slynk" ] || [ "$MODE" = "alive" ]; the
             -a|--alive-port)
                 if [ $# -lt 2 ]; then echo "error: --alive-port requires an argument"; exit 2; fi
                 ALIVE_PORT="$2"; shift 2 ;;
+            -i|--init)
+                if [ $# -lt 2 ]; then echo "error: --init requires an argument"; exit 2; fi
+                INIT_FILE="$2"; shift 2 ;;
+            --no-init)
+                NO_INIT="1"; shift ;;
+            --width)
+                if [ $# -lt 2 ]; then echo "error: --width requires an argument"; exit 2; fi
+                VIEWER_WIDTH="$2"; shift 2 ;;
+            --height)
+                if [ $# -lt 2 ]; then echo "error: --height requires an argument"; exit 2; fi
+                VIEWER_HEIGHT="$2"; shift 2 ;;
+            --help|-h)
+                usage ;;
             *)
                 echo "Unknown option: $1"; exit 2 ;;
         esac
     done
 fi
 
+# Validate --width/--height (viewer mode only)
+if [ -n "$VIEWER_WIDTH" ] || [ -n "$VIEWER_HEIGHT" ]; then
+    if [ "$MODE" != "viewer" ]; then
+        echo "error: --width and --height are only valid in viewer mode"
+        exit 2
+    fi
+    if [ -z "$VIEWER_WIDTH" ] || [ -z "$VIEWER_HEIGHT" ]; then
+        echo "error: --width and --height must be used together"
+        exit 2
+    fi
+fi
+
+# Set init file via environment variable to avoid shell quoting issues
+if [ -n "$NO_INIT" ]; then
+    CLOTCAD_NO_INIT=1
+elif [ -n "$INIT_FILE" ]; then
+    export CLOTCAD_INIT_FILE="$INIT_FILE"
+fi
+
 case "$MODE" in
     viewer)
         export QT_QPA_PLATFORM=""
-        exec "$HERE/sbcl/bin/sbcl" --core "$HERE/ClotCAD.core" \
-            --eval "(clotcad:start-slynk :port $SLYNK_PORT)" \
-            --eval "(clotcad:start-alive :port $ALIVE_PORT)" \
-            --eval "(clotcad:start-viewer)" \
-            --eval "(sb-ext:quit)"
+        sbcl_args=(--core "$HERE/ClotCAD.core")
+        if [ "${CLOTCAD_NO_INIT:-}" = "1" ]; then
+            sbcl_args+=(--eval "(setf clotcad::*no-init* t)")
+        elif [ -n "${CLOTCAD_INIT_FILE:-}" ]; then
+            sbcl_args+=(--eval "(setf clotcad::*init-file-path* \"$CLOTCAD_INIT_FILE\")")
+        fi
+        sbcl_args+=(--eval "(clotcad:start-slynk :port $SLYNK_PORT)")
+        sbcl_args+=(--eval "(clotcad:start-alive :port $ALIVE_PORT)")
+        if [ -n "$VIEWER_WIDTH" ] && [ -n "$VIEWER_HEIGHT" ]; then
+            sbcl_args+=(--eval "(clotcad:start-viewer :maximized nil :width $VIEWER_WIDTH :height $VIEWER_HEIGHT)")
+        else
+            sbcl_args+=(--eval "(clotcad:start-viewer)")
+        fi
+        sbcl_args+=(--eval "(sb-ext:quit)")
+        exec "$HERE/sbcl/bin/sbcl" "${sbcl_args[@]}"
         ;;
     slynk)
         export QT_QPA_PLATFORM=offscreen
-        exec "$HERE/sbcl/bin/sbcl" --core "$HERE/ClotCAD.core" \
-            --eval "(clotcad:start-slynk :port $SLYNK_PORT)" \
-            --eval "(clotcad:wait-forever)" \
-            --eval "(sb-ext:quit)"
+        sbcl_args=(--core "$HERE/ClotCAD.core")
+        if [ "${CLOTCAD_NO_INIT:-}" = "1" ]; then
+            sbcl_args+=(--eval "(setf clotcad::*no-init* t)")
+        elif [ -n "${CLOTCAD_INIT_FILE:-}" ]; then
+            sbcl_args+=(--eval "(setf clotcad::*init-file-path* \"$CLOTCAD_INIT_FILE\")")
+        fi
+        sbcl_args+=(--eval "(clotcad::load-init-file-headless)")
+        sbcl_args+=(--eval "(clotcad:start-slynk :port $SLYNK_PORT)")
+        sbcl_args+=(--eval "(clotcad:wait-forever)")
+        sbcl_args+=(--eval "(sb-ext:quit)")
+        exec "$HERE/sbcl/bin/sbcl" "${sbcl_args[@]}"
         ;;
     alive)
         export QT_QPA_PLATFORM=offscreen
-        exec "$HERE/sbcl/bin/sbcl" --core "$HERE/ClotCAD.core" \
-            --eval "(clotcad:start-alive :port $ALIVE_PORT)" \
-            --eval "(clotcad:wait-forever)" \
-            --eval "(sb-ext:quit)"
+        sbcl_args=(--core "$HERE/ClotCAD.core")
+        if [ "${CLOTCAD_NO_INIT:-}" = "1" ]; then
+            sbcl_args+=(--eval "(setf clotcad::*no-init* t)")
+        elif [ -n "${CLOTCAD_INIT_FILE:-}" ]; then
+            sbcl_args+=(--eval "(setf clotcad::*init-file-path* \"$CLOTCAD_INIT_FILE\")")
+        fi
+        sbcl_args+=(--eval "(clotcad::load-init-file-headless)")
+        sbcl_args+=(--eval "(clotcad:start-alive :port $ALIVE_PORT)")
+        sbcl_args+=(--eval "(clotcad:wait-forever)")
+        sbcl_args+=(--eval "(sb-ext:quit)")
+        exec "$HERE/sbcl/bin/sbcl" "${sbcl_args[@]}"
         ;;
 esac

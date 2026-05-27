@@ -1,6 +1,6 @@
 root-dir := justfile_directory()
 occt-version := "8.0.0"
-occt-url := "https://github.com/Open-Cascade-SAS/OCCT/archive/refs/tags/V8_0_0.tar.gz"
+occt-url := "https://github.com/Open-Cascade-SAS/OCCT/archive/refs/tags/V" + replace(occt-version, ".", "_") + ".tar.gz"
 occt-tarball := root-dir + "/.local/occt.tar.gz"
 occt-src := root-dir + "/.local/occt-src"
 occt-build := root-dir + "/.local/occt-build"
@@ -25,7 +25,7 @@ default:
     @echo "  clean        Remove build artifacts"
 
 setup:
-    # Download and build OCCT 8.0.0
+    # Download and build OCCT {{occt-version}}
     mkdir -p {{occt-install}}
     curl -Lo {{occt-tarball}} {{occt-url}}
     mkdir -p {{occt-src}}
@@ -36,8 +36,10 @@ setup:
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX={{occt-install}} \
         -DBUILD_LIBRARY_TYPE=Shared \
-        -DBUILD_MODULE_ApplicationFramework=OFF \
+        -DBUILD_MODULE_ApplicationFramework=ON \
         -DBUILD_MODULE_DataExchange=ON \
+        -DUSE_RAPIDJSON=ON \
+        -DBUILD_MODULE_DEGLTF=ON \
         -DBUILD_MODULE_Draw=OFF \
         -DBUILD_MODULE_FoundationClass=ON \
         -DBUILD_MODULE_ModelingAlgorithms=ON \

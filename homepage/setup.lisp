@@ -38,3 +38,28 @@
 
 (defmethod staple:template-data append ((p clotcad-page))
   (list :version (asdf:component-version (asdf:find-system :clotcad))))
+
+(defparameter *cl-occt-commit*
+  (or (string-trim '(#\Return #\Linefeed #\Space #\Tab)
+                   (ignore-errors
+                     (uiop:run-program
+                      (list "git" "-C"
+                            (uiop:native-namestring
+                             (asdf:system-source-directory :clotcad))
+                            "rev-parse" "HEAD:lib/cl-occt")
+                      :output :string)))
+      "HEAD"))
+
+(defmethod staple:resolve-source-link :around (source (page clotcad-page))
+  (if (and (listp source) (getf source :file))
+      (let* ((cl-occt-root (asdf:system-relative-pathname :clotcad "lib/cl-occt/"))
+             (source-file (getf source :file)))
+        (if (and (probe-file cl-occt-root)
+                 (pathname-utils:subpath-p (truename source-file)
+                                           (truename cl-occt-root)))
+            (format nil "https://github.com/torusJKL/cl-occt/blob/~a/~a~@[#L~a~]"
+                    *cl-occt-commit*
+                    (enough-namestring source-file cl-occt-root)
+                    (getf source :row))
+            (call-next-method)))
+      (call-next-method)))

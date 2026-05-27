@@ -23,14 +23,18 @@ jobs:
             cmake build-essential curl just \
             qt6-base-dev libqt6opengl6-dev \
             libfreetype-dev libx11-dev libfontconfig-dev \
-            libgl1-mesa-dev
+            libgl1-mesa-dev rapidjson-dev
+
+      - name: Get OCCT version
+        run: |
+          echo "OCCT_VERSION=$(grep -oP '(?<=occt-version := ")[^"]+' justfile)" >> $GITHUB_ENV
 
       - name: Cache OCCT build
         id: cache-occt
         uses: actions/cache@v4
         with:
           path: .local
-          key: occt-8.0.0-${{ runner.os }}-${{ hashFiles('CMakeLists.txt') }}
+          key: occt-${{ env.OCCT_VERSION }}-${{ runner.os }}
 
       - name: Build OCCT (cache miss)
         if: steps.cache-occt.outputs.cache-hit != 'true'

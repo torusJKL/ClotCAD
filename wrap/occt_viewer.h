@@ -14,6 +14,7 @@ typedef struct {
   int checked;
   int show_in_tree;
   int shape_changed;
+  const char* parent_name;
 } ShapeSyncItem;
 
 // --- Lifecycle ---
@@ -23,6 +24,9 @@ void        viewer_show(occt_viewer vwr);
 void        viewer_run(occt_viewer vwr);
 void        viewer_quit(occt_viewer vwr);
 int         viewer_is_running(occt_viewer vwr);
+
+// --- Window state ---
+void viewer_set_window_state(occt_viewer vwr, int maximized);
 
 // --- Inter-thread wake ---
 void viewer_post_event(occt_viewer vwr);
@@ -97,6 +101,11 @@ void* viewer_get_trihedron(occt_viewer vwr);
 void viewer_set_trihedron_text_color(occt_viewer vwr, int part, double r, double g, double b);
 void viewer_set_placeholder_color(occt_viewer vwr, int r, int g, int b);
 
+// --- High-DPI ---
+void   viewer_set_viewcube_font_height(occt_viewer vwr, double height);
+void   viewer_set_trihedron_font_size(occt_viewer vwr, double size);
+double viewer_get_device_pixel_ratio(occt_viewer vwr);
+
 // --- Selection ---
 void* viewer_get_context(occt_viewer vwr);
 void* viewer_get_ais_object(occt_viewer vwr, const char* name);
@@ -108,6 +117,9 @@ void viewer_set_mouse_selection_scheme(occt_viewer vwr, int key, int scheme);
 void viewer_sync_tree_selection(occt_viewer vwr);
 void viewer_select_names(occt_viewer vwr, const char** names, int count);
 int  viewer_is_shape_selected(occt_viewer vwr, const char* name);
+
+// --- Dialogs ---
+void viewer_show_message(occt_viewer vwr, const char* title, const char* message);
 
 #ifdef __cplusplus
 }

@@ -4,6 +4,18 @@
   "When non-nil, def-ined shapes appear in the Scene Tree.
    When nil, they are hidden from the tree but can still be operated on.")
 
+(defun %set-subshape-visible (model-name subshape-name visible)
+  (let* ((sname (string model-name))
+         (m (clotcad.impl:find-model sname)))
+    (unless m
+      (error "~S does not name a known model" model-name))
+    (let* ((key (intern (string-upcase (string subshape-name)) :keyword))
+           (entry (assoc key (clotcad.impl:model-named-subshapes m) :test #'eq)))
+      (unless entry
+        (error "Named subshape ~S not found on ~S" subshape-name model-name))
+      (setf (getf (cdr entry) :visible) visible)
+      (queue-push :sync))))
+
 (defmacro def (name shape-form)
   "Define a named shape without displaying it.
 
@@ -43,21 +55,32 @@
       (def :box (make-box 10 20 30))
       (show :box)
 
-  **See also:** `hide`, `toggle`, `def`"
+  To show a named subshape (child of a model), use the compound symbol
+  syntax `model/subshape`:
+
+      (name-subshape :my-box :top-face
+        :where (list (face-p) (normal-along 0 0 1)))
+      (show :my-box/top-face)
+
+  **See also:** `hide`, `toggle`, `def`, `name-subshape`"
   (dolist (name names)
-    (let* ((sname (string name))
-           (entry (gethash sname *displayed-models*)))
-      (if entry
-          (progn
-            (setf (second entry) t)
-            (queue-push :sync))
-          ;; Not yet displayed — resolve from registry and display
-          (let ((m (find-model sname)))
-            (if m
-                (let ((shape (model-cached-shape m)))
-                  (when shape
-                    (display name shape :visible t :show-in-tree t :origin :def)))
-                (error "~S does not name a known shape" name)))))))
+    (multiple-value-bind (model-name subshape-name)
+        (and (symbolp name) (%parse-compound-symbol name))
+      (if model-name
+          (%set-subshape-visible model-name subshape-name t)
+          (let* ((sname (string name))
+                 (entry (gethash sname *displayed-models*)))
+            (if entry
+                (progn
+                  (setf (second entry) t)
+                  (queue-push :sync))
+                ;; Not yet displayed — resolve from registry and display
+                (let ((m (find-model sname)))
+                  (if m
+                      (let ((shape (model-cached-shape m)))
+                        (when shape
+                          (display name shape :visible t :show-in-tree t :origin :def)))
+                      (error "~S does not name a known shape" name)))))))))
 
 (defun hide (&rest names)
   "Hide one or more named shapes from the 3D view.
@@ -71,15 +94,23 @@
       (hide :box)
       (hide :box :sphere)
 
+  To hide a named subshape, use the compound symbol syntax:
+
+      (hide :my-box/top-face)
+
   **See also:** `show`, `toggle`"
   (dolist (name names)
-    (let* ((sname (string name))
-           (entry (gethash sname *displayed-models*)))
-      (if entry
-          (progn
-            (setf (second entry) nil)
-            (queue-push :sync))
-          (error "~S is not currently displayed" name)))))
+    (multiple-value-bind (model-name subshape-name)
+        (and (symbolp name) (%parse-compound-symbol name))
+      (if model-name
+          (%set-subshape-visible model-name subshape-name nil)
+          (let* ((sname (string name))
+                 (entry (gethash sname *displayed-models*)))
+            (if entry
+                (progn
+                  (setf (second entry) nil)
+                  (queue-push :sync))
+                (error "~S is not currently displayed" name)))))))
 
 (defun toggle (&rest names)
   "Toggle visibility of one or more named shapes.
@@ -93,15 +124,30 @@
       (toggle :box)
       (toggle :box :sphere)
 
+  To toggle a named subshape, use the compound symbol syntax:
+
+      (toggle :my-box/top-face)
+
   **See also:** `show`, `hide`"
   (dolist (name names)
-    (let* ((sname (string name))
-           (entry (gethash sname *displayed-models*)))
-      (if entry
-          (progn
-            (setf (second entry) (not (second entry)))
-            (queue-push :sync))
-          (error "~S is not currently displayed" name)))))
+    (multiple-value-bind (model-name subshape-name)
+        (and (symbolp name) (%parse-compound-symbol name))
+      (if model-name
+          (let* ((sname (string model-name))
+                 (m (clotcad.impl:find-model sname))
+                 (key (intern (string-upcase (string subshape-name)) :keyword))
+                 (entry (assoc key (clotcad.impl:model-named-subshapes m) :test #'eq)))
+            (unless entry
+              (error "Named subshape ~S not found on ~S" subshape-name model-name))
+            (%set-subshape-visible model-name subshape-name
+                                   (not (getf (cdr entry) :visible))))
+          (let* ((sname (string name))
+                 (entry (gethash sname *displayed-models*)))
+            (if entry
+                (progn
+                  (setf (second entry) (not (second entry)))
+                  (queue-push :sync))
+                (error "~S is not currently displayed" name)))))))
 
 (defun show-defs (on)
   "Show or hide all def-ined shapes in the Scene Tree.

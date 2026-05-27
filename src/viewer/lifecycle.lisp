@@ -3,17 +3,37 @@
 (defvar *alive-server* nil
   "Handle to the Alive LSP server instance, used for graceful shutdown.")
 
+(defparameter *pending-port-errors* nil
+  "List of error message strings for port conflicts. Displayed as Qt dialogs
+in INITIALIZE-VIEWER after the viewer window exists.")
+
 (defun initialize-viewer (vwr)
   (%viewer-show-axis vwr 0)
   (%viewer-show-grid vwr 1)
   (%viewer-set-antialiasing vwr 1)
+  ;; High-DPI: scale ViewCube and trihedron for current display
+  (let ((dpr (%viewer-get-device-pixel-ratio vwr)))
+    (%viewer-set-viewcube-size vwr (coerce (* 70.0 dpr) 'double-float))
+    (%viewer-set-viewcube-font-height vwr (coerce (* 16.0 dpr) 'double-float))
+    (%viewer-set-trihedron-font-size vwr (coerce (* 16.0 dpr) 'double-float)))
   (apply-theme *theme-mode*)
   (register-color-scheme-callback)
   (apply-selection-schemes)
+  ;; Show pending port conflict dialogs (single dialog with combined message)
+  (when *pending-port-errors*
+    (%viewer-show-message vwr "Port In Use"
+                          (with-output-to-string (s)
+                            (dolist (msg *pending-port-errors*)
+                              (format s "~A~%~%" msg))))
+    (setf *pending-port-errors* nil))
   ;; Register viewer-refresh on the propagation hook
   (push 'viewer-refresh *after-propagation-hook*))
 
-(defun start-viewer (&key (width 1024) (height 768) (title "ClotCAD"))
+(defun set-initial-window-state (vwr maximized)
+  (%viewer-set-window-state vwr (if maximized 1 0)))
+
+(defun start-viewer (&key (width 1024) (height 768) (title "ClotCAD")
+                         (maximized t))
   "Launch the ClotCAD 3D viewer window.
 
   Creates the Qt window, initializes OCCT rendering, registers
@@ -24,13 +44,16 @@
   - **width** optional window width in pixels (default 1024)
   - **height** optional window height in pixels (default 768)
   - **title** optional window title string (default \"ClotCAD\")
+  - **maximized** when T (the default), the window starts maximized;
+    pass NIL together with :WIDTH/:HEIGHT for a fixed-size window
 
   **Returns:** `nil` when the viewer window is closed.
 
   **Example:**
 
-      (start-viewer)                                ;; default size
-      (start-viewer :width 1920 :height 1080)        ;; full HD
+      (start-viewer)                                ;; maximized, default size
+      (start-viewer :maximized nil
+                    :width 1920 :height 1080)        ;; full HD, non-maximized
 
   **See also:** `stop-viewer`, `bootstrap`"
   (when *viewer*
@@ -41,11 +64,15 @@
     (unless vwr
       (error "Failed to create viewer window"))
     (setf *viewer* vwr)
+    (set-initial-window-state vwr maximized)
     (register-viewer-callbacks vwr)
     (%viewer-show vwr)
     (initialize-viewer vwr)
     (start-render-loop)
+    (load-init-file-ui vwr)
+    (setf *viewer-thread* sb-thread:*current-thread*)
     (%viewer-run vwr)
+    (setf *viewer-thread* nil)
     (stop-render-loop)
     (setf *viewer-running* nil)
     (setf *viewer* nil)))
@@ -63,6 +90,18 @@ Returns T if started, NIL if Slynk is not available.
 
 **See also:** `start-alive`, `bootstrap`"
   (format t ";; Starting Slynk on port ~D...~%" port)
+  ;; Pre-check port before spawning thread
+  (handler-case
+      (let ((socket (make-instance 'sb-bsd-sockets:inet-socket :type :stream :protocol :tcp)))
+        (setf (sb-bsd-sockets:sockopt-reuse-address socket) t)
+        (sb-bsd-sockets:socket-bind socket #(127 0 0 1) port)
+        (sb-bsd-sockets:socket-close socket))
+    (sb-bsd-sockets:address-in-use-error (e)
+      (declare (ignore e))
+      (push (format nil "Port ~D is already in use.~%Slynk REPL server cannot be started." port)
+            *pending-port-errors*)
+      (format t ";; Warning: Could not start Slynk: port ~D already in use~%" port)
+      (return-from start-slynk nil)))
   (handler-case
       (let ((bindings (find-symbol "*DEFAULT-WORKER-THREAD-BINDINGS*" :slynk))
             (create-server (find-symbol "CREATE-SERVER" :slynk)))
@@ -72,22 +111,27 @@ Returns T if started, NIL if Slynk is not available.
                     `((*package* . ,(find-package :clotcad-user))))
               (sb-thread:make-thread
                (lambda ()
-                 (funcall create-server :port port :dont-close t)
-                 (loop
-                   (let ((sym (when (find-package :slynk-mrepl)
-                                (find-symbol "MREPL-EVAL-1" :slynk-mrepl))))
-                     (when (and sym (fboundp sym) (not (get sym :clotcad-wrapped)))
-                       (setf (get sym :clotcad-wrapped) t)
-                       (let ((orig (fdefinition sym)))
-                         (setf (fdefinition sym)
-                               (lambda (repl string)
-                                 (let ((values (funcall orig repl string)))
-                                   (let ((output (with-output-to-string (s)
-                                                    (dolist (v values)
-                                                      (format s "~S~%" v)))))
-                                      (log-remote-eval string output))
-                                   values))))))
-                   (sleep 1)))
+                 (handler-case
+                     (progn
+                       (funcall create-server :port port :dont-close t)
+                       (loop
+                         (let ((sym (when (find-package :slynk-mrepl)
+                                      (find-symbol "MREPL-EVAL-1" :slynk-mrepl))))
+                           (when (and sym (fboundp sym) (not (get sym :clotcad-wrapped)))
+                             (setf (get sym :clotcad-wrapped) t)
+                             (let ((orig (fdefinition sym)))
+                               (setf (fdefinition sym)
+                                     (lambda (repl string)
+                                       (let ((values (funcall orig repl string)))
+                                         (let ((output (with-output-to-string (s)
+                                                          (dolist (v values)
+                                                            (format s "~S~%" v)))))
+                                            (log-remote-eval string output))
+                                         values))))))
+                         (sleep 1)))
+                   (sb-bsd-sockets:address-in-use-error (e)
+                     (declare (ignore e))
+                     (format t ";; Warning: Slynk port ~D already in use (detected in thread)~%" port))))
                :name "slynk")
               t)
             (warn "Slynk not available; skipping.")))
@@ -105,6 +149,21 @@ Returns T if started, NIL if Alive LSP is not available.
 
 **See also:** `start-slynk`, `bootstrap`"
   (format t ";; Starting Alive LSP server on port ~D...~%" port)
+  ;; Pre-check port before spawning thread (soft dependency on usocket)
+  (let ((usocket-pkg (find-package :usocket)))
+    (when usocket-pkg
+      (let ((listen-sym (find-symbol "SOCKET-LISTEN" usocket-pkg))
+            (close-sym (find-symbol "SOCKET-CLOSE" usocket-pkg)))
+        (when (and listen-sym close-sym)
+          (multiple-value-bind (socket err)
+              (ignore-errors (funcall listen-sym "127.0.0.1" port :reuse-address t))
+            (if err
+                (progn
+                  (push (format nil "Port ~D is already in use.~%Alive LSP server cannot be started." port)
+                        *pending-port-errors*)
+                  (format t ";; Warning: Could not start Alive LSP: port ~D already in use~%" port)
+                  (return-from start-alive nil))
+                (funcall close-sym socket)))))))
   (handler-case
       (let ((start-srv (find-symbol "START-SERVER" :alive/server))
             (make-inst (find-symbol "MAKE-INSTANCE" :alive/server))
@@ -151,6 +210,10 @@ based delivery path.
       (clotcad:bootstrap)   ;; run from the distribution entry point
 
   **See also:** `start-viewer`, `stop-viewer`, `start-slynk`, `start-alive`"
+  (load-init-file-headless)
+  (setf sb-ext:*invoke-debugger-hook* 'global-debugger-hook)
+  (sb-sys:enable-interrupt sb-unix:sigusr1
+    (lambda (s) (declare (ignore s)) (abort-all-threads)))
   (start-slynk :port 4005)
   (start-alive :port 4006)
   (format t ";; Starting viewer...~%")

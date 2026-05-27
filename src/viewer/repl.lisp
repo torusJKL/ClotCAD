@@ -11,8 +11,58 @@
   "Sentinel value for read-from-string eof-value.")
 
 (defvar *qt-no-modifier* #x00000000)
+
+(defvar *debugger-invocation-count* 0
+  "Counter incremented each time the global debugger hook catches a condition.
+Check this to detect if an error was silently caught.")
+
+(defun global-debugger-hook (condition hook)
+  (declare (ignore hook))
+  (incf *debugger-invocation-count*)
+  (handler-case
+      (let* ((current-thread sb-thread:*current-thread*)
+             (thread-name (sb-thread:thread-name current-thread))
+             (on-qt-thread (and *viewer-thread*
+                                (eq current-thread *viewer-thread*)))
+             (msg (with-output-to-string (s)
+                    (format s "~&;; Unhandled condition on thread ~A:~%"
+                            (or thread-name current-thread))
+                    (format s ";;   Type: ~S~%" (type-of condition))
+                    (format s ";;   Message: ~A~%" condition)
+                    (let ((restarts (compute-restarts condition)))
+                      (when restarts
+                        (format s ";;   Restarts:")
+                        (dolist (r restarts)
+                          (format s "~&;;     ~A: ~A"
+                                  (restart-name r) r)))))))
+        (setf (gethash current-thread *stuck-threads*) condition)
+        (sb-ext:atomic-push (cons (format nil ";; ERROR: ~A" condition) msg)
+                            *repl-log*)
+        (when (and on-qt-thread *viewer*)
+          (handler-case
+              (%viewer-append-repl-output *viewer* msg)
+            (error (e)
+              (format *error-output* ";; global-debugger-hook: %viewer-append-repl-output failed: ~A~%" e))))
+        ;; Never invoke external restarts — CFFI/Qt establish ABORT restarts
+        ;; around callbacks that cause crashes when invoked from the hook.
+        (remhash current-thread *stuck-threads*)
+        nil)
+    (error (e)
+      (format *error-output* ";; global-debugger-hook: Fatal error in hook: ~A~%" e))))
 (defvar *qt-control-modifier* #x04000000)
 (defvar *qt-alt-modifier* #x08000000)
+
+;; --- Init file loading ---
+(defvar *init-file-path* nil
+  "Path to an init file to evaluate at startup. Set by `--init` CLI argument
+or defaulted to ~/.config/clotcad/init.lisp. When nil, the default path is
+checked.")
+(defvar *no-init* nil
+  "When t, skip loading any init file at startup. Set by `--no-init` CLI flag.")
+(defvar *init-loaded* nil
+  "When t, the init file has already been loaded this session.
+Prevents double-loading when both bootstrap and start-viewer call their
+respective loaders.")
 
 ;; --- Lisp file import state ---
 (defvar *import-forms* nil
@@ -26,6 +76,79 @@
 (defvar *import-done* 0
   "Number of forms completed in the current import.")
 
+(defun resolve-init-file-path ()
+  "Return the path to the init file, or nil if loading is suppressed.
+Checks `*no-init*` first. If set, returns nil.
+If `*init-file-path*` is set, returns its truename (or warns if missing).
+Otherwise checks the default ~/.config/clotcad/init.lisp.
+Returns nil when the file does not exist (no warning for default path)."
+  (cond
+    (*no-init*
+     nil)
+    (*init-file-path*
+     (let ((path (pathname *init-file-path*)))
+       (if (probe-file path)
+           (truename path)
+           (progn
+             (format *error-output* ";; Warning: init file not found: ~A~%" *init-file-path*)
+             nil))))
+    (t
+     (let ((path (merge-pathnames ".config/clotcad/init.lisp" (user-homedir-pathname))))
+       (when (probe-file path)
+         (truename path))))))
+
+(defun load-init-file-ui (vwr)
+  "Load an init file and evaluate its forms asynchronously via the
+import-tick pipeline. Reads the file, populates `*import-forms*`,
+and posts a wake event. Returns t if forms were queued, nil otherwise."
+  (when *init-loaded*
+    (return-from load-init-file-ui nil))
+  (let ((path (resolve-init-file-path)))
+    (unless path
+      (return-from load-init-file-ui nil))
+    (format t ";; Loading init file: ~A~%" path)
+    (with-open-file (f path :direction :input)
+      (let ((*read-eval* nil)
+            (*package* (find-package :clotcad-user))
+            (forms '()))
+        (loop for form = (read f nil vwr)
+              until (eq form vwr)
+              do (push form forms))
+        (setf *import-forms* (nreverse forms)
+              *import-total* (length forms)
+              *import-done* 0
+              *import-cancelled* nil)
+        (setf *init-loaded* t)
+        (when *import-forms*
+          (%viewer-post-event vwr))))))
+
+(defun load-init-file-headless ()
+  "Load an init file and evaluate its forms synchronously.
+Each form is eval'd with error handling — errors are printed
+to stderr but do not abort remaining forms. Returns t if forms
+were evaluated, nil if no init file."
+  (when *init-loaded*
+    (return-from load-init-file-headless nil))
+  (let ((path (resolve-init-file-path)))
+    (unless path
+      (return-from load-init-file-headless nil))
+    (format t ";; Loading init file: ~A~%" path)
+    (with-open-file (f path :direction :input)
+      (let ((*read-eval* nil)
+            (*package* (find-package :clotcad-user))
+            (forms '()))
+        (loop for form = (read f nil path)
+              until (eq form path)
+              do (push form forms))
+        (setf forms (nreverse forms))
+        (dolist (form forms)
+          (handler-case
+              (eval form)
+            (error (e)
+              (format *error-output* ";; Init file error: ~A~%" e)))))
+      (setf *init-loaded* t)
+      t)))
+
 (defun process-import-tick ()
   (when (or *import-cancelled* (null *import-forms*))
     (setf *import-forms* nil *import-cancelled* nil
@@ -37,10 +160,15 @@
     (incf *import-done*)
     (let ((form-text (with-output-to-string (s) (format s "~S" form))))
       (%viewer-append-repl-output *viewer* (format nil "> ~A~%" form-text))
-      (multiple-value-bind (values errorp)
-          (handler-case (multiple-value-list (eval form))
-            (error (e) (values (list (format nil "Error: ~A" e)) t)))
+      (let* ((print-output (make-string-output-stream))
+             (values (let ((*package* (find-package :clotcad-user))
+                           (*standard-output* print-output))
+                       (handler-case (multiple-value-list (eval form))
+                         (error (e) (list (format nil "Error: ~A" e))))))
+             (printed (get-output-stream-string print-output)))
         (let ((output (with-output-to-string (s)
+                        (when (plusp (length printed))
+                          (write-string printed s))
                         (dolist (v values)
                           (format s "~S~%" v)))))
           (%viewer-append-repl-output *viewer* output)
@@ -83,6 +211,119 @@
   **See also:** `cancel-import`"
   (setf *import-speed* ms))
 
+(defvar *stuck-threads* (make-hash-table :test 'eq)
+  "Map thread → condition for threads the global debugger hook has
+encountered. Used by the ,abort and ,debug REPL commands.")
+
+(defun find-stuck-threads ()
+  (let ((result '()))
+    (maphash (lambda (thread condition)
+               (push (list thread condition) result))
+             *stuck-threads*)
+    (nreverse result)))
+
+(defun format-stuck-threads ()
+  (with-output-to-string (s)
+    (let ((stuck (find-stuck-threads)))
+      (if (null stuck)
+          (format s "No threads in debugger")
+          (dolist (entry stuck)
+            (destructuring-bind (thread condition) entry
+              (format s "~A [~A]: ~A"
+                      (or (sb-thread:thread-name thread) thread)
+                      (sb-thread:thread-os-tid thread)
+                      condition)))))))
+
+(defun abort-stuck-threads ()
+  (let ((aborted '()))
+    (dolist (entry (find-stuck-threads))
+      (destructuring-bind (thread condition) entry
+        (declare (ignore condition))
+        (handler-case
+            (sb-thread:interrupt-thread thread
+              (lambda ()
+                (let ((r (find-restart 'abort)))
+                  (when r
+                    (invoke-restart r)))))
+          (error ()))))
+    (clrhash *stuck-threads*)
+    aborted))
+
+(defun abort-all-threads ()
+  "Iterate all threads and invoke ABORT on any that are in the debugger.
+Returns a list of thread names that were aborted.
+Safe to call from a signal handler."
+  (let ((aborted '())
+        (current sb-thread:*current-thread*))
+    (dolist (thread (sb-thread:list-all-threads))
+      (unless (eq thread current)
+        (handler-case
+            (sb-thread:interrupt-thread thread
+              (lambda ()
+                (let ((r (find-restart 'abort)))
+                  (when r
+                    (invoke-restart r)))))
+          (error ()))))
+    (clrhash *stuck-threads*)
+    aborted))
+
+(defun handle-repl-command (input)
+  "Dispatch REPL commands prefixed with `,`. Returns (values handled-p output)."
+  (let ((trimmed (string-trim '(#\Space #\Tab) input)))
+    (unless (and (>= (length trimmed) 1) (char= (char trimmed 0) #\,))
+      (return-from handle-repl-command (values nil nil)))
+    (let* ((space-pos (position #\Space trimmed))
+           (cmd (string-upcase (subseq trimmed 1 space-pos)))
+           (args (if space-pos (string-trim '(#\Space) (subseq trimmed space-pos)) "")))
+      (values t
+              (cond
+                ((string= cmd "ABORT")
+                 (let ((aborted (abort-stuck-threads)))
+                   (if aborted
+                       (format nil "Aborted debugger on: ~{~A~^, ~}" aborted)
+                       "No threads in debugger to abort")))
+                ((string= cmd "DEBUG")
+                 (format-stuck-threads))
+                ((string= cmd "RESTART")
+                 (if (string/= args "")
+                     (progn
+                       (abort-stuck-threads)
+                       "Attempted abort on stuck threads")
+                     "Usage: ,restart <name>"))
+                ((string= cmd "ERRORS")
+                 (let ((n (if (string/= args "") (parse-integer args :junk-allowed t) 5)))
+                   (with-output-to-string (s)
+                     (let ((errors 0))
+                       (dolist (entry *repl-log*)
+                         (when (and (stringp (car entry))
+                                    (>= (length (car entry)) 8)
+                                    (string= ";; ERROR" (car entry) :end2 8))
+                           (incf errors)
+                           (when (<= errors n)
+                             (format s "~D: ~A~%" errors (cdr entry)))))
+                       (when (zerop errors)
+                         (format s "No errors recorded."))))))
+                ((or (string= cmd "HELP") (string= cmd "?"))
+                 "Available commands: abort, debug, errors [N], help")
+                (t (format nil "Unknown command: ~A. Try ,help" cmd)))))))
+
+(defun show-errors (&optional (n 5))
+  "Print the last N errors caught by the global debugger hook.
+These are conditions that would have entered the SBCL debugger on
+non-Slynk threads (render loop, Qt callbacks).
+Returns the number of errors displayed."
+  (let ((count 0))
+    (dolist (entry *repl-log*)
+      (when (and (stringp (car entry))
+                 (>= (length (car entry)) 8)
+                 (string= ";; ERROR" (car entry) :end2 8))
+        (incf count)
+        (when (<= count n)
+          (format t "~&~D: ~A~%" count (cdr entry)))))
+    (when (zerop count)
+      (format t "~&No errors recorded.~%"))
+    count))
+
 (defun log-remote-eval (code-str output-str)
   "Append a code/output pair to the REPL log from a remote connection.
 
@@ -103,11 +344,23 @@
         (let* ((full-code (if (string= *repl-accumulator* "")
                               code
                               (concatenate 'string *repl-accumulator* code)))
-               (len (length full-code))
-               (pos 0)
-               (outputs '()))
-          (setf *repl-accumulator* "")
-          (loop
+               (len (length full-code)))
+          ;; Check for REPL commands (prefixed with , after trimming leading whitespace)
+          (let ((trimmed-code (string-left-trim '(#\Space #\Tab) full-code)))
+            (when (and (plusp (length trimmed-code))
+                       (char= (char trimmed-code 0) #\,))
+              (setf *repl-accumulator* "")
+              (multiple-value-bind (handled output)
+                  (handle-repl-command full-code)
+                (when handled
+                  (sb-ext:atomic-push (cons full-code output) *repl-log*)
+                  (cffi:foreign-funcall "snprintf" :pointer result :int maxlen
+                                       :string output :int (min (length output) (1- maxlen)) :void)
+                  (return-from eval-string)))))
+          (let ((pos 0)
+                (outputs '()))
+            (setf *repl-accumulator* "")
+            (loop
             (when (>= pos len) (return))
             (multiple-value-bind (form next-pos)
                 (read-from-string full-code nil *repl-eof-sentinel* :start pos)
@@ -116,9 +369,14 @@
                     (when (< pos len)
                       (setf *repl-accumulator* (subseq full-code pos)))
                     (return))
-                  (let ((values (handler-case (multiple-value-list (eval form))
-                                  (error (e) (list (format nil "Error: ~A" e))))))
+                  (let* ((print-output (make-string-output-stream))
+                         (values (let ((*standard-output* print-output))
+                                   (handler-case (multiple-value-list (eval form))
+                                     (error (e) (list (format nil "Error: ~A" e))))))
+                         (printed (get-output-stream-string print-output)))
                     (push (with-output-to-string (s)
+                            (when (plusp (length printed))
+                              (write-string printed s))
                             (dolist (v values)
                               (format s "~S~%" v)))
                           outputs)
@@ -126,7 +384,7 @@
           (let ((output (apply #'concatenate 'string (nreverse outputs))))
             (sb-ext:atomic-push (cons full-code output) *repl-log*)
             (cffi:foreign-funcall "snprintf" :pointer result :int maxlen
-                                 :string output :int (min (length output) (1- maxlen)) :void)))
+                                 :string output :int (min (length output) (1- maxlen)) :void))))
       (error (e)
         (setf *repl-accumulator* "")
         (cffi:foreign-funcall "snprintf" :pointer result :int maxlen
