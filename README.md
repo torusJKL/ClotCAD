@@ -15,6 +15,30 @@ just start         # Launch viewer + Slynk (4005) + Alive LSP (4006)
 From Emacs: `M-x sly-connect` (port 4005).
 From VS Code: connect to `localhost:4006` via the alive-lsp extension.
 
+### AI Agent Skill
+
+An example [Agent Skill](https://agentskills.io) for AI coding agents is available in `docs/SKILL.md`.
+Copy it to your project to give AI agents context for interacting with ClotCAD:
+
+```sh
+# Claude Code
+mkdir -p .claude/skills/clotcad
+cp docs/SKILL.md .claude/skills/clotcad/SKILL.md
+
+# OpenCode, Codex, Pi
+mkdir -p .agents/skills/clotcad
+cp docs/SKILL.md .agents/skills/clotcad/SKILL.md
+```
+
+The skill covers connecting via `slyc`, headless startup (`ClotCAD.AppImage --slynk`),
+shape creation, geometry inspection (for visionless agents), boolean operations,
+export (STEP/STL), error handling, and API discovery via `doc`/`browse`/`help`.
+
+> **Note**: The AI agent connects to an **already-running** ClotCAD viewer instance
+> (or headless `--slynk` session). It does not launch ClotCAD itself.
+> [`slyc`](https://github.com/torusJKL/slyc) must be installed separately by the user —
+> the skill only instructs the agent how to invoke it.
+
 ## Usage
 
 The viewer starts in the `CL-OCCT-USER` package, which gives you
