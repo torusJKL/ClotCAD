@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-05-27
+
+### Added
+
+- Headless server modes (`--slynk`, `--alive`) with AppRun routing for
+  daemon-style operation without a display
+- `quit-clotcad` remote shutdown function
+- Clojure-style threading macros (`->`, `->>`, `as->`)
+- Init file support: loads `~/.config/clotcad/init.lisp` on startup;
+  `--init FILE` and `--no-init` flags for override or skip
+- REPL introspection: `doc` and `browse` (category browsing)
+- High-DPI scaling for ViewCube and trihedron
+- Viewer starts maximized by default
+- Spatial subshape query system: `query-face`, `query-edge`, `query-vertex`
+- Face-based coordinate frames: `make-frame-on-face`, `make-frame-on-plane`,
+  `frame-to-location`
+- Named subshape system with `face-ref`, `edge-ref`, `vertex-ref` and
+  Scene Tree children display
+- Sketch helpers: `sketch-on-face` with primitives, result types, and
+  `extrude-from-face`
+- Global debugger hook preventing SBCL debugger freezes in GUI mode
+- Compound symbol visibility toggle for named subshapes (invisible by default)
+- Category merge-groups for updated cl-occt bindings
+- AI agent skill for ClotCAD interaction (OpenSpec workflow)
+
+### Changed
+
+- Updated cl-occt to commit 69f7f3d with additional merge-groups
+- Updated packaging build to bundle `rapidjson-dev` for OCCT build
+
+### Fixed
+
+- Port-in-use alert: show Qt dialog when Slynk or Alive LSP port is occupied
+- `*package*` bound to `CLOTCAD-USER` during init file read and eval
+- cl-occt source links in documentation
+
 ## [0.3.0] - 2026-05-24
 
 ### Added
