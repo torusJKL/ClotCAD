@@ -79,8 +79,9 @@
    :%viewer-is-shape-selected
    ;; Dialogs
    :%viewer-show-message
-   ;; Exported Lisp variables and functions
-   :*viewer*
+    ;; Exported Lisp variables and functions
+    :*viewer*
+    :*viewer-thread*
    :*viewer-queue*
    :*queue-lock*
    :*displayed-models*
@@ -219,15 +220,24 @@
    :clear-selection
    :selected-shapes
    :apply-selection-schemes
-   ;; Introspection
-   :doc
-   :apropos
+    ;; Debugger
+    :global-debugger-hook
+    :abort-all-threads
+    :abort-stuck-threads
+    :show-errors
+    :*debugger-invocation-count*
+    ;; Introspection
+    :doc
+    :apropos
    ;; Lisp import/export
    :cancel-import
    :replay-speed
    :result-export
    :export-repl-history
-   :log-remote-eval
+    :log-remote-eval
+    :*repl-log*
+    :*repl-accumulator*
+    :*stuck-threads*
    ;; Parametric DSL
    :defmodel
    :param

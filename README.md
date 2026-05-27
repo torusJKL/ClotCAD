@@ -133,6 +133,45 @@ To change the modifiers from Lisp:
 
 Accepts `:ctrl`, `:none`, and `:alt` for each modifier.
 
+### Debugger Hook
+
+The viewer installs a global `sb-ext:*invoke-debugger-hook*` at startup that catches
+unhandled conditions on **non-Slynk threads** (render loop, Qt callbacks like
+`drain-queue-callback`). Instead of entering the SBCL debugger (which would freeze
+the UI or hang a worker thread), the hook logs the error to `*repl-log*` and returns.
+
+This means errors on the render loop or in Qt callbacks are **silently caught**.
+To check whether any such errors have occurred:
+
+```lisp
+*debugger-invocation-count*   ;; → 0 if none, > 0 if any were caught
+,errors                        ;; show last 5 caught errors
+,errors 10                     ;; show last 10 caught errors
+```
+
+The `,errors` command prints each entry with the condition type, message, thread,
+and available restarts. Entries are also written to `*repl-log*`:
+
+```lisp
+(reverse *repl-log*)           ;; browse all REPL activity including hook entries
+```
+
+> **Note:** Errors during SLY eval are handled by Slynk's own debugger protocol
+> and never reach this hook — you will always see the SLY debugger for remote
+> eval errors.
+
+The `,errors`, `,abort`, and `,debug` commands only work in the **GUI REPL**
+(they're intercepted before Lisp parsing). From SLY or `slyc`, use the
+equivalent Lisp functions:
+
+```lisp
+*debugger-invocation-count*   ;; → number of caught errors
+(show-errors)                  ;; print last 5 errors
+(show-errors 10)               ;; print last 10 errors
+(abort-stuck-threads)          ;; abort all tracked stuck threads
+(abort-all-threads)            ;; iterate all threads and abort any in debugger
+```
+
 ## Workspace Package
 
 The system provides `:clotcad-user` — a convenience workspace package

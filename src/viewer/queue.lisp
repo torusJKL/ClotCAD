@@ -12,6 +12,11 @@
 (defvar *queue-lock* (sb-thread:make-mutex)
   "Mutex protecting the viewer queue.")
 
+(defvar *viewer-thread* nil
+  "Thread object of the Qt main thread. Set by START-VIEWER before entering
+the Qt event loop. Used by the global debugger hook to determine whether we
+are on the Qt main thread and can safely call viewer functions.")
+
 (defvar *displayed-models* (make-hash-table :test 'equal)
   "Map model name (string) → (shape visible show-in-tree dirty origin).
    shape: the shape object (or nil)

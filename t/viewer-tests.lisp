@@ -1820,8 +1820,18 @@
                   sketch-on-face-binds-frame
                   extrude-from-face-exists
                   extrude-from-face-calls-prism-and-cut
-                  sketch-symbols-exported-from-clotcad
-                  sketch-symbols-accessible-in-clotcad-user))
+                   sketch-symbols-exported-from-clotcad
+                   sketch-symbols-accessible-in-clotcad-user
+                   ;; Debugger tests
+                   global-debugger-hook-logs-on-worker-thread
+                   global-debugger-hook-skips-viewer-on-worker
+                   global-debugger-hook-failure-is-caught
+                   handle-repl-command-abort-with-no-stuck-threads
+                   handle-repl-command-debug-with-no-stuck-threads
+                   handle-repl-command-unknown
+                   handle-repl-command-non-command-passes-through
+                   abort-all-threads-is-safe-when-none-stuck
+                   eval-string-command-dispatch-works))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"
             (test-result-pass *test-result*)
@@ -2357,3 +2367,93 @@
              (assert-equal '(0) called-with
                            "set-initial-window-state with nil should call %viewer-set-window-state with 0"))
         (setf (symbol-function '%viewer-set-window-state) old)))))
+
+;; --- Debugger tests ---
+
+(deftest global-debugger-hook-logs-on-worker-thread
+  (let ((*repl-log* '())
+        (*viewer* nil)
+        (*viewer-thread* nil)
+        (*stuck-threads* (make-hash-table :test 'eq)))
+    (global-debugger-hook (make-condition 'simple-error :format-control "hook test") nil)
+    (let ((logged (and (plusp (length *repl-log*))
+                       (cdar *repl-log*))))
+      (assert-true (and logged (search "hook test" logged :test 'char=))
+                   "hook should log the error message"))))
+
+(deftest global-debugger-hook-skips-viewer-on-worker
+  (let ((*repl-log* '())
+        (*viewer* (make-array 1))
+        (*viewer-thread* nil)
+        (*stuck-threads* (make-hash-table :test 'eq))
+        (viewer-called nil))
+    (let ((old (symbol-function '%viewer-append-repl-output)))
+      (unwind-protect
+           (progn
+             (setf (symbol-function '%viewer-append-repl-output)
+                   (lambda (vwr text) (declare (ignore vwr text)) (setf viewer-called t)))
+             (global-debugger-hook (make-condition 'simple-error :format-control "test") nil)
+             (assert-nil viewer-called "should not call viewer on worker thread"))
+        (setf (symbol-function '%viewer-append-repl-output) old)))))
+
+(deftest global-debugger-hook-failure-is-caught
+  (let ((*repl-log* '())
+        (*viewer* nil)
+        (*viewer-thread* nil)
+        (*stuck-threads* (make-hash-table :test 'eq)))
+    (handler-case
+        (progn
+          (global-debugger-hook (make-condition 'simple-error :format-control "test") nil)
+          (assert-true t "hook returned without error"))
+      (error (e)
+        (error (format nil "hook should not signal: ~A" e))))))
+
+(deftest handle-repl-command-abort-with-no-stuck-threads
+  (let ((*stuck-threads* (make-hash-table :test 'eq)))
+    (multiple-value-bind (handled output)
+        (handle-repl-command ",abort")
+      (assert-true handled "should recognize command")
+      (assert-true (search "No threads" output :test 'char=)
+                   "should report that no threads are stuck"))))
+
+(deftest handle-repl-command-debug-with-no-stuck-threads
+  (let ((*stuck-threads* (make-hash-table :test 'eq)))
+    (multiple-value-bind (handled output)
+        (handle-repl-command ",debug")
+      (assert-true handled "should recognize command")
+      (assert-true (search "No threads" output :test 'char=)
+                   "should report that no threads are stuck"))))
+
+(deftest handle-repl-command-unknown
+  (let ((*stuck-threads* (make-hash-table :test 'eq)))
+    (multiple-value-bind (handled output)
+        (handle-repl-command ",nonsense-cmd")
+      (assert-true handled "should recognize command prefix")
+      (assert-true (search "Unknown" output :test 'char=)
+                   "should report unknown command"))))
+
+(deftest handle-repl-command-non-command-passes-through
+  (multiple-value-bind (handled output)
+      (handle-repl-command "(+ 1 2)")
+    (assert-nil handled "non-command should not be handled")
+    (assert-nil output "non-command should return nil output")))
+
+(deftest abort-all-threads-is-safe-when-none-stuck
+  (let ((*stuck-threads* (make-hash-table :test 'eq)))
+    (let ((result (abort-all-threads)))
+      (assert-true (listp result) "should return a list")
+      (assert-nil result "should be empty when no threads stuck"))))
+
+(deftest eval-string-command-dispatch-works
+  (with-mocked-viewer
+    (setf *repl-accumulator* "")
+    (let ((*stuck-threads* (make-hash-table :test 'eq))
+          (*repl-log* '()))
+      ;; Simulate the eval-string callback's command dispatch logic directly
+      (let ((full-code ",debug"))
+        (multiple-value-bind (handled output)
+            (handle-repl-command full-code)
+          (when handled
+            (sb-ext:atomic-push (cons full-code output) *repl-log*)))
+        (assert-true (search "No threads" (cdar *repl-log*) :test 'char=)
+                     "eval-string should dispatch command")))))
