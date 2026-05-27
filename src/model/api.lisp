@@ -9,7 +9,10 @@
   looked up in the model registry, or symbols converted to strings
   first. Signals an error if the name is not found.
 
-  - **designator** a `shape`, string name, or keyword/symbol
+  Compound symbols (e.g. `:my-box/top-face`) are resolved by splitting
+  on `/`, looking up the model, and resolving the named subshape.
+
+  - **designator** a `shape`, string name, symbol, or compound symbol
 
   **Returns:** a `shape` object.
 
@@ -18,15 +21,22 @@
       (resolve-shape :my-box)
       (resolve-shape \"my-box\")
       (resolve-shape some-shape)
+      (resolve-shape :my-box/top-face)
 
-  **See also:** `model-ref`"
+  **See also:** `model-ref`, `face-ref`"
   (etypecase designator
     (cl-occt:shape designator)
     (string (let ((m (clotcad.impl:find-model designator)))
               (if m
                   (clotcad.impl:model-cached-shape m)
                   (error "~S does not name a known shape" designator))))
-    (symbol (resolve-shape (string designator)))))
+    (symbol (let ((compound (%resolve-compound-symbol designator)))
+              (if compound
+                  compound
+                  (let ((m (clotcad.impl:find-model (string designator))))
+                    (if m
+                        (clotcad.impl:model-cached-shape m)
+                        (error "~S does not name a known shape" designator))))))))
 
 ;; --- Model metadata accessors ---
 

@@ -311,9 +311,20 @@ Auto-scaled for high-DPI displays (e.g. 4K Retina).
       (%viewer-set-status-text *viewer* text))))
 
 (cffi:defcallback %on-shape-visibility :void ((name :string) (visible :int))
-  (let ((entry (gethash name *displayed-models*)))
-    (when entry
-      (setf (second entry) (not (zerop visible)))))
+  (let ((pos (position #\/ name)))
+    (if pos
+        ;; Child node — update subshape visibility
+        (let* ((parent-name (subseq name 0 pos))
+               (child-key (intern (subseq name (1+ pos)) :keyword))
+               (m (clotcad.impl:find-model parent-name)))
+          (when m
+            (let ((entry (assoc child-key (clotcad.impl:model-named-subshapes m) :test #'eq)))
+              (when entry
+                (setf (getf (cdr entry) :visible) (not (zerop visible)))))))
+        ;; Top-level shape
+        (let ((entry (gethash name *displayed-models*)))
+          (when entry
+            (setf (second entry) (not (zerop visible)))))))
   (update-shape-count))
 
 (defun register-shape-visibility-callback ()

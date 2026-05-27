@@ -49,7 +49,8 @@
   (:shape-ptr :pointer)
   (:checked :int)
   (:show-in-tree :int)
-  (:shape-changed :int))
+  (:shape-changed :int)
+  (:parent :pointer))
 
 (defcfun (%viewer-sync-shapes "viewer_sync_shapes") :void
   (vwr :pointer) (items :pointer) (count :int))

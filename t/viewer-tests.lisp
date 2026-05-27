@@ -472,6 +472,66 @@
   (with-mocked-viewer
     (assert-error (show :unknown))))
 
+(deftest show-compound-symbol-sets-subshape-visible
+  (with-mocked-viewer
+    (with-clean-registry
+      (let ((shape (cl-occt:make-box 10 20 30)))
+        (register-model "MY-BOX" (make-model :name "MY-BOX" :cached-shape shape))
+        (setf (gethash "MY-BOX" *displayed-models*) (list shape t t t :def))
+        (name-subshape :my-box :top-face
+          :where (list (face-p) (normal-along 0 0 1)))
+        (let ((m (find-model "MY-BOX")))
+          (assert-nil (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))
+        (show :my-box/top-face)
+        (let ((m (find-model "MY-BOX")))
+          (assert-true (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))))))
+
+(deftest hide-compound-symbol-sets-subshape-invisible
+  (with-mocked-viewer
+    (with-clean-registry
+      (let ((shape (cl-occt:make-box 10 20 30)))
+        (register-model "MY-BOX" (make-model :name "MY-BOX" :cached-shape shape))
+        (setf (gethash "MY-BOX" *displayed-models*) (list shape t t t :def))
+        (name-subshape :my-box :top-face
+          :where (list (face-p) (normal-along 0 0 1)))
+        (show :my-box/top-face)
+        (hide :my-box/top-face)
+        (let ((m (find-model "MY-BOX")))
+          (assert-nil (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))))))
+
+(deftest toggle-compound-symbol-flips-subshape-visible
+  (with-mocked-viewer
+    (with-clean-registry
+      (let ((shape (cl-occt:make-box 10 20 30)))
+        (register-model "MY-BOX" (make-model :name "MY-BOX" :cached-shape shape))
+        (setf (gethash "MY-BOX" *displayed-models*) (list shape t t t :def))
+        (name-subshape :my-box :top-face
+          :where (list (face-p) (normal-along 0 0 1)))
+        ;; Initially invisible
+        (let ((m (find-model "MY-BOX")))
+          (assert-nil (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))
+        (toggle :my-box/top-face)
+        ;; Now visible
+        (let ((m (find-model "MY-BOX")))
+          (assert-true (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))
+        (toggle :my-box/top-face)
+        ;; Back to invisible
+        (let ((m (find-model "MY-BOX")))
+          (assert-nil (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))))))
+
+(deftest show-compound-symbol-errors-on-unknown-model
+  (with-mocked-viewer
+    (with-clean-registry
+      (assert-error (show :nonexistent/top-face)))))
+
+(deftest show-compound-symbol-errors-on-unknown-subshape
+  (with-mocked-viewer
+    (with-clean-registry
+      (let ((shape (cl-occt:make-box 10 20 30)))
+        (register-model "MY-BOX" (make-model :name "MY-BOX" :cached-shape shape))
+        (setf (gethash "MY-BOX" *displayed-models*) (list shape t t t :def))
+        (assert-error (show :my-box/nonexistent))))))
+
 (deftest hide-errors-on-unknown
   (with-mocked-viewer
     (assert-error (hide :unknown))))
@@ -1662,11 +1722,51 @@
                resolve-shape-errors-on-unknown-symbol
                resolve-shape-errors-on-unknown-string
                def-stores-shape def-sets-visible-nil def-does-not-affect-previous-def-visibility def-respects-show-defs-in-tree
-               show-sets-visible-t hide-sets-visible-nil toggle-flips-visible toggle-flips-visible-from-invisible
-               show-triggers-sync
-               show-errors-on-unknown hide-errors-on-unknown toggle-errors-on-unknown
-               show-defs-updates-global show-defs-retroactively-updates-def-shapes
-               toggle-defs-flips-def-shapes
+                show-sets-visible-t hide-sets-visible-nil toggle-flips-visible toggle-flips-visible-from-invisible
+                show-triggers-sync
+                show-errors-on-unknown hide-errors-on-unknown toggle-errors-on-unknown
+                show-defs-updates-global show-defs-retroactively-updates-def-shapes
+                toggle-defs-flips-def-shapes
+                show-compound-symbol-sets-subshape-visible
+                hide-compound-symbol-sets-subshape-invisible
+                toggle-compound-symbol-flips-subshape-visible
+                show-compound-symbol-errors-on-unknown-model
+                show-compound-symbol-errors-on-unknown-subshape
+                ;; Naming tests
+                name-subshape-stores-query
+                name-subshape-defaults-to-invisible
+                name-subshape-errors-on-unknown-model
+                name-subshape-overwrites-existing
+                name-subshape-accepts-string-name
+                face-ref-returns-face
+                edge-ref-returns-edge
+                vertex-ref-returns-vertex
+                face-ref-errors-on-unknown-name
+                face-ref-errors-on-type-mismatch
+                face-ref-errors-on-unknown-model
+                list-named-subshapes-returns-names
+                list-named-subshapes-empty-when-none
+                list-named-subshapes-errors-on-unknown-model
+                remove-named-subshape-removes
+                remove-named-subshape-errors-on-unknown
+                named-subshape-survives-defmodel-recompute
+                propagate-named-subshapes-clears-cache
+                parse-compound-symbol-splits
+                parse-compound-symbol-returns-nil-for-plain
+                parse-compound-symbol-handles-multiple-slashes
+                resolve-compound-symbol-resolves-via-face-ref
+                resolve-compound-symbol-returns-nil-for-plain
+                resolve-compound-symbol-errors-on-unknown-model
+                resolve-shape-handles-compound-symbol
+                resolve-shape-still-resolves-plain-symbols
+                named-subshape-survives-recomputation
+                name-subshape-exported-from-clotcad
+                face-ref-exported-from-clotcad
+                edge-ref-exported-from-clotcad
+                vertex-ref-exported-from-clotcad
+                list-named-subshapes-exported-from-clotcad
+                remove-named-subshape-exported-from-clotcad
+                naming-functions-available-in-clotcad-user
                wrapper-cut-resolves-and-delegates wrapper-translate-resolves
                wrapper-make-prism-resolves
                wrapper-make-compound-resolves-list wrapper-make-part-resolves
@@ -1795,9 +1895,43 @@
                 find-categories-multiple-matches
                 category-tree-output-no-category-found
                  category-detail-shows-functions
-                 ;; Window state tests
-                 set-initial-window-state-maximized
-                 set-initial-window-state-not-maximized))
+                  ;; Window state tests
+                  set-initial-window-state-maximized
+                  set-initial-window-state-not-maximized
+                  ;; Sketch tests
+                  pnt-creates-sketch-point
+                  pnt-double-float-coercion
+                  rect-creates-four-edges
+                  rect-correct-coordinates
+                  circle-creates-one-edge
+                  polygon-creates-n-edges-for-n-points
+                  polygon-errors-with-less-than-3-points
+                  line-chain-open-creates-2-edges-for-3-points
+                  line-chain-closed-creates-3-edges-for-3-points
+                  line-chain-errors-with-less-than-2-points
+                  slot-creates-wire
+                  resolve-sketch-point-with-pnt
+                  resolve-sketch-point-errors-without-frame
+                  project-vertex-to-sketch
+                  assemble-sketch-result-face-default
+                  assemble-sketch-result-faces-mode
+                  assemble-sketch-result-wire-mode
+                  assemble-sketch-result-empty-errors
+                  sketch-on-face-binds-frame
+                  extrude-from-face-exists
+                  extrude-from-face-calls-prism-and-cut
+                   sketch-symbols-exported-from-clotcad
+                   sketch-symbols-accessible-in-clotcad-user
+                   ;; Debugger tests
+                   global-debugger-hook-logs-on-worker-thread
+                   global-debugger-hook-skips-viewer-on-worker
+                   global-debugger-hook-failure-is-caught
+                   handle-repl-command-abort-with-no-stuck-threads
+                   handle-repl-command-debug-with-no-stuck-threads
+                   handle-repl-command-unknown
+                   handle-repl-command-non-command-passes-through
+                   abort-all-threads-is-safe-when-none-stuck
+                   eval-string-command-dispatch-works))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"
             (test-result-pass *test-result*)
@@ -2333,3 +2467,93 @@
              (assert-equal '(0) called-with
                            "set-initial-window-state with nil should call %viewer-set-window-state with 0"))
         (setf (symbol-function '%viewer-set-window-state) old)))))
+
+;; --- Debugger tests ---
+
+(deftest global-debugger-hook-logs-on-worker-thread
+  (let ((*repl-log* '())
+        (*viewer* nil)
+        (*viewer-thread* nil)
+        (*stuck-threads* (make-hash-table :test 'eq)))
+    (global-debugger-hook (make-condition 'simple-error :format-control "hook test") nil)
+    (let ((logged (and (plusp (length *repl-log*))
+                       (cdar *repl-log*))))
+      (assert-true (and logged (search "hook test" logged :test 'char=))
+                   "hook should log the error message"))))
+
+(deftest global-debugger-hook-skips-viewer-on-worker
+  (let ((*repl-log* '())
+        (*viewer* (make-array 1))
+        (*viewer-thread* nil)
+        (*stuck-threads* (make-hash-table :test 'eq))
+        (viewer-called nil))
+    (let ((old (symbol-function '%viewer-append-repl-output)))
+      (unwind-protect
+           (progn
+             (setf (symbol-function '%viewer-append-repl-output)
+                   (lambda (vwr text) (declare (ignore vwr text)) (setf viewer-called t)))
+             (global-debugger-hook (make-condition 'simple-error :format-control "test") nil)
+             (assert-nil viewer-called "should not call viewer on worker thread"))
+        (setf (symbol-function '%viewer-append-repl-output) old)))))
+
+(deftest global-debugger-hook-failure-is-caught
+  (let ((*repl-log* '())
+        (*viewer* nil)
+        (*viewer-thread* nil)
+        (*stuck-threads* (make-hash-table :test 'eq)))
+    (handler-case
+        (progn
+          (global-debugger-hook (make-condition 'simple-error :format-control "test") nil)
+          (assert-true t "hook returned without error"))
+      (error (e)
+        (error (format nil "hook should not signal: ~A" e))))))
+
+(deftest handle-repl-command-abort-with-no-stuck-threads
+  (let ((*stuck-threads* (make-hash-table :test 'eq)))
+    (multiple-value-bind (handled output)
+        (handle-repl-command ",abort")
+      (assert-true handled "should recognize command")
+      (assert-true (search "No threads" output :test 'char=)
+                   "should report that no threads are stuck"))))
+
+(deftest handle-repl-command-debug-with-no-stuck-threads
+  (let ((*stuck-threads* (make-hash-table :test 'eq)))
+    (multiple-value-bind (handled output)
+        (handle-repl-command ",debug")
+      (assert-true handled "should recognize command")
+      (assert-true (search "No threads" output :test 'char=)
+                   "should report that no threads are stuck"))))
+
+(deftest handle-repl-command-unknown
+  (let ((*stuck-threads* (make-hash-table :test 'eq)))
+    (multiple-value-bind (handled output)
+        (handle-repl-command ",nonsense-cmd")
+      (assert-true handled "should recognize command prefix")
+      (assert-true (search "Unknown" output :test 'char=)
+                   "should report unknown command"))))
+
+(deftest handle-repl-command-non-command-passes-through
+  (multiple-value-bind (handled output)
+      (handle-repl-command "(+ 1 2)")
+    (assert-nil handled "non-command should not be handled")
+    (assert-nil output "non-command should return nil output")))
+
+(deftest abort-all-threads-is-safe-when-none-stuck
+  (let ((*stuck-threads* (make-hash-table :test 'eq)))
+    (let ((result (abort-all-threads)))
+      (assert-true (listp result) "should return a list")
+      (assert-nil result "should be empty when no threads stuck"))))
+
+(deftest eval-string-command-dispatch-works
+  (with-mocked-viewer
+    (setf *repl-accumulator* "")
+    (let ((*stuck-threads* (make-hash-table :test 'eq))
+          (*repl-log* '()))
+      ;; Simulate the eval-string callback's command dispatch logic directly
+      (let ((full-code ",debug"))
+        (multiple-value-bind (handled output)
+            (handle-repl-command full-code)
+          (when handled
+            (sb-ext:atomic-push (cons full-code output) *repl-log*)))
+        (assert-true (search "No threads" (cdar *repl-log*) :test 'char=)
+                     "eval-string should dispatch command")))))

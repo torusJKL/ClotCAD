@@ -14,6 +14,7 @@ typedef struct {
   int checked;
   int show_in_tree;
   int shape_changed;
+  const char* parent_name;
 } ShapeSyncItem;
 
 // --- Lifecycle ---

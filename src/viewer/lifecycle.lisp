@@ -70,7 +70,9 @@ in INITIALIZE-VIEWER after the viewer window exists.")
     (initialize-viewer vwr)
     (start-render-loop)
     (load-init-file-ui vwr)
+    (setf *viewer-thread* sb-thread:*current-thread*)
     (%viewer-run vwr)
+    (setf *viewer-thread* nil)
     (stop-render-loop)
     (setf *viewer-running* nil)
     (setf *viewer* nil)))
@@ -209,6 +211,9 @@ based delivery path.
 
   **See also:** `start-viewer`, `stop-viewer`, `start-slynk`, `start-alive`"
   (load-init-file-headless)
+  (setf sb-ext:*invoke-debugger-hook* 'global-debugger-hook)
+  (sb-sys:enable-interrupt sb-unix:sigusr1
+    (lambda (s) (declare (ignore s)) (abort-all-threads)))
   (start-slynk :port 4005)
   (start-alive :port 4006)
   (format t ";; Starting viewer...~%")

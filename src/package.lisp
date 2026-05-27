@@ -79,8 +79,9 @@
    :%viewer-is-shape-selected
    ;; Dialogs
    :%viewer-show-message
-   ;; Exported Lisp variables and functions
-   :*viewer*
+    ;; Exported Lisp variables and functions
+    :*viewer*
+    :*viewer-thread*
    :*viewer-queue*
    :*queue-lock*
    :*displayed-models*
@@ -130,14 +131,17 @@
    :register-model
    :find-model
    :unregister-model
-   :dirty-model!
-   :topological-sort
-   :evaluate-model
-   :propagate-changes
-   ;; Threading macros
-   :->
-   :->>
-   :as->))
+    :dirty-model!
+    :topological-sort
+    :evaluate-model
+    :propagate-changes
+     :propagate-named-subshapes
+     :model-named-subshapes
+     :model-named-subshape-cache
+     ;; Threading macros
+     :->
+     :->>
+     :as->))
 
 (defpackage :clotcad
   (:use :cl :clotcad.impl)
@@ -216,15 +220,24 @@
    :clear-selection
    :selected-shapes
    :apply-selection-schemes
-   ;; Introspection
-   :doc
-   :apropos
+    ;; Debugger
+    :global-debugger-hook
+    :abort-all-threads
+    :abort-stuck-threads
+    :show-errors
+    :*debugger-invocation-count*
+    ;; Introspection
+    :doc
+    :apropos
    ;; Lisp import/export
    :cancel-import
    :replay-speed
    :result-export
    :export-repl-history
-   :log-remote-eval
+    :log-remote-eval
+    :*repl-log*
+    :*repl-accumulator*
+    :*stuck-threads*
    ;; Parametric DSL
    :defmodel
    :param
@@ -239,11 +252,64 @@
    :*model-registry*
    :help
    :write-dag-models-to-step
-   :read-step-into-dag
-   ;; Threading macros
-   :->
-   :->>
-   :as->))
+    :read-step-into-dag
+     ;; Coordinate frames
+     :frame
+     :frame-origin
+     :frame-x-axis
+     :frame-y-axis
+     :frame-z-axis
+     :make-frame-on-face
+     :make-frame-on-plane
+     :frame-to-location
+     ;; Subshape queries
+     :query-shape
+    :face-p
+    :edge-p
+    :vertex-p
+    :normal-along
+    :surface-type
+    :curve-type
+    :longer-than
+    :shorter-than
+    :larger-than
+    :smaller-than
+    :max-by
+    :min-by
+    :x-center
+    :y-center
+    :z-center
+    :edge-along
+    :radius-around
+    :top-face
+    :bottom-face
+    :longest-edge
+    :largest-face
+    :shortest-edge
+     :smallest-face
+      ;; Named subshapes
+      :name-subshape
+      :face-ref
+      :edge-ref
+      :vertex-ref
+      :list-named-subshapes
+      :remove-named-subshape
+      ;; Sketch helpers
+      :sketch-point
+      :sketch-point-x
+      :sketch-point-y
+      :pnt
+      :sketch-on-face
+      :rect
+      :circle
+      :slot
+      :polygon
+      :line-chain
+      :extrude-from-face
+      ;; Threading macros
+      :->
+      :->>
+      :as->))
 
 (defpackage :clotcad-user
   (:use :cl :cl-occt :clotcad)
@@ -251,5 +317,7 @@
    :cut :fuse :common :section :translate :rotate
    :make-prism :make-revol :make-compound :make-part
    :write-step :write-stl
-   :apropos)
+   :apropos
+   :surface-type :curve-type
+   :longer-than :shorter-than :larger-than :smaller-than)
   (:nicknames :cad-user :occt-user))

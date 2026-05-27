@@ -21,9 +21,13 @@
     :components
     ((:file "package")
      (:file "bindings")
+     (:file "frame")
      (:file "queue")
      (:file "ops")
      (:file "select")
+      (:file "query")
+      (:file "naming")
+      (:file "sketch")
      (:file "repl")
      (:file "introspect")
      (:file "ui")
@@ -37,4 +41,8 @@
   :pathname "t/"
   :serial t
   :components
-  ((:file "viewer-tests")))
+  ((:file "viewer-tests")
+   (:file "query")
+   (:file "naming")
+   (:file "frame")
+   (:file "sketch")))
