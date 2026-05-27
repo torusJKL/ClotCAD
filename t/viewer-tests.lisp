@@ -1795,9 +1795,33 @@
                 find-categories-multiple-matches
                 category-tree-output-no-category-found
                  category-detail-shows-functions
-                 ;; Window state tests
-                 set-initial-window-state-maximized
-                 set-initial-window-state-not-maximized))
+                  ;; Window state tests
+                  set-initial-window-state-maximized
+                  set-initial-window-state-not-maximized
+                  ;; Sketch tests
+                  pnt-creates-sketch-point
+                  pnt-double-float-coercion
+                  rect-creates-four-edges
+                  rect-correct-coordinates
+                  circle-creates-one-edge
+                  polygon-creates-n-edges-for-n-points
+                  polygon-errors-with-less-than-3-points
+                  line-chain-open-creates-2-edges-for-3-points
+                  line-chain-closed-creates-3-edges-for-3-points
+                  line-chain-errors-with-less-than-2-points
+                  slot-creates-wire
+                  resolve-sketch-point-with-pnt
+                  resolve-sketch-point-errors-without-frame
+                  project-vertex-to-sketch
+                  assemble-sketch-result-face-default
+                  assemble-sketch-result-faces-mode
+                  assemble-sketch-result-wire-mode
+                  assemble-sketch-result-empty-errors
+                  sketch-on-face-binds-frame
+                  extrude-from-face-exists
+                  extrude-from-face-calls-prism-and-cut
+                  sketch-symbols-exported-from-clotcad
+                  sketch-symbols-accessible-in-clotcad-user))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"
             (test-result-pass *test-result*)

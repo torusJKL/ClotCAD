@@ -277,17 +277,29 @@
     :largest-face
     :shortest-edge
      :smallest-face
-     ;; Named subshapes
-     :name-subshape
-     :face-ref
-     :edge-ref
-     :vertex-ref
-     :list-named-subshapes
-     :remove-named-subshape
-     ;; Threading macros
-     :->
-     :->>
-     :as->))
+      ;; Named subshapes
+      :name-subshape
+      :face-ref
+      :edge-ref
+      :vertex-ref
+      :list-named-subshapes
+      :remove-named-subshape
+      ;; Sketch helpers
+      :sketch-point
+      :sketch-point-x
+      :sketch-point-y
+      :pnt
+      :sketch-on-face
+      :rect
+      :circle
+      :slot
+      :polygon
+      :line-chain
+      :extrude-from-face
+      ;; Threading macros
+      :->
+      :->>
+      :as->))
 
 (defpackage :clotcad-user
   (:use :cl :cl-occt :clotcad)

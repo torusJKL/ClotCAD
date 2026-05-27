@@ -276,6 +276,104 @@ optional up vector. The frame is right-handed: X = cross(Z, UP), Y = cross(Z, X)
   (move-shape (make-sphere 5) loc))
 ```
 
+## Sketching on Faces
+
+Create 2D profiles on the face of an existing shape using sketch primitives. Coordinates are relative to the face's natural coordinate frame.
+
+### Point Constructor
+
+```lisp
+(pnt x y)                                              ; => sketch-point
+```
+
+`pnt` creates a 2D point for use within sketch primitives. `x` and `y` are relative to the sketch's coordinate frame.
+
+### Sketch Entry Point
+
+```lisp
+(sketch-on-face face-designator &body primitives &key result-type)  ; => face/wire/list
+```
+
+Evaluates sketch primitives on a face's coordinate frame. `face-designator` is any resolvable face (symbol, compound symbol like `:my-box/top-face`, or raw shape).
+
+`result-type` controls the return value:
+- **`:face`** (default) — single face (compound face with holes when multiple primitives enclose each other)
+- **`:faces`** — list of separate faces, one per primitive
+- **`:wire`** — single wire shape positioned on the face's plane
+
+### Sketch Primitives
+
+Each primitive creates a closed wire in the sketch's local 2D coordinate system.
+
+```lisp
+(rect corner width height)                              ; => wire
+(circle center radius)                                  ; => wire
+(slot center width height radius)                       ; => wire
+(polygon &rest points)                                  ; => wire
+(line-chain &rest points &key closed)                   ; => wire
+```
+
+- `rect` — rectangle from bottom-left corner, with width and height
+- `circle` — circle from center and radius
+- `slot` — rectangle with rounded corners (4 straight edges + 4 corner arcs)
+- `polygon` — closed polygon from 3+ points
+- `line-chain` — open or closed chain of line segments from 2+ points
+
+Points can be `sketch-point` from `pnt` or vertex designators (like `:my-box/edge-start`) — see "Positional References" below.
+
+### Extrude Convenience
+
+```lisp
+(extrude-from-face face-designator sketch &key depth direction)     ; => shape
+```
+
+Shorthand: sketch on a face, extrude along the face normal (into the body), and boolean cut from the parent. `face-designator` must be a compound symbol like `:box/top-face` to determine the parent body.
+
+### Positional References
+
+Any primitive that accepts a point also accepts a vertex designator (compound symbol resolving to a vertex). The vertex's 3D position is projected onto the sketch plane as local 2D coordinates. This ties sketches to existing geometry for parametric behavior.
+
+### Examples
+
+```lisp
+;; Basic rectangle on a face
+(sketch-on-face :my-box/top-face (rect (pnt 2 2) 6 6))
+
+;; Rectangle with a circular hole
+(sketch-on-face :my-box/top-face
+  (rect (pnt 2 2) 8 8) (circle (pnt 6 6) 2))
+
+;; Multiple separate faces
+(sketch-on-face :my-box/top-face
+  (rect (pnt 2 2) 6 6) (circle (pnt 5 5) 1)
+  :result-type :faces)
+
+;; Extract positioned wire
+(sketch-on-face :my-box/top-face
+  (rect (pnt 2 2) 6 6) :result-type :wire)
+
+;; Slot
+(sketch-on-face :my-box/top-face
+  (slot (pnt 0 0) 12 6 2))
+
+;; Polygon (triangle)
+(sketch-on-face :my-box/top-face
+  (polygon (pnt 0 0) (pnt 5 0) (pnt 2.5 5)))
+
+;; Open line chain
+(sketch-on-face :my-box/top-face
+  (line-chain (pnt 0 0) (pnt 5 0) (pnt 5 5)))
+
+;; Vertex reference in primitives
+(display :result (sketch-on-face :box/top-face
+                   (rect :box/edge-start 10 10)))
+
+;; Extrude from face (pocket)
+(extrude-from-face :box/top-face
+  (sketch-on-face :box/top-face (circle (pnt 5 5) 2))
+  :depth 15)
+```
+
 ## Compounds & Assemblies
 
 ```lisp
