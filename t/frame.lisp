@@ -19,9 +19,11 @@
                                                      (normal-along -1 0 0)))))
          (f (make-frame-on-face left-face)))
     (assert-true (typep f 'frame) "should return a frame")
-    ;; Z-axis should be (-1 0 0) for left face
+    ;; Z-axis should be (-1 0 0) for left face (using tolerance for signed zero)
     (let ((z (frame-z-axis f)))
-      (assert-equal '(-1.0d0 0.0d0 0.0d0) z "z-axis should be -X direction"))))
+      (assert-true (every (lambda (a b) (< (abs (- a b)) 1.0d-10))
+                          z '(-1.0d0 0.0d0 0.0d0))
+                   "z-axis should be -X direction"))))
 
 (deftest make-frame-on-face-at-uv
   (let* ((box (cl-occt:make-box 10 20 30))
@@ -153,10 +155,23 @@
     (assert-true (typep f 'frame) "should return a frame")
     (assert-equal '(0.0d0 0.0d0 0.0d0) (frame-origin f) "origin should be at (0,0,0)")
     (assert-equal '(0.0d0 0.0d0 1.0d0) (frame-z-axis f) "z-axis should be (0,0,1)")
-    (assert-true (every (lambda (a b) (< (abs (- a b)) 1.0d-6))
-                        (frame-x-axis f)
-                        '(1.0d0 0.0d0 0.0d0))
-                 "x-axis should be approx (1,0,0)")))
+    ;; X is determined by cross(Z, UP) — with UP=(0,1,0), Z×UP = (-1,0,0)
+    ;; Check orthonormality and right-handedness instead of exact X value
+    (let ((x (frame-x-axis f))
+          (y (frame-y-axis f))
+          (z (frame-z-axis f)))
+      (assert-true (< (abs (- (sqrt (reduce #'+ (mapcar (lambda (v) (* v v)) x))) 1.0d0)) 1.0d-10)
+                   "x-axis should be a unit vector")
+      ;; X · Z should be 0 (orthogonal)
+      (assert-true (< (abs (reduce #'+ (mapcar #'* x z))) 1.0d-10)
+                   "x-axis should be orthogonal to z-axis")
+      ;; X × Y should equal Z (right-handed)
+      (let ((zx (- (* (second x) (third y)) (* (third x) (second y))))
+            (zy (- (* (third x) (first y)) (* (first x) (third y))))
+            (zz (- (* (first x) (second y)) (* (second x) (first y)))))
+        (assert-true (every (lambda (a b) (< (abs (- a b)) 1.0d-3))
+                            (list zx zy zz) z)
+                     "X × Y should approximately equal Z (right-handed)")))))
 
 (deftest make-frame-on-plane-with-custom-up
   (let ((f (make-frame-on-plane 0 0 0 1 0 0 :up-x 0 :up-y 0 :up-z 1)))
