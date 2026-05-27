@@ -116,3 +116,63 @@ The C API SHALL provide functions to style the ViewCube appearance.
 #### Scenario: Set ViewCube size
 - **WHEN** `viewer_set_viewcube_size(vwr, s)` is called
 - **THEN** the ViewCube size SHALL be set to the specified value in pixels
+
+### Requirement: ViewCube font height C API (DPR-aware)
+
+The C API SHALL provide `viewer_set_viewcube_font_height(vwr, height)` which sets the font height of ViewCube labels (both side labels and embedded X/Y/Z axis labels). The implementation SHALL multiply the input value by the widget's device pixel ratio.
+
+#### Scenario: Set ViewCube font height on standard display
+- **WHEN** `viewer_set_viewcube_font_height(vwr, 16)` is called on a display with DPR=1.0
+- **THEN** the ViewCube side labels and axis labels SHALL render at 16 device pixels
+
+#### Scenario: Set ViewCube font height on Retina display
+- **WHEN** `viewer_set_viewcube_font_height(vwr, 16)` is called on a display with DPR=2.0
+- **THEN** the ViewCube side labels and axis labels SHALL render at 32 device pixels
+
+#### Scenario: ViewCube font height also scales embedded axis labels
+- **WHEN** `viewer_set_viewcube_font_height(vwr, 20)` is called
+- **THEN** the ViewCube's embedded X, Y, Z axis labels SHALL be scaled to the same pixel height as the side labels
+
+### Requirement: ViewCube scales by DPR at creation
+
+`viewer_create` SHALL multiply the ViewCube's default size (70), font height (16), and corner offset (100, 100) by the widget's device pixel ratio.
+
+#### Scenario: ViewCube default size on standard display
+- **WHEN** the viewer creates the ViewCube on a display with DPR=1.0
+- **THEN** SetSize(70) and SetFontHeight(16) SHALL be called
+
+#### Scenario: ViewCube default size on Retina display
+- **WHEN** the viewer creates the ViewCube on a display with DPR=2.0
+- **THEN** SetSize(140) and SetFontHeight(32) SHALL be called
+
+### Requirement: Trihedron font size C API (DPR-aware)
+
+The C API SHALL provide `viewer_set_trihedron_font_size(vwr, size)` which sets the font size of the trihedron's axis labels (X/Y/Z). The implementation SHALL multiply the input value by the widget's device pixel ratio.
+
+#### Scenario: Set trihedron font size on standard display
+- **WHEN** `viewer_set_trihedron_font_size(vwr, 16)` is called on a display with DPR=1.0
+- **THEN** the trihedron X, Y, Z labels SHALL render at 16 device pixels each
+
+#### Scenario: Set trihedron font size on Retina display
+- **WHEN** `viewer_set_trihedron_font_size(vwr, 16)` is called on a display with DPR=2.0
+- **THEN** the trihedron X, Y, Z labels SHALL render at 32 device pixels each
+
+### Requirement: Trihedron scales by DPR at creation
+
+`viewer_show_axis` SHALL multiply the trihedron's default size (50) and corner offset (60, 60) by the widget's device pixel ratio.
+
+#### Scenario: Trihedron default size on standard display
+- **WHEN** the trihedron is created on a display with DPR=1.0
+- **THEN** SetSize(50) SHALL be called
+
+#### Scenario: Trihedron default size on Retina display
+- **WHEN** the trihedron is created on a display with DPR=2.0
+- **THEN** SetSize(100) SHALL be called
+
+### Requirement: C API to query device pixel ratio
+
+The C API SHALL provide `viewer_get_device_pixel_ratio(vwr)` that returns the widget's device pixel ratio as a double.
+
+#### Scenario: Query DPR at startup
+- **WHEN** Lisp calls `(%viewer-get-device-pixel-ratio vwr)` during initialization
+- **THEN** it SHALL return a value ≥ 1.0 (1.0 on standard displays, 2.0 on Retina)
