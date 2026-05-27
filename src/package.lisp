@@ -72,24 +72,24 @@
    :%viewer-set-mouse-selection-scheme
    :%viewer-sync-tree-selection
    :%viewer-select-names
-    :%viewer-is-shape-selected
-    ;; Dialogs
-    :%viewer-show-message
-    ;; Exported Lisp variables and functions
+   :%viewer-is-shape-selected
+   ;; Dialogs
+   :%viewer-show-message
+   ;; Exported Lisp variables and functions
    :*viewer*
    :*viewer-queue*
    :*queue-lock*
    :*displayed-models*
    :*grid-visible*
    :*axis-visible*
-     :start-viewer
-     :stop-viewer
-     :quit-clotcad
-     :start-slynk
-     :start-alive
-     :wait-forever
-     :bootstrap
-    :sync-viewer
+   :start-viewer
+   :stop-viewer
+   :quit-clotcad
+   :start-slynk
+   :start-alive
+   :wait-forever
+   :bootstrap
+   :sync-viewer
    :display
    :clear-all
    :register-viewer-callbacks
@@ -113,12 +113,12 @@
    :model-model-deps
    :model-dependents
    :model-dirty
-    :model-cached-shape
-    :model-last-param-hash
-    :model-color-val
-    :model-display-name-val
-    :model-layer-val
-    :normalize-name
+   :model-cached-shape
+   :model-last-param-hash
+   :model-color-val
+   :model-display-name-val
+   :model-layer-val
+   :normalize-name
    :*model-registry*
    :*params*
    :*after-propagation-hook*
@@ -126,23 +126,23 @@
    :register-model
    :find-model
    :unregister-model
-    :dirty-model!
-    :topological-sort
-    :evaluate-model
-    :propagate-changes
-    ;; Threading macros
-    :->
-    :->>
-    :as->))
+   :dirty-model!
+   :topological-sort
+   :evaluate-model
+   :propagate-changes
+   ;; Threading macros
+   :->
+   :->>
+   :as->))
 
 (defpackage :clotcad
   (:use :cl :clotcad.impl)
   (:shadow :apropos)
   (:import-from :cl-occt :shape :shape-p
-               :ais-clear-selected :ais-set-selected
-               :ais-add-or-remove-selected
-               :ais-hilight-selected :ais-is-selected
-               :*selection-scheme-map*)
+   :ais-clear-selected :ais-set-selected
+   :ais-add-or-remove-selected
+                :ais-hilight-selected :ais-is-selected
+                :*selection-scheme-map*)
   (:export
    :*show-defs-in-tree*
    :resolve-shape
@@ -164,15 +164,15 @@
    :make-part
    :write-step
    :write-stl
-     :start-viewer
-     :stop-viewer
-     :quit-clotcad
-     :start-slynk
-     :start-alive
-     :wait-forever
-     :bootstrap
-    :display
-    :clear-all
+   :start-viewer
+   :stop-viewer
+   :quit-clotcad
+   :start-slynk
+   :start-alive
+   :wait-forever
+   :bootstrap
+   :display
+   :clear-all
    :show-grid
    :show-axis
    :toggle-grid
@@ -210,11 +210,11 @@
    :clear-selection
    :selected-shapes
    :apply-selection-schemes
-    ;; Introspection
-    :doc
-    :apropos
-    ;; Lisp import/export
-    :cancel-import
+   ;; Introspection
+   :doc
+   :apropos
+   ;; Lisp import/export
+   :cancel-import
    :replay-speed
    :result-export
    :export-repl-history
@@ -232,12 +232,12 @@
    :*params*
    :*model-registry*
    :help
-    :write-dag-models-to-step
-    :read-step-into-dag
-    ;; Threading macros
-    :->
-    :->>
-    :as->))
+   :write-dag-models-to-step
+   :read-step-into-dag
+   ;; Threading macros
+   :->
+   :->>
+   :as->))
 
 (defpackage :clotcad-user
   (:use :cl :cl-occt :clotcad)
