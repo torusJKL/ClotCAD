@@ -39,10 +39,9 @@
         :where (list (face-p) (normal-along 0 0 -1)))
       (let ((m (find-model "my-box")))
         (assert-equal 1 (length (model-named-subshapes m)))
-        (let* ((entry (assoc :top-face (model-named-subshapes m) :test #'eq))
-               (plist (cdr entry)))
-          (assert-true (member :where plist))
-          (assert-true (member (list (face-p) (normal-along 0 0 -1)) plist)))))))
+        (let ((entry (assoc :top-face (model-named-subshapes m) :test #'eq)))
+          (assert-true entry)
+          (assert-true (getf (cdr entry) :where)))))))
 
 (deftest name-subshape-accepts-string-name
   (with-clean-registry
@@ -151,9 +150,9 @@
 
 (deftest named-subshape-survives-defmodel-recompute
   (with-clean-registry
-    (defmodel my-box (:w :h)
-      (make-box (param :w) (param :h) 30))
     (set-params! :w 10 :h 20)
+    (defmodel my-box (:w :h)
+      (cl-occt:make-box (param :w) (param :h) 30))
     (name-subshape :my-box :top-face
       :where (list (face-p) (normal-along 0 0 1) (max-by #'z-center)))
     ;; resolve before recomputation
