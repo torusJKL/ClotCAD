@@ -240,8 +240,17 @@
    :help
    :write-dag-models-to-step
     :read-step-into-dag
-    ;; Subshape queries
-    :query-shape
+     ;; Coordinate frames
+     :frame
+     :frame-origin
+     :frame-x-axis
+     :frame-y-axis
+     :frame-z-axis
+     :make-frame-on-face
+     :make-frame-on-plane
+     :frame-to-location
+     ;; Subshape queries
+     :query-shape
     :face-p
     :edge-p
     :vertex-p

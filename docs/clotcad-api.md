@@ -180,6 +180,58 @@ Spatial predicates accept `:angle-deg` (default 1°) and `:tolerance` (default 1
 => (#<EDGE ...> #<EDGE ...>)
 ```
 
+## Coordinate Frames
+
+Construct 3D coordinate frames from face geometry (planar or curved) or from raw parameters.
+Frames provide the position and orientation of a face in 3D space.
+
+```lisp
+(make-frame-on-face face &key u v point)                          ; => frame
+(make-frame-on-plane ox oy oz nx ny nz &key up-x up-y up-z)       ; => frame
+(frame-origin frame)                                               ; => list
+(frame-x-axis frame)                                               ; => list
+(frame-y-axis frame)                                               ; => list
+(frame-z-axis frame)                                               ; => list
+(frame-to-location frame)                                          ; => location
+```
+
+`make-frame-on-face` derives a coordinate frame from a face: origin at the face center
+(or specified UV/3D point), Z = face normal, X/Y = face UV tangent directions.
+For non-planar faces, produces a tangent plane at the given point.
+
+`make-frame-on-plane` constructs a frame from a point and normal direction with
+optional up vector. The frame is right-handed: X = cross(Z, UP), Y = cross(Z, X).
+
+`frame-to-location` converts a frame to an OCCT location for use with `move-shape`.
+
+### Examples
+
+```lisp
+;; Frame from the top face of a box
+(let* ((box (make-box 10 20 30))
+       (f (make-frame-on-face (top-face box))))
+  (frame-origin f))                        ;; => (5.0 10.0 30.0)
+  (frame-z-axis f)                         ;; => (0.0 0.0 1.0)
+
+;; Frame at face UV corner
+(make-frame-on-face (top-face box) :u 0.0 :v 0.0)
+
+;; Frame from a point on the face
+(make-frame-on-face (top-face box) :point '(5 10 30))
+
+;; Frame on the XY plane (Z up)
+(make-frame-on-plane 0 0 0 0 0 1)
+
+;; Frame with custom up direction
+(make-frame-on-plane 0 0 0 1 0 0 :up-x 0 :up-y 0 :up-z 1)
+
+;; Place a shape on a face using a frame
+(let* ((box (make-box 10 20 30))
+       (f (make-frame-on-face (top-face box)))
+       (loc (frame-to-location f)))
+  (move-shape (make-sphere 5) loc))
+```
+
 ## Compounds & Assemblies
 
 ```lisp
