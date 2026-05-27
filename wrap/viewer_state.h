@@ -46,6 +46,9 @@ struct ViewerState {
 
   // Running state
   bool running = false;
+
+  // Window state
+  int maximized = 0;
 };
 
 #endif

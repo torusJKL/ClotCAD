@@ -106,7 +106,7 @@
                                   %gc %gao %ssc %stc %smsc %vst %vrh %vrs
                                    %vpd %sis %sip %sttc
                                   %svc2 %ivcv %vsv %gvo %svcc %svc3 %svct %svci %svctr %svcsz %svcac %svcda %gvcda %svchc
-                                  %vsm %vcfh %vtfs %vgdpr))))
+                                  %vsm %vcfh %vtfs %vgdpr %vsws))))
     `(let ((*viewer* (make-array 1))
            (*viewer-queue* nil)
            (*displayed-models* (make-hash-table :test 'equal))
@@ -129,53 +129,54 @@
         (let (,@(mapcar (lambda (s sym)
                            `(,sym (symbol-function (quote ,s))))
                          '(%viewer-post-event %viewer-sync-shapes
-                           %viewer-fit-all %viewer-show-grid
-                           %viewer-show-axis %viewer-set-antialiasing
-                           %viewer-set-eval-callback
-                           %viewer-set-file-op-callback
-                           %viewer-append-repl-output
-                           %viewer-show-dock
-                           %viewer-is-grid-visible
-                           %viewer-is-axis-visible
-                           %viewer-set-stylesheet
-                           %viewer-color-scheme
-                           %viewer-set-color-scheme-callback
-                            %viewer-get-view
-                            %viewer-get-trihedron
-                             %viewer-set-placeholder-color
-                             %viewer-set-trihedron-text-color
-                             %viewer-set-status-text
-                            %viewer-set-visibility-callback
-                            %viewer-get-context
-                            %viewer-get-ais-object
-                            %viewer-set-selection-callback
-                            %viewer-set-tree-selection-callback
-                             %viewer-set-mouse-selection-scheme
-                             %viewer-sync-tree-selection
-                             %viewer-set-repl-history-modifier
-                             %viewer-set-repl-submit-modifier
-                             %viewer-post-event-delayed
-                              %viewer-set-import-status
-                              %viewer-set-icon-palette
-                              %viewer-show-viewcube
-                              %viewer-is-viewcube-visible
-                              %viewer-set-view
-                              %viewer-get-view-orientation
-                              %viewer-set-viewcube-callback
-                              %viewer-set-viewcube-color
-                              %viewer-set-viewcube-text-color
-                              %viewer-set-viewcube-inner-color
-                              %viewer-set-viewcube-transparency
-                              %viewer-set-viewcube-size
-                              %viewer-set-viewcube-axis-color
-                               %viewer-set-viewcube-draw-axes
-                               %viewer-get-viewcube-draw-axes
-                                %viewer-set-viewcube-hilight-color
-                                %viewer-show-message
-                                %viewer-set-viewcube-font-height
-                                %viewer-set-trihedron-font-size
-                                %viewer-get-device-pixel-ratio)
-                             old-syms))
+                          %viewer-fit-all %viewer-show-grid
+                          %viewer-show-axis %viewer-set-antialiasing
+                          %viewer-set-eval-callback
+                          %viewer-set-file-op-callback
+                          %viewer-append-repl-output
+                          %viewer-show-dock
+                          %viewer-is-grid-visible
+                          %viewer-is-axis-visible
+                          %viewer-set-stylesheet
+                          %viewer-color-scheme
+                          %viewer-set-color-scheme-callback
+                           %viewer-get-view
+                           %viewer-get-trihedron
+                            %viewer-set-placeholder-color
+                            %viewer-set-trihedron-text-color
+                            %viewer-set-status-text
+                           %viewer-set-visibility-callback
+                           %viewer-get-context
+                           %viewer-get-ais-object
+                           %viewer-set-selection-callback
+                           %viewer-set-tree-selection-callback
+                            %viewer-set-mouse-selection-scheme
+                            %viewer-sync-tree-selection
+                            %viewer-set-repl-history-modifier
+                            %viewer-set-repl-submit-modifier
+                            %viewer-post-event-delayed
+                             %viewer-set-import-status
+                             %viewer-set-icon-palette
+                             %viewer-show-viewcube
+                             %viewer-is-viewcube-visible
+                             %viewer-set-view
+                             %viewer-get-view-orientation
+                             %viewer-set-viewcube-callback
+                             %viewer-set-viewcube-color
+                             %viewer-set-viewcube-text-color
+                             %viewer-set-viewcube-inner-color
+                             %viewer-set-viewcube-transparency
+                             %viewer-set-viewcube-size
+                             %viewer-set-viewcube-axis-color
+                              %viewer-set-viewcube-draw-axes
+                              %viewer-get-viewcube-draw-axes
+                               %viewer-set-viewcube-hilight-color
+                               %viewer-show-message
+                               %viewer-set-viewcube-font-height
+                               %viewer-set-trihedron-font-size
+                               %viewer-get-device-pixel-ratio
+                               %viewer-set-window-state)
+                            old-syms))
          (setf (symbol-function '%viewer-post-event) (lambda (vwr) (declare (ignore vwr)))
                (symbol-function '%viewer-sync-shapes)
                (lambda (vwr items count) (declare (ignore vwr items count)))
@@ -226,7 +227,8 @@
                     (symbol-function '%viewer-show-message) (lambda (vwr title msg) (declare (ignore vwr title msg)))
                     (symbol-function '%viewer-set-viewcube-font-height) (lambda (vwr height) (declare (ignore vwr height)))
                     (symbol-function '%viewer-set-trihedron-font-size) (lambda (vwr size) (declare (ignore vwr size)))
-                    (symbol-function '%viewer-get-device-pixel-ratio) (lambda (vwr) (declare (ignore vwr)) 1.0d0))
+                    (symbol-function '%viewer-get-device-pixel-ratio) (lambda (vwr) (declare (ignore vwr)) 1.0d0)
+                    (symbol-function '%viewer-set-window-state) (lambda (vwr maximized) (declare (ignore vwr maximized))))
              (unwind-protect
               (progn ,@body)
             (setf (symbol-function '%viewer-post-event) ,(nth 0 old-syms)
@@ -278,7 +280,8 @@
                          (symbol-function '%viewer-show-message) ,(nth 46 old-syms)
                          (symbol-function '%viewer-set-viewcube-font-height) ,(nth 47 old-syms)
                          (symbol-function '%viewer-set-trihedron-font-size) ,(nth 48 old-syms)
-                         (symbol-function '%viewer-get-device-pixel-ratio) ,(nth 49 old-syms)))))))
+                          (symbol-function '%viewer-get-device-pixel-ratio) ,(nth 49 old-syms)
+                          (symbol-function '%viewer-set-window-state) ,(nth 50 old-syms)))))))
 
 ;; --- Queue tests ---
 
@@ -1791,7 +1794,10 @@
                 find-categories-no-match
                 find-categories-multiple-matches
                 category-tree-output-no-category-found
-                category-detail-shows-functions))
+                 category-detail-shows-functions
+                 ;; Window state tests
+                 set-initial-window-state-maximized
+                 set-initial-window-state-not-maximized))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"
             (test-result-pass *test-result*)
@@ -2301,3 +2307,29 @@
 (deftest category-display-name-fallback-for-unmapped
   (assert-equal "Widget" (%category-display-name "widget")
                 "unmapped stem should use string-capitalize fallback"))
+
+;; --- Window state tests ---
+
+(deftest set-initial-window-state-maximized
+  (let ((called-with nil))
+    (let ((old (symbol-function '%viewer-set-window-state)))
+      (setf (symbol-function '%viewer-set-window-state)
+            (lambda (vwr val) (declare (ignore vwr)) (push val called-with)))
+      (unwind-protect
+           (progn
+             (set-initial-window-state nil t)
+             (assert-equal '(1) called-with
+                           "set-initial-window-state with t should call %viewer-set-window-state with 1"))
+        (setf (symbol-function '%viewer-set-window-state) old)))))
+
+(deftest set-initial-window-state-not-maximized
+  (let ((called-with nil))
+    (let ((old (symbol-function '%viewer-set-window-state)))
+      (setf (symbol-function '%viewer-set-window-state)
+            (lambda (vwr val) (declare (ignore vwr)) (push val called-with)))
+      (unwind-protect
+           (progn
+             (set-initial-window-state nil nil)
+             (assert-equal '(0) called-with
+                           "set-initial-window-state with nil should call %viewer-set-window-state with 0"))
+        (setf (symbol-function '%viewer-set-window-state) old)))))

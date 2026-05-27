@@ -24,6 +24,9 @@ void        viewer_run(occt_viewer vwr);
 void        viewer_quit(occt_viewer vwr);
 int         viewer_is_running(occt_viewer vwr);
 
+// --- Window state ---
+void viewer_set_window_state(occt_viewer vwr, int maximized);
+
 // --- Inter-thread wake ---
 void viewer_post_event(occt_viewer vwr);
 void viewer_post_event_delayed(occt_viewer vwr, int ms);

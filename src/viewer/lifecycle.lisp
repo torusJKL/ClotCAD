@@ -29,7 +29,11 @@ in INITIALIZE-VIEWER after the viewer window exists.")
   ;; Register viewer-refresh on the propagation hook
   (push 'viewer-refresh *after-propagation-hook*))
 
-(defun start-viewer (&key (width 1024) (height 768) (title "ClotCAD"))
+(defun set-initial-window-state (vwr maximized)
+  (%viewer-set-window-state vwr (if maximized 1 0)))
+
+(defun start-viewer (&key (width 1024) (height 768) (title "ClotCAD")
+                         (maximized t))
   "Launch the ClotCAD 3D viewer window.
 
   Creates the Qt window, initializes OCCT rendering, registers
@@ -40,13 +44,16 @@ in INITIALIZE-VIEWER after the viewer window exists.")
   - **width** optional window width in pixels (default 1024)
   - **height** optional window height in pixels (default 768)
   - **title** optional window title string (default \"ClotCAD\")
+  - **maximized** when T (the default), the window starts maximized;
+    pass NIL together with :WIDTH/:HEIGHT for a fixed-size window
 
   **Returns:** `nil` when the viewer window is closed.
 
   **Example:**
 
-      (start-viewer)                                ;; default size
-      (start-viewer :width 1920 :height 1080)        ;; full HD
+      (start-viewer)                                ;; maximized, default size
+      (start-viewer :maximized nil
+                    :width 1920 :height 1080)        ;; full HD, non-maximized
 
   **See also:** `stop-viewer`, `bootstrap`"
   (when *viewer*
@@ -57,6 +64,7 @@ in INITIALIZE-VIEWER after the viewer window exists.")
     (unless vwr
       (error "Failed to create viewer window"))
     (setf *viewer* vwr)
+    (set-initial-window-state vwr maximized)
     (register-viewer-callbacks vwr)
     (%viewer-show vwr)
     (initialize-viewer vwr)

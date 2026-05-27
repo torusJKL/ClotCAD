@@ -6,6 +6,7 @@
    :%viewer-create
    :%viewer-destroy
    :%viewer-show
+   :%viewer-set-window-state
    :%viewer-run
    :%viewer-quit
    :%viewer-is-running

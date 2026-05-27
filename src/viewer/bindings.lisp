@@ -13,6 +13,9 @@
 (defcfun (%viewer-create "viewer_create") :pointer
   (title :string) (width :int) (height :int))
 
+(defcfun (%viewer-set-window-state "viewer_set_window_state") :void
+  (vwr :pointer) (maximized :int))
+
 (defcfun (%viewer-destroy "viewer_destroy") :void
   (vwr :pointer))
 

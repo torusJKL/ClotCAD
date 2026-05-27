@@ -472,10 +472,19 @@ void viewer_destroy(occt_viewer vwr)
   delete s;
 }
 
+void viewer_set_window_state(occt_viewer vwr, int maximized)
+{
+  auto* s = (ViewerState*)vwr;
+  s->maximized = maximized;
+}
+
 void viewer_show(occt_viewer vwr)
 {
   auto* s = (ViewerState*)vwr;
-  if (s->window)
+  if (!s->window) return;
+  if (s->maximized)
+    s->window->showMaximized();
+  else
     s->window->show();
 }
 
