@@ -407,12 +407,17 @@ occt_viewer viewer_create(const char* title, int width, int height)
 
   // Create and display ViewCube
   {
+    double dpr = s->widget ? s->widget->devicePixelRatioF() : 1.0;
     Handle(AIS_ViewCube) viewCube = new ViewCubeWithCallback(s);
     Handle(Graphic3d_TransformPers) tpers =
-      new Graphic3d_TransformPers(Graphic3d_TMF_TriedronPers, Aspect_TOTP_RIGHT_UPPER, NCollection_Vec2<int>(100, 100));
+      new Graphic3d_TransformPers(Graphic3d_TMF_TriedronPers, Aspect_TOTP_RIGHT_UPPER,
+                                  NCollection_Vec2<int>(static_cast<int>(100 * dpr),
+                                                        static_cast<int>(100 * dpr)));
     viewCube->SetTransformPersistence(tpers);
     viewCube->SetDrawAxes(true);
     viewCube->SetResetCamera(true);
+    viewCube->SetSize(70.0 * dpr);
+    viewCube->SetFontHeight(16.0 * dpr);
     s->viewCube = viewCube;
     s->context->Display(viewCube, false);
   }
@@ -707,13 +712,16 @@ void viewer_show_axis(occt_viewer vwr, int show)
 
   if (s->axisTrihedron.IsNull())
   {
+    double dpr = s->widget ? s->widget->devicePixelRatioF() : 1.0;
     Handle(Geom_Axis2Placement) axes = new Geom_Axis2Placement(gp::Origin(), gp::DZ(), gp::DX());
     s->axisTrihedron = new AIS_Trihedron(axes);
     s->axisTrihedron->SetDatumDisplayMode(Prs3d_DM_WireFrame);
     s->axisTrihedron->SetDrawArrows(true);
-    s->axisTrihedron->SetSize(50.0);
+    s->axisTrihedron->SetSize(50.0 * dpr);
     Handle(Graphic3d_TransformPers) tpers =
-      new Graphic3d_TransformPers(Graphic3d_TMF_TriedronPers, Aspect_TOTP_LEFT_LOWER, NCollection_Vec2<int>(60, 60));
+      new Graphic3d_TransformPers(Graphic3d_TMF_TriedronPers, Aspect_TOTP_LEFT_LOWER,
+                                  NCollection_Vec2<int>(static_cast<int>(60 * dpr),
+                                                        static_cast<int>(60 * dpr)));
     s->axisTrihedron->SetTransformPersistence(tpers);
     if (show)
       s->context->Display(s->axisTrihedron, false);
@@ -983,6 +991,58 @@ void viewer_set_placeholder_color(occt_viewer vwr, int r, int g, int b)
     pal.setColor(QPalette::PlaceholderText, QColor(r, g, b));
     theApp->setPalette(pal);
   }
+}
+
+// --- High-DPI support ---
+
+void viewer_set_viewcube_font_height(occt_viewer vwr, double height)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s || s->viewCube.IsNull()) return;
+  double dpr = s->widget ? s->widget->devicePixelRatioF() : 1.0;
+  double scaled = height * dpr;
+  s->viewCube->SetFontHeight(scaled);
+  // Also scale the embedded axis labels (X, Y, Z) which use the Drawer's
+  // DatumAspect, not the ViewCube's own TextAspect used by SetFontHeight.
+  // The DatumAspect may be null before the first Compute() — skip if so.
+  Handle(Prs3d_DatumAspect) da = s->viewCube->Attributes()->DatumAspect();
+  if (!da.IsNull())
+  {
+    static const Prs3d_DatumParts parts[] = {
+      Prs3d_DatumParts_XAxis,
+      Prs3d_DatumParts_YAxis,
+      Prs3d_DatumParts_ZAxis
+    };
+    for (auto part : parts)
+    {
+      Handle(Prs3d_TextAspect) ta = da->TextAspect(part);
+      if (!ta.IsNull())
+        ta->SetHeight(scaled);
+    }
+  }
+  if (!s->context.IsNull())
+    s->context->Update(s->viewCube, true);
+}
+
+void viewer_set_trihedron_font_size(occt_viewer vwr, double size)
+{
+  auto* s = (ViewerState*)vwr;
+  if (!s || s->axisTrihedron.IsNull()) return;
+  double dpr = s->widget ? s->widget->devicePixelRatioF() : 1.0;
+  static const Prs3d_DatumParts parts[] = {
+    Prs3d_DatumParts_XAxis,
+    Prs3d_DatumParts_YAxis,
+    Prs3d_DatumParts_ZAxis
+  };
+  for (auto part : parts)
+    s->axisTrihedron->Attributes()->DatumAspect()->TextAspect(part)->SetHeight(size * dpr);
+  s->axisTrihedron->SetToUpdate();
+}
+
+double viewer_get_device_pixel_ratio(occt_viewer vwr)
+{
+  auto* s = (ViewerState*)vwr;
+  return s->widget ? s->widget->devicePixelRatioF() : 1.0;
 }
 
 void* viewer_get_view(occt_viewer vwr)

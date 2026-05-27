@@ -106,7 +106,7 @@
                                   %gc %gao %ssc %stc %smsc %vst %vrh %vrs
                                    %vpd %sis %sip %sttc
                                   %svc2 %ivcv %vsv %gvo %svcc %svc3 %svct %svci %svctr %svcsz %svcac %svcda %gvcda %svchc
-                                  %vsm))))
+                                  %vsm %vcfh %vtfs %vgdpr))))
     `(let ((*viewer* (make-array 1))
            (*viewer-queue* nil)
            (*displayed-models* (make-hash-table :test 'equal))
@@ -170,9 +170,12 @@
                               %viewer-set-viewcube-axis-color
                                %viewer-set-viewcube-draw-axes
                                %viewer-get-viewcube-draw-axes
-                               %viewer-set-viewcube-hilight-color
-                               %viewer-show-message)
-                            old-syms))
+                                %viewer-set-viewcube-hilight-color
+                                %viewer-show-message
+                                %viewer-set-viewcube-font-height
+                                %viewer-set-trihedron-font-size
+                                %viewer-get-device-pixel-ratio)
+                             old-syms))
          (setf (symbol-function '%viewer-post-event) (lambda (vwr) (declare (ignore vwr)))
                (symbol-function '%viewer-sync-shapes)
                (lambda (vwr items count) (declare (ignore vwr items count)))
@@ -220,8 +223,11 @@
                    (symbol-function '%viewer-set-viewcube-draw-axes) (lambda (vwr s) (declare (ignore vwr s)) (setf mock-viewcube-state s))
                    (symbol-function '%viewer-get-viewcube-draw-axes) (lambda (vwr) (declare (ignore vwr)) mock-viewcube-state)
                    (symbol-function '%viewer-set-viewcube-hilight-color) (lambda (vwr r g b) (declare (ignore vwr r g b)))
-                   (symbol-function '%viewer-show-message) (lambda (vwr title msg) (declare (ignore vwr title msg))))
-            (unwind-protect
+                    (symbol-function '%viewer-show-message) (lambda (vwr title msg) (declare (ignore vwr title msg)))
+                    (symbol-function '%viewer-set-viewcube-font-height) (lambda (vwr height) (declare (ignore vwr height)))
+                    (symbol-function '%viewer-set-trihedron-font-size) (lambda (vwr size) (declare (ignore vwr size)))
+                    (symbol-function '%viewer-get-device-pixel-ratio) (lambda (vwr) (declare (ignore vwr)) 1.0d0))
+             (unwind-protect
               (progn ,@body)
             (setf (symbol-function '%viewer-post-event) ,(nth 0 old-syms)
                   (symbol-function '%viewer-sync-shapes) ,(nth 1 old-syms)
@@ -268,8 +274,11 @@
                         (symbol-function '%viewer-set-viewcube-axis-color) ,(nth 42 old-syms)
                         (symbol-function '%viewer-set-viewcube-draw-axes) ,(nth 43 old-syms)
                         (symbol-function '%viewer-get-viewcube-draw-axes) ,(nth 44 old-syms)
-                        (symbol-function '%viewer-set-viewcube-hilight-color) ,(nth 45 old-syms)
-                        (symbol-function '%viewer-show-message) ,(nth 46 old-syms)))))))
+                         (symbol-function '%viewer-set-viewcube-hilight-color) ,(nth 45 old-syms)
+                         (symbol-function '%viewer-show-message) ,(nth 46 old-syms)
+                         (symbol-function '%viewer-set-viewcube-font-height) ,(nth 47 old-syms)
+                         (symbol-function '%viewer-set-trihedron-font-size) ,(nth 48 old-syms)
+                         (symbol-function '%viewer-get-device-pixel-ratio) ,(nth 49 old-syms)))))))
 
 ;; --- Queue tests ---
 
@@ -1468,7 +1477,11 @@
            (old-svcac (symbol-function '%viewer-set-viewcube-axis-color))
            (old-svcda (symbol-function '%viewer-set-viewcube-draw-axes))
            (old-gvcda (symbol-function '%viewer-get-viewcube-draw-axes))
-           (old-svchc (symbol-function '%viewer-set-viewcube-hilight-color)))
+           (old-svchc (symbol-function '%viewer-set-viewcube-hilight-color))
+           (old-svcsz (symbol-function '%viewer-set-viewcube-size))
+           (old-svcfh (symbol-function '%viewer-set-viewcube-font-height))
+           (old-stfs (symbol-function '%viewer-set-trihedron-font-size))
+           (old-gdpr (symbol-function '%viewer-get-device-pixel-ratio)))
       (setf (symbol-function '%viewer-show-axis)
             (lambda (vwr show) (declare (ignore vwr)) (push show show-axis-args))
             (symbol-function '%viewer-show-grid)
@@ -1510,7 +1523,15 @@
             (symbol-function '%viewer-get-viewcube-draw-axes)
             (lambda (vwr) (declare (ignore vwr)) 1)
             (symbol-function '%viewer-set-viewcube-hilight-color)
-            (lambda (vwr r g b) (declare (ignore vwr r g b))))
+            (lambda (vwr r g b) (declare (ignore vwr r g b)))
+            (symbol-function '%viewer-set-viewcube-size)
+            (lambda (vwr sz) (declare (ignore vwr sz)))
+            (symbol-function '%viewer-set-viewcube-font-height)
+            (lambda (vwr height) (declare (ignore vwr height)))
+            (symbol-function '%viewer-set-trihedron-font-size)
+            (lambda (vwr size) (declare (ignore vwr size)))
+            (symbol-function '%viewer-get-device-pixel-ratio)
+            (lambda (vwr) (declare (ignore vwr)) 1.0d0))
       (unwind-protect
            (progn
              (initialize-viewer *viewer*)
@@ -1540,7 +1561,11 @@
               (symbol-function '%viewer-set-viewcube-axis-color) old-svcac
               (symbol-function '%viewer-set-viewcube-draw-axes) old-svcda
               (symbol-function '%viewer-get-viewcube-draw-axes) old-gvcda
-              (symbol-function '%viewer-set-viewcube-hilight-color) old-svchc)))))
+               (symbol-function '%viewer-set-viewcube-hilight-color) old-svchc
+               (symbol-function '%viewer-set-viewcube-size) old-svcsz
+               (symbol-function '%viewer-set-viewcube-font-height) old-svcfh
+               (symbol-function '%viewer-set-trihedron-font-size) old-stfs
+               (symbol-function '%viewer-get-device-pixel-ratio) old-gdpr)))))
 
 ;; --- Selection tests ---
 

@@ -141,6 +141,12 @@
 (defcfun (%viewer-set-viewcube-hilight-color "viewer_set_viewcube_hilight_color") :void
   (vwr :pointer) (r :double) (g :double) (b :double))
 
+(defcfun (%viewer-set-viewcube-font-height "viewer_set_viewcube_font_height") :void
+  (vwr :pointer) (height :double))
+
+(defcfun (%viewer-get-device-pixel-ratio "viewer_get_device_pixel_ratio") :double
+  (vwr :pointer))
+
 ;; --- Dock panels ---
 
 (defcfun (%viewer-show-dock "viewer_show_dock") :void
@@ -173,6 +179,9 @@
 
 (defcfun (%viewer-set-trihedron-text-color "viewer_set_trihedron_text_color") :void
   (vwr :pointer) (part :int) (r :double) (g :double) (b :double))
+
+(defcfun (%viewer-set-trihedron-font-size "viewer_set_trihedron_font_size") :void
+  (vwr :pointer) (size :double))
 
 (defcfun (%viewer-set-placeholder-color "viewer_set_placeholder_color") :void
   (vwr :pointer) (r :int) (g :int) (b :int))
