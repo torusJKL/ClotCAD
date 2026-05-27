@@ -6,6 +6,7 @@
    :%viewer-create
    :%viewer-destroy
    :%viewer-show
+   :%viewer-set-window-state
    :%viewer-run
    :%viewer-quit
    :%viewer-is-running
@@ -48,6 +49,8 @@
    :%viewer-set-viewcube-draw-axes
    :%viewer-get-viewcube-draw-axes
    :%viewer-set-viewcube-hilight-color
+   :%viewer-set-viewcube-font-height
+   :%viewer-get-device-pixel-ratio
    ;; Dock panels
    :%viewer-show-dock
    ;; Quality
@@ -60,6 +63,7 @@
    :%viewer-get-view
    :%viewer-get-trihedron
    :%viewer-set-trihedron-text-color
+   :%viewer-set-trihedron-font-size
    :%viewer-set-placeholder-color
    :%viewer-set-status-text
    :%viewer-set-import-status
@@ -198,6 +202,8 @@
    :theme-light
    :theme-auto
    :set-font-size
+   :set-viewcube-font-height
+   :set-trihedron-font-size
    :*theme-mode*
    :*accent-color*
    :*font-size*

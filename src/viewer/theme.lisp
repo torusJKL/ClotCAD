@@ -398,6 +398,8 @@ QFileDialog QToolButton:pressed {
     (:viewcube-inner-color . "#3a3a3a")
     (:viewcube-transparency . "0.0")
     (:viewcube-hilight-color . "#4488ff")
+    (:viewcube-font-height . "16")
+    (:trihedron-font-size . "16")
     (:highlight . ,accent)
     (:highlight-text . "#ffffff")
     (:button-bg . "#383838")
@@ -450,6 +452,8 @@ QFileDialog QToolButton:pressed {
     (:viewcube-inner-color . "#d0d0d0")
     (:viewcube-transparency . "0.0")
     (:viewcube-hilight-color . "#88bbff")
+    (:viewcube-font-height . "16")
+    (:trihedron-font-size . "16")
     (:highlight . ,accent)
     (:highlight-text . "#ffffff")
     (:button-bg . "#e0e0e0")
@@ -500,7 +504,7 @@ Falls back to :light if system scheme is unknown or unavailable."
              (coerce (/ b 255.0) 'double-float))))))))
 
 (defun %apply-axis-colors (palette-alist)
-  "Set the trihedron axis colors from the palette."
+  "Set the trihedron axis colors and font size from the palette."
   (dolist (pair '((:axis-x-color . 0)
                   (:axis-y-color . 1)
                   (:axis-z-color . 2)))
@@ -514,7 +518,11 @@ Falls back to :light if system scheme is unknown or unavailable."
             (let ((tri (%viewer-get-trihedron *viewer*)))
               (when tri
                 (cl-occt.impl:%ais-trihedron-set-datum-part-color
-                 tri (cdr pair) rf gf bf)))))))))
+                 tri (cdr pair) rf gf bf)))))))
+  (let ((fs-str (cdr (assoc :trihedron-font-size palette-alist))))
+    (when fs-str
+      (%viewer-set-trihedron-font-size *viewer*
+        (coerce (read-from-string fs-str) 'double-float)))))
 
 (defun %apply-placeholder-color (palette-alist)
   "Set the placeholder text color from the palette."
@@ -557,6 +565,10 @@ Falls back to :light if system scheme is unknown or unavailable."
             (coerce (/ r 255.0) 'double-float)
             (coerce (/ g 255.0) 'double-float)
             (coerce (/ b 255.0) 'double-float)))))
+    (let ((fh-str (cdr (assoc :viewcube-font-height palette-alist))))
+      (when fh-str
+        (%viewer-set-viewcube-font-height *viewer*
+          (coerce (read-from-string fh-str) 'double-float)))))
     ;; Apply axis colors to match the corner trihedron
     (dolist (pair '((:axis-x-color . 0)
                     (:axis-y-color . 1)

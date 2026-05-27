@@ -185,6 +185,38 @@
           (setf *current-view* nil)
           nil))))
 
+(defun set-viewcube-font-height (height)
+  "Set the ViewCube label font height in logical pixels.
+Auto-scaled for high-DPI displays (e.g. 4K Retina).
+
+- **height** positive number, logical pixel value
+
+**Returns:** the height value.
+
+**Example:**
+
+    (set-viewcube-font-height 20)   ;; larger labels
+
+**See also:** `set-trihedron-font-size`, `set-font-size`"
+  (%viewer-set-viewcube-font-height *viewer* (coerce height 'double-float))
+  height)
+
+(defun set-trihedron-font-size (size)
+  "Set the trihedron axis label font size in logical pixels.
+Auto-scaled for high-DPI displays (e.g. 4K Retina).
+
+- **size** positive number, logical pixel value
+
+**Returns:** the size value.
+
+**Example:**
+
+    (set-trihedron-font-size 20)    ;; larger axis labels
+
+**See also:** `set-viewcube-font-height`, `set-font-size`"
+  (%viewer-set-trihedron-font-size *viewer* (coerce size 'double-float))
+  size)
+
 (defun show-repl (&optional (show t))
   "Show or hide the REPL dock panel.
 

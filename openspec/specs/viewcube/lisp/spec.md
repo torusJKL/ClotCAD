@@ -104,3 +104,46 @@ The theme system SHALL support ViewCube styling through palette entries.
 #### Scenario: Light palette includes viewcube entries
 - **WHEN** `%light-palette` is called
 - **THEN** the returned alist SHALL include the same viewcube keys with appropriate light-theme values
+
+### Requirement: ViewCube font height control from Lisp (DPR-aware)
+
+The Lisp API SHALL provide `(set-viewcube-font-height height)` that sets the ViewCube label font height in logical pixels. The C++ implementation SHALL multiply the value by the device pixel ratio.
+
+#### Scenario: Set ViewCube font height
+- **WHEN** `(set-viewcube-font-height 20)` is called on a standard display
+- **THEN** the ViewCube labels SHALL render at 20 device pixels
+
+#### Scenario: ViewCube font height in theme palette
+- **WHEN** a theme palette contains `(:viewcube-font-height . "20")`
+- **THEN** after `apply-theme` the ViewCube font height SHALL be set to 20 logical pixels
+
+#### Scenario: Dark palette includes font-height
+- **WHEN** `%dark-palette` is called
+- **THEN** the returned alist SHALL include `:viewcube-font-height` with a default value
+
+### Requirement: Trihedron font size control from Lisp (DPR-aware)
+
+The Lisp API SHALL provide `(set-trihedron-font-size size)` that sets the trihedron's axis label font size in logical pixels. The C++ implementation SHALL multiply the value by the device pixel ratio.
+
+#### Scenario: Set trihedron font size
+- **WHEN** `(set-trihedron-font-size 18)` is called on a standard display
+- **THEN** the trihedron X, Y, Z labels SHALL render at 18 device pixels each
+
+#### Scenario: Trihedron font size in theme palette
+- **WHEN** a theme palette contains `(:trihedron-font-size . "18")`
+- **THEN** after `apply-theme` the trihedron font size SHALL be set to 18 logical pixels
+
+#### Scenario: Dark palette includes trihedron-font-size
+- **WHEN** `%dark-palette` is called
+- **THEN** the returned alist SHALL include `:trihedron-font-size` with a default value
+
+### Requirement: DPR-aware initialization at startup
+
+`initialize-viewer` SHALL query the device pixel ratio at startup and apply scaled defaults for ViewCube size, ViewCube font height, and trihedron font size.
+
+#### Scenario: DPR-scaled defaults applied at startup
+- **WHEN** `initialize-viewer` is called
+- **THEN** `%viewer-get-device-pixel-ratio` SHALL be queried
+- **THEN** ViewCube size SHALL be set to `70 × dpr`
+- **THEN** ViewCube font height SHALL be set to `16 × dpr`
+- **THEN** trihedron font size SHALL be set to `16 × dpr`

@@ -139,7 +139,11 @@ Orientation values: `:top`, `:bottom`, `:front`, `:back`, `:left`, `:right`, `:i
 (toggle-viewcube)                                           ; => nil
 (show-viewcube-axes &optional show)                         ; => nil
 (toggle-viewcube-axes)                                      ; => nil
+(set-viewcube-font-height height)                            ; => height
+(set-trihedron-font-size size)                               ; => size
 ```
+
+`set-viewcube-font-height` sets the ViewCube label font height in logical pixels (auto-scaled for high-DPI displays). Default: 16. `set-trihedron-font-size` sets the trihedron axis label font size in logical pixels (auto-scaled for high-DPI). Default: 16. Both are also settable via theme palette keys `:viewcube-font-height` and `:trihedron-font-size`.
 
 ## Dock Panels
 
