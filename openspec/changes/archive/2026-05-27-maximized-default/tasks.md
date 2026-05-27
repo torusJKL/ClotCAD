@@ -26,5 +26,5 @@
 
 - [x] 5.1 Build `lib/libclotcad.so` with `just viewer` — no compilation errors
 - [x] 5.2 Run `just test` — 187/187 pass
-- [ ] 5.3 Launch viewer and verify it opens maximized (manual — requires display)
-- [ ] 5.4 Launch with `--width 1024 --height 768` and verify 1024×768 non-maximized (manual — requires display)
+- [x] 5.3 Launch viewer and verify it opens maximized
+- [x] 5.4 Launch with `--width 1024 --height 768` and verify 1024×768 non-maximized
