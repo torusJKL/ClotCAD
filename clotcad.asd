@@ -17,17 +17,18 @@
      (:file "params")
      (:file "propagation")
      (:file "api")))
-    (:module "viewer"
-     :components
-     ((:file "package")
-      (:file "bindings")
-      (:file "frame")
-      (:file "queue")
-       (:file "ops")
-       (:file "select")
-       (:file "query")
-       (:file "repl")
-      (:file "introspect")
+   (:module "viewer"
+    :components
+    ((:file "package")
+     (:file "bindings")
+     (:file "frame")
+     (:file "queue")
+     (:file "ops")
+     (:file "select")
+     (:file "query")
+     (:file "naming")
+     (:file "repl")
+     (:file "introspect")
      (:file "ui")
      (:file "theme")
      (:file "render")
@@ -38,7 +39,8 @@
   :depends-on (:clotcad)
   :pathname "t/"
   :serial t
-   :components
-    ((:file "viewer-tests")
-     (:file "query")
-     (:file "frame")))
+  :components
+  ((:file "viewer-tests")
+   (:file "query")
+   (:file "naming")
+   (:file "frame")))

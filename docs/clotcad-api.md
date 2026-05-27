@@ -96,7 +96,7 @@ Wrapper functions accept symbols, strings, or raw shapes.
 
 `display` shows a shape in the 3D scene and registers it in the DAG registry for future reference.
 `def` evaluates a shape form, stores it in the DAG registry, and shows it grayed in the Scene Tree.
-`show`/`hide`/`toggle` control visibility by name. `resolve-shape` resolves a symbol, string, or raw value to a shape object from the DAG registry.
+`show`/`hide`/`toggle` control visibility by name. `resolve-shape` resolves a symbol, string, or raw value to a shape object from the DAG registry. Compound symbols (`:my-box/top-face`) are supported — the model part is looked up in the registry and the subshape part resolves a named subshape.
 
 ## Selection
 
@@ -178,6 +178,50 @@ Spatial predicates accept `:angle-deg` (default 1°) and `:tolerance` (default 1
 (query-shape (make-cylinder 5 20)
              :where (list (edge-p) (radius-around 5 :tolerance 0.1)))
 => (#<EDGE ...> #<EDGE ...>)
+```
+
+## Named Subshapes
+
+Give stable names to faces, edges, and vertices. Named subshapes are stored as queries that are re-evaluated on each access, so they survive shape recomputation (e.g. after `defmodel` parameter changes). Named subshapes appear as children of their parent model in the Scene Tree.
+
+```lisp
+(name-subshape model name &key where coordinate-system)       ; => keyword
+(face-ref model name)                                          ; => face
+(edge-ref model name)                                          ; => edge
+(vertex-ref model name)                                        ; => vertex
+(list-named-subshapes model)                                   ; => list
+(remove-named-subshape model name)                             ; => keyword
+```
+
+`name-subshape` registers a named query on a model. `face-ref`, `edge-ref`, and `vertex-ref` resolve the stored query and return the matching subshape (signaling an error if the type doesn't match). `list-named-subshapes` returns all registered names. `remove-named-subshape` removes a registration.
+
+Compound symbols like `:my-box/top-face` work in any function that accepts a shape designator (e.g., `resolve-shape`, `cut`, `fuse`, `display`). The symbol is split on `/`: the model part resolves to the model's cached shape, the subshape part resolves via `face-ref`/`edge-ref`/`vertex-ref`.
+
+### Examples
+
+```lisp
+;; Register named subshapes on a box
+(def :my-box (make-box 10 20 30))
+
+(name-subshape :my-box :top-face
+  :where (list (face-p) (normal-along 0 0 1) (max-by #'z-center)))
+;; => :TOP-FACE
+
+(name-subshape :my-box :longest-edge
+  :where (list (edge-p) (max-by #'cl-occt:edge-length)))
+;; => :LONGEST-EDGE
+
+;; Resolve by name
+(face-ref :my-box :top-face)          ;; => #<FACE ...>
+(edge-ref :my-box :longest-edge)      ;; => #<EDGE ...>
+
+;; List and remove
+(list-named-subshapes :my-box)        ;; => (:TOP-FACE :LONGEST-EDGE)
+(remove-named-subshape :my-box :top-face)
+
+;; Compound symbols in any designator position
+(resolve-shape :my-box/longest-edge)  ;; resolves to the edge (same as edge-ref)
+(cut :my-box :my-box/longest-edge)    ;; cuts the edge from the box
 ```
 
 ## Coordinate Frames

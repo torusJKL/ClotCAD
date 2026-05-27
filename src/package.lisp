@@ -130,14 +130,17 @@
    :register-model
    :find-model
    :unregister-model
-   :dirty-model!
-   :topological-sort
-   :evaluate-model
-   :propagate-changes
-   ;; Threading macros
-   :->
-   :->>
-   :as->))
+    :dirty-model!
+    :topological-sort
+    :evaluate-model
+    :propagate-changes
+     :propagate-named-subshapes
+     :model-named-subshapes
+     :model-named-subshape-cache
+     ;; Threading macros
+     :->
+     :->>
+     :as->))
 
 (defpackage :clotcad
   (:use :cl :clotcad.impl)
@@ -273,11 +276,18 @@
     :longest-edge
     :largest-face
     :shortest-edge
-    :smallest-face
-    ;; Threading macros
-    :->
-    :->>
-    :as->))
+     :smallest-face
+     ;; Named subshapes
+     :name-subshape
+     :face-ref
+     :edge-ref
+     :vertex-ref
+     :list-named-subshapes
+     :remove-named-subshape
+     ;; Threading macros
+     :->
+     :->>
+     :as->))
 
 (defpackage :clotcad-user
   (:use :cl :cl-occt :clotcad)

@@ -11,7 +11,9 @@
   (last-param-hash nil :type (or null fixnum))
   (color-val nil :type (or null list))
   (display-name-val nil :type (or null string))
-  (layer-val nil :type (or null string)))
+  (layer-val nil :type (or null string))
+  (named-subshapes nil :type list)
+  (named-subshape-cache nil :type list))
 
 (defun normalize-name (name)
   (string-downcase (string name)))

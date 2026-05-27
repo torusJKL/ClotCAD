@@ -608,7 +608,13 @@ void viewer_sync_shapes(occt_viewer vwr, ShapeSyncItem* items, int count)
       s->obj_to_name[ais_shape.get()] = item.name;
       s->shape_names.push_back(item.name);
       for (auto* dock : docks)
-        dock->addShape(QString::fromUtf8(item.name));
+      {
+        if (item.parent_name && item.parent_name[0])
+          dock->addChildShape(QString::fromUtf8(item.parent_name),
+                              QString::fromUtf8(item.name));
+        else
+          dock->addShape(QString::fromUtf8(item.name));
+      }
     }
 
     // Sync tree checkbox and row visibility
