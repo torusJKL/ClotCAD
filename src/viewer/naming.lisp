@@ -58,6 +58,8 @@
     (let* ((key (intern (string-upcase (string name)) :keyword))
            (existing (assoc key (clotcad.impl:model-named-subshapes m) :test #'eq))
            (plist (copy-list query-args)))
+      ;; Named subshapes are invisible by default; user must call SHOW to make them visible
+      (setf (getf plist :visible) nil)
       (if existing
           (setf (cdr existing) plist)
           (setf (clotcad.impl:model-named-subshapes m)

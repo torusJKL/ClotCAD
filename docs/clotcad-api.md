@@ -96,7 +96,8 @@ Wrapper functions accept symbols, strings, or raw shapes.
 
 `display` shows a shape in the 3D scene and registers it in the DAG registry for future reference.
 `def` evaluates a shape form, stores it in the DAG registry, and shows it grayed in the Scene Tree.
-`show`/`hide`/`toggle` control visibility by name. `resolve-shape` resolves a symbol, string, or raw value to a shape object from the DAG registry. Compound symbols (`:my-box/top-face`) are supported — the model part is looked up in the registry and the subshape part resolves a named subshape.
+`show`/`hide`/`toggle` control visibility by name. These also work with compound symbols (`:my-box/top-face`) to show/hide/toggle named subshapes (child nodes) in the scene tree.
+`resolve-shape` resolves a symbol, string, or raw value to a shape object from the DAG registry. Compound symbols (`:my-box/top-face`) are supported — the model part is looked up in the registry and the subshape part resolves a named subshape.
 
 ## Selection
 
@@ -182,7 +183,7 @@ Spatial predicates accept `:angle-deg` (default 1°) and `:tolerance` (default 1
 
 ## Named Subshapes
 
-Give stable names to faces, edges, and vertices. Named subshapes are stored as queries that are re-evaluated on each access, so they survive shape recomputation (e.g. after `defmodel` parameter changes). Named subshapes appear as children of their parent model in the Scene Tree.
+Give stable names to faces, edges, and vertices. Named subshapes are stored as queries that are re-evaluated on each access, so they survive shape recomputation (e.g. after `defmodel` parameter changes). Named subshapes appear as children of their parent model in the Scene Tree, but are **invisible by default** — use `show` with a compound symbol to make them visible.
 
 ```lisp
 (name-subshape model name &key where coordinate-system)       ; => keyword
@@ -222,6 +223,12 @@ Compound symbols like `:my-box/top-face` work in any function that accepts a sha
 ;; Compound symbols in any designator position
 (resolve-shape :my-box/longest-edge)  ;; resolves to the edge (same as edge-ref)
 (cut :my-box :my-box/longest-edge)    ;; cuts the edge from the box
+
+;; Show/hide named subshapes (invisible by default)
+(show :my-box)                        ;; parent must be visible first
+(show :my-box/top-face)               ;; make child visible
+(hide :my-box/top-face)               ;; hide child
+(toggle :my-box/top-face)             ;; toggle child visibility
 ```
 
 ## Coordinate Frames

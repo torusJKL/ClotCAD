@@ -332,7 +332,7 @@
           (setf (symbol-function 'make-frame-on-face) old-make-frame)
           (setf (symbol-function 'cl-occt:make-edge) old-edge)
           (setf (symbol-function 'cl-occt:make-wire) old-wire)
-          (setf (symbol-function 'cl-occt:make-face-on-plane) old-sketch))))))
+          (setf (symbol-function 'cl-occt:make-face-on-plane) old-sketch)))))
 
 ;; ─── extrude-from-face tests (mocked) ───
 

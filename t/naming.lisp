@@ -23,6 +23,18 @@
             (assert-equal 1 (length ns))
             (assert-eq :top-face (caar ns))))))))
 
+(deftest name-subshape-defaults-to-invisible
+  (with-clean-registry
+    (let ((shape (%naming-test-box)))
+      (register-model "my-box" (make-model :name "my-box" :cached-shape shape))
+      (name-subshape :my-box :top-face
+        :where (list (face-p) (normal-along 0 0 1)))
+      (let ((m (find-model "my-box")))
+        (assert-true m)
+        (let* ((entry (assoc :top-face (model-named-subshapes m) :test #'eq))
+               (visible (getf (cdr entry) :visible)))
+          (assert-nil visible "name-subshape should set :visible to nil by default"))))))
+
 (deftest name-subshape-errors-on-unknown-model
   (with-clean-registry
     (assert-error

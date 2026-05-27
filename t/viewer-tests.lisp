@@ -472,6 +472,66 @@
   (with-mocked-viewer
     (assert-error (show :unknown))))
 
+(deftest show-compound-symbol-sets-subshape-visible
+  (with-mocked-viewer
+    (with-clean-registry
+      (let ((shape (cl-occt:make-box 10 20 30)))
+        (register-model "MY-BOX" (make-model :name "MY-BOX" :cached-shape shape))
+        (setf (gethash "MY-BOX" *displayed-models*) (list shape t t t :def))
+        (name-subshape :my-box :top-face
+          :where (list (face-p) (normal-along 0 0 1)))
+        (let ((m (find-model "MY-BOX")))
+          (assert-nil (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))
+        (show :my-box/top-face)
+        (let ((m (find-model "MY-BOX")))
+          (assert-true (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))))))
+
+(deftest hide-compound-symbol-sets-subshape-invisible
+  (with-mocked-viewer
+    (with-clean-registry
+      (let ((shape (cl-occt:make-box 10 20 30)))
+        (register-model "MY-BOX" (make-model :name "MY-BOX" :cached-shape shape))
+        (setf (gethash "MY-BOX" *displayed-models*) (list shape t t t :def))
+        (name-subshape :my-box :top-face
+          :where (list (face-p) (normal-along 0 0 1)))
+        (show :my-box/top-face)
+        (hide :my-box/top-face)
+        (let ((m (find-model "MY-BOX")))
+          (assert-nil (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))))))
+
+(deftest toggle-compound-symbol-flips-subshape-visible
+  (with-mocked-viewer
+    (with-clean-registry
+      (let ((shape (cl-occt:make-box 10 20 30)))
+        (register-model "MY-BOX" (make-model :name "MY-BOX" :cached-shape shape))
+        (setf (gethash "MY-BOX" *displayed-models*) (list shape t t t :def))
+        (name-subshape :my-box :top-face
+          :where (list (face-p) (normal-along 0 0 1)))
+        ;; Initially invisible
+        (let ((m (find-model "MY-BOX")))
+          (assert-nil (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))
+        (toggle :my-box/top-face)
+        ;; Now visible
+        (let ((m (find-model "MY-BOX")))
+          (assert-true (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))
+        (toggle :my-box/top-face)
+        ;; Back to invisible
+        (let ((m (find-model "MY-BOX")))
+          (assert-nil (getf (cdr (assoc :top-face (model-named-subshapes m) :test #'eq)) :visible)))))))
+
+(deftest show-compound-symbol-errors-on-unknown-model
+  (with-mocked-viewer
+    (with-clean-registry
+      (assert-error (show :nonexistent/top-face)))))
+
+(deftest show-compound-symbol-errors-on-unknown-subshape
+  (with-mocked-viewer
+    (with-clean-registry
+      (let ((shape (cl-occt:make-box 10 20 30)))
+        (register-model "MY-BOX" (make-model :name "MY-BOX" :cached-shape shape))
+        (setf (gethash "MY-BOX" *displayed-models*) (list shape t t t :def))
+        (assert-error (show :my-box/nonexistent))))))
+
 (deftest hide-errors-on-unknown
   (with-mocked-viewer
     (assert-error (hide :unknown))))
@@ -1662,11 +1722,51 @@
                resolve-shape-errors-on-unknown-symbol
                resolve-shape-errors-on-unknown-string
                def-stores-shape def-sets-visible-nil def-does-not-affect-previous-def-visibility def-respects-show-defs-in-tree
-               show-sets-visible-t hide-sets-visible-nil toggle-flips-visible toggle-flips-visible-from-invisible
-               show-triggers-sync
-               show-errors-on-unknown hide-errors-on-unknown toggle-errors-on-unknown
-               show-defs-updates-global show-defs-retroactively-updates-def-shapes
-               toggle-defs-flips-def-shapes
+                show-sets-visible-t hide-sets-visible-nil toggle-flips-visible toggle-flips-visible-from-invisible
+                show-triggers-sync
+                show-errors-on-unknown hide-errors-on-unknown toggle-errors-on-unknown
+                show-defs-updates-global show-defs-retroactively-updates-def-shapes
+                toggle-defs-flips-def-shapes
+                show-compound-symbol-sets-subshape-visible
+                hide-compound-symbol-sets-subshape-invisible
+                toggle-compound-symbol-flips-subshape-visible
+                show-compound-symbol-errors-on-unknown-model
+                show-compound-symbol-errors-on-unknown-subshape
+                ;; Naming tests
+                name-subshape-stores-query
+                name-subshape-defaults-to-invisible
+                name-subshape-errors-on-unknown-model
+                name-subshape-overwrites-existing
+                name-subshape-accepts-string-name
+                face-ref-returns-face
+                edge-ref-returns-edge
+                vertex-ref-returns-vertex
+                face-ref-errors-on-unknown-name
+                face-ref-errors-on-type-mismatch
+                face-ref-errors-on-unknown-model
+                list-named-subshapes-returns-names
+                list-named-subshapes-empty-when-none
+                list-named-subshapes-errors-on-unknown-model
+                remove-named-subshape-removes
+                remove-named-subshape-errors-on-unknown
+                named-subshape-survives-defmodel-recompute
+                propagate-named-subshapes-clears-cache
+                parse-compound-symbol-splits
+                parse-compound-symbol-returns-nil-for-plain
+                parse-compound-symbol-handles-multiple-slashes
+                resolve-compound-symbol-resolves-via-face-ref
+                resolve-compound-symbol-returns-nil-for-plain
+                resolve-compound-symbol-errors-on-unknown-model
+                resolve-shape-handles-compound-symbol
+                resolve-shape-still-resolves-plain-symbols
+                named-subshape-survives-recomputation
+                name-subshape-exported-from-clotcad
+                face-ref-exported-from-clotcad
+                edge-ref-exported-from-clotcad
+                vertex-ref-exported-from-clotcad
+                list-named-subshapes-exported-from-clotcad
+                remove-named-subshape-exported-from-clotcad
+                naming-functions-available-in-clotcad-user
                wrapper-cut-resolves-and-delegates wrapper-translate-resolves
                wrapper-make-prism-resolves
                wrapper-make-compound-resolves-list wrapper-make-part-resolves
