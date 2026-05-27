@@ -1877,13 +1877,13 @@
                 doc-on-function-object-works
                 doc-on-cffi-callback-no-error
                 doc-returns-nil
-                apropos-substring-matching-default-packages
-                apropos-all-packages
-                apropos-explicit-packages
-                apropos-no-matches
-                apropos-returns-nil
-                apropos-case-insensitive-nil-requires-exact-case
-                apropos-symbol-pattern-works
+browse-substring-matching-default-packages
+                browse-all-packages
+                browse-explicit-packages
+                browse-no-matches
+                browse-returns-nil
+                browse-case-insensitive-nil-requires-exact-case
+                browse-symbol-pattern-works
                 ;; Category browsing tests
                 coerce-packages-nil
                 coerce-packages-t
@@ -2228,46 +2228,46 @@
                   (assert-nil (doc 'help) "doc should return nil"))))
     (declare (ignore output))))
 
-(deftest apropos-substring-matching-default-packages
+(deftest browse-substring-matching-default-packages
   (let ((output (with-output-to-string (*standard-output*)
-                  (apropos "cancel"))))
+                  (browse "cancel"))))
     (assert-true (search "CANCEL-IMPORT" output) "should find CANCEL-IMPORT")
     (assert-true (search "function" output) "should show type annotation")))
 
-(deftest apropos-all-packages
+(deftest browse-all-packages
   (let ((output (with-output-to-string (*standard-output*)
-                  (apropos "car" :packages t))))
+                  (browse "car" :packages t))))
     (assert-true (search "CAR" output) "should find CAR from CL")))
 
-(deftest apropos-explicit-packages
+(deftest browse-explicit-packages
   (let ((output (with-output-to-string (*standard-output*)
-                  (apropos "defmodel" :packages '(:clotcad)))))
+                  (browse "defmodel" :packages '(:clotcad)))))
     (assert-true (search "DEFMODEL" output) "should find DEFMODEL in :clotcad")
     (assert-true (search "macro" output) "should show macro type")))
 
-(deftest apropos-no-matches
+(deftest browse-no-matches
   (let ((output (with-output-to-string (*standard-output*)
-                  (apropos "xyznonexistent"))))
+                  (browse "xyznonexistent"))))
     (assert-true (search "No matches" output) "should show no matches message")))
 
-(deftest apropos-returns-nil
+(deftest browse-returns-nil
   (let ((output (with-output-to-string (*standard-output*)
-                  (assert-nil (apropos "cancel") "apropos should return nil"))))
+                  (assert-nil (browse "cancel") "browse should return nil"))))
     (declare (ignore output))))
 
-(deftest apropos-case-insensitive-nil-requires-exact-case
+(deftest browse-case-insensitive-nil-requires-exact-case
   (let ((lower-output (with-output-to-string (*standard-output*)
-                        (apropos "make" :case-insensitive nil)))
+                        (browse "make" :case-insensitive nil)))
         (upper-output (with-output-to-string (*standard-output*)
-                        (apropos "MAKE" :case-insensitive nil))))
+                        (browse "MAKE" :case-insensitive nil))))
     (assert-true (search "No matches" lower-output) "lowercase should not match uppercase symbols")
     (assert-true (search "MAKE" upper-output) "uppercase should match uppercase symbols")))
 
-(deftest apropos-symbol-pattern-works
+(deftest browse-symbol-pattern-works
   (let ((sym-output (with-output-to-string (*standard-output*)
-                      (apropos "cancel")))
+                      (browse "cancel")))
         (str-output (with-output-to-string (*standard-output*)
-                      (apropos 'cancel))))
+                      (browse 'cancel))))
     (assert-equal sym-output str-output "symbol and string patterns should match")))
 
 ;; --- Category browsing tests ---
@@ -2418,7 +2418,7 @@
 
 (deftest merge-groups-do-not-affect-substring-search
   (let ((output (with-output-to-string (*standard-output*)
-                  (apropos "make"))))
+                  (browse "make"))))
     (assert-true (search "make-box" output :test 'char=)
                  "substring search should find make-box regardless of category grouping")
     (assert-true (search "make-cylinder" output :test 'char=)

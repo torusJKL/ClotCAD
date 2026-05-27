@@ -1,7 +1,11 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Category tree display on no-argument browse
 
+**FROM:**
+When `apropos` is called with no arguments, the system SHALL display a tree of all available capability categories derived from source file introspection of `:cl-occt` and `:clotcad` exported functions.
+
+**TO:**
 When `browse` is called with no arguments, the system SHALL display a tree of all available capability categories derived from source file introspection of `:cl-occt` and `:clotcad` exported functions.
 
 #### Scenario: No-argument browse shows category tree
@@ -22,6 +26,10 @@ When `browse` is called with no arguments, the system SHALL display a tree of al
 
 ### Requirement: Keyword category lookup
 
+**FROM:**
+When `apropos` receives a keyword symbol as its first argument, the system SHALL attempt to look up a category matching that keyword. The lookup SHALL use partial case-insensitive matching against both the display name and the filename stem of each category.
+
+**TO:**
 When `browse` receives a keyword symbol as its first argument, the system SHALL attempt to look up a category matching that keyword. The lookup SHALL use partial case-insensitive matching against both the display name and the filename stem of each category.
 
 #### Scenario: Exact keyword matches a category
@@ -44,6 +52,10 @@ When `browse` receives a keyword symbol as its first argument, the system SHALL 
 
 ### Requirement: Keyword category filtering by package
 
+**FROM:**
+The system SHALL accept a `:packages` keyword argument that filters the category tree or category detail to specific packages.
+
+**TO:**
 The system SHALL accept a `:packages` keyword argument that filters the category tree or category detail to specific packages.
 
 #### Scenario: :packages with single designator
@@ -60,6 +72,10 @@ The system SHALL accept a `:packages` keyword argument that filters the category
 
 ### Requirement: Existing substring search behavior preserved
 
+**FROM:**
+When `apropos` receives a string or a bare symbol as its first argument, the system SHALL behave exactly as the current implementation — substring matching against exported symbol names.
+
+**TO:**
 When `browse` receives a string or a bare symbol as its first argument, the system SHALL behave exactly as the current implementation — substring matching against exported symbol names.
 
 #### Scenario: String argument searches function names
@@ -72,6 +88,10 @@ When `browse` receives a string or a bare symbol as its first argument, the syst
 
 ### Requirement: Category display includes fallback naming
 
+**FROM:**
+When a source file's stem has no entry in the display-name map, the system SHALL use the filename stem itself (capitalized) as the category display name.
+
+**TO:**
 When a source file's stem has no entry in the display-name map, the system SHALL use the filename stem itself (capitalized) as the category display name.
 
 #### Scenario: Unmapped file uses filename stem
@@ -80,6 +100,10 @@ When a source file's stem has no entry in the display-name map, the system SHALL
 
 ### Requirement: Documentation updated
 
+**FROM:**
+The `docs/clotcad-api.md` file SHALL be updated to document the new `apropos` modes.
+
+**TO:**
 The `docs/clotcad-api.md` file SHALL be updated to document the `browse` function.
 
 #### Scenario: Introspection section documents browse

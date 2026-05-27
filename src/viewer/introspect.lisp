@@ -45,7 +45,7 @@
       (doc \"make-box\")
       (doc #'make-box)
 
-  **See also:** `apropos`"
+  **See also:** `browse`"
   (let ((sym nil)
         (fn nil))
     (cond
@@ -139,7 +139,7 @@
       (doc \"make-box\")     ;; string — passed through
       (doc #'make-box)      ;; function object — passed through
 
-  **See also:** `apropos`"
+  **See also:** `browse`"
   (cond
     ((stringp name)
      `(doc-impl ,name))
@@ -364,8 +364,8 @@
                   (if (> (length fns) 5)
                       (format stream "~{~A, ~}...~%" names)
                       (format stream "~{~A, ~}~%" names)))))))
-      (format stream "~%  Details: (apropos :<category>)")
-      (format stream "  Search:  (apropos <pattern>)~%"))
+      (format stream "~%  Details: (browse :<category>)")
+      (format stream "  Search:  (browse <pattern>)~%"))
     t))
 
 (defun %get-fn-arglist (fn)
@@ -430,23 +430,23 @@
          (destructuring-bind (display stem fns) match
            (declare (ignore stem fns))
            (format stream "  ~A~30T~2D ~:Pfunction~%" display (length fns))))
-       (format stream "~%  Drill in: (apropos :<category>)~%")
+       (format stream "~%  Drill in: (browse :<category>)~%")
        t))))
 
 
 ;; ---
-;; apropos
+;; browse
 ;; ---
 
-(defun %apropos-tree (&key (packages t))
+(defun %browse-tree (&key (packages t))
   (%ensure-category-index :packages packages)
   (%print-category-tree))
 
-(defun %apropos-category (keyword &key (packages t))
+(defun %browse-category (keyword &key (packages t))
   (%ensure-category-index :packages packages)
   (%print-category-detail keyword))
 
-(defun %apropos-substring-search (pattern &key (packages nil packages-supplied-p)
+(defun %browse-substring-search (pattern &key (packages nil packages-supplied-p)
                                             (case-insensitive t))
   (let* ((pattern-str (etypecase pattern
                          (string pattern)
@@ -499,23 +499,23 @@
         (format t "~&No matches found for ~S~%" pattern-str))))
   (values))
 
-(defun apropos-impl (pattern &key (packages nil packages-supplied-p) (case-insensitive t))
-  (%apropos-substring-search pattern
+(defun browse-impl (pattern &key (packages nil packages-supplied-p) (case-insensitive t))
+  (%browse-substring-search pattern
                               :packages (when packages-supplied-p
                                           (%coerce-packages packages))
                               :case-insensitive case-insensitive))
 
-(defmacro apropos (&optional (pattern nil pattern-supplied-p)
+(defmacro browse (&optional (pattern nil pattern-supplied-p)
                     &key (packages nil packages-supplied-p) (case-insensitive t))
   (cond
     ((not pattern-supplied-p)
      (if packages-supplied-p
-         `(%apropos-tree :packages ',packages)
-         `(%apropos-tree)))
+         `(%browse-tree :packages ',packages)
+         `(%browse-tree)))
     ((keywordp pattern)
      (if packages-supplied-p
-         `(%apropos-category ',pattern :packages ',packages)
-         `(%apropos-category ',pattern)))
+         `(%browse-category ',pattern :packages ',packages)
+         `(%browse-category ',pattern)))
     (t
      (let ((quoted-pattern
              (cond
@@ -523,7 +523,7 @@
                ((and (consp pattern) (member (car pattern) '(function quote)))
                 pattern)
                (t `',pattern))))
-       `(apropos-impl ,quoted-pattern
+       `(browse-impl ,quoted-pattern
                       ,@(when packages-supplied-p `(:packages ,packages))
                       :case-insensitive ,case-insensitive)))))
 

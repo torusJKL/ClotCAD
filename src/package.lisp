@@ -145,7 +145,6 @@
 
 (defpackage :clotcad
   (:use :cl :clotcad.impl)
-  (:shadow :apropos)
   (:import-from :cl-occt :shape :shape-p
    :ais-clear-selected :ais-set-selected
    :ais-add-or-remove-selected
@@ -228,7 +227,7 @@
     :*debugger-invocation-count*
     ;; Introspection
     :doc
-    :apropos
+    :browse
    ;; Lisp import/export
    :cancel-import
    :replay-speed
@@ -317,7 +316,6 @@
    :cut :fuse :common :section :translate :rotate
    :make-prism :make-revol :make-compound :make-part
    :write-step :write-stl
-   :apropos
    :surface-type :curve-type
    :longer-than :shorter-than :larger-than :smaller-than)
   (:nicknames :cad-user :occt-user))

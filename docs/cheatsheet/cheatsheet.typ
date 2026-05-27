@@ -229,7 +229,7 @@
 = Introspection
 #concept-block[
   `doc(name)`\
-  `apropos(pattern, ..options)`\
+  `browse(pattern, ..options)`\
 ]
 Prints docstring & arglist for any symbol. Searches API symbols by substring.
 
