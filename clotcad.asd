@@ -22,9 +22,10 @@
     ((:file "package")
      (:file "bindings")
      (:file "queue")
-     (:file "ops")
-     (:file "select")
-     (:file "repl")
+      (:file "ops")
+      (:file "select")
+      (:file "query")
+      (:file "repl")
      (:file "introspect")
      (:file "ui")
      (:file "theme")
@@ -37,4 +38,5 @@
   :pathname "t/"
   :serial t
   :components
-  ((:file "viewer-tests")))
+   ((:file "viewer-tests")
+    (:file "query")))

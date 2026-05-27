@@ -239,11 +239,36 @@
    :*model-registry*
    :help
    :write-dag-models-to-step
-   :read-step-into-dag
-   ;; Threading macros
-   :->
-   :->>
-   :as->))
+    :read-step-into-dag
+    ;; Subshape queries
+    :query-shape
+    :face-p
+    :edge-p
+    :vertex-p
+    :normal-along
+    :surface-type
+    :curve-type
+    :longer-than
+    :shorter-than
+    :larger-than
+    :smaller-than
+    :max-by
+    :min-by
+    :x-center
+    :y-center
+    :z-center
+    :edge-along
+    :radius-around
+    :top-face
+    :bottom-face
+    :longest-edge
+    :largest-face
+    :shortest-edge
+    :smallest-face
+    ;; Threading macros
+    :->
+    :->>
+    :as->))
 
 (defpackage :clotcad-user
   (:use :cl :cl-occt :clotcad)
@@ -251,5 +276,7 @@
    :cut :fuse :common :section :translate :rotate
    :make-prism :make-revol :make-compound :make-part
    :write-step :write-stl
-   :apropos)
+   :apropos
+   :surface-type :curve-type
+   :longer-than :shorter-than :larger-than :smaller-than)
   (:nicknames :cad-user :occt-user))

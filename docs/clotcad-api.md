@@ -108,6 +108,78 @@ Wrapper functions accept symbols, strings, or raw shapes.
 (apply-selection-schemes &key click ctrl-click shift-click) ; => nil
 ```
 
+## Subshape Queries
+
+Find faces, edges, and vertices by spatial and topological properties.
+
+```lisp
+(query-shape designator &key where coordinate-system)              ; => list
+```
+
+`query-shape` resolves the designator, enumerates all faces, edges, and
+vertices, then applies each predicate closure in `where` left-to-right
+as a pipeline. Each predicate is a function that returns a closure —
+use `(list ...)` to combine them.
+
+### Predicate Constructors
+
+Each predicate constructor returns a closure suitable for use in `:where`.
+
+```lisp
+(face-p)                                                           ; => closure
+(edge-p)                                                           ; => closure
+(vertex-p)                                                         ; => closure
+(surface-type :plane)                                              ; => closure
+(curve-type :circle)                                               ; => closure
+(normal-along dx dy dz &key angle-deg)                             ; => closure
+(edge-along dx dy dz &key angle-deg)                               ; => closure
+(longer-than value)                                                ; => closure
+(shorter-than value)                                               ; => closure
+(larger-than value)                                                ; => closure
+(smaller-than value)                                               ; => closure
+(x-center value &key tolerance)                                    ; => closure
+(y-center value &key tolerance)                                    ; => closure
+(z-center value &key tolerance)                                    ; => closure
+(radius-around value &key tolerance)                               ; => closure
+(max-by function)                                                  ; => closure
+(min-by function)                                                  ; => closure
+```
+
+Spatial predicates accept `:angle-deg` (default 1°) and `:tolerance` (default 1e-6).
+
+### Convenience Accessors
+
+```lisp
+(top-face designator)                                              ; => face
+(bottom-face designator)                                           ; => face
+(longest-edge designator)                                          ; => edge
+(shortest-edge designator)                                         ; => edge
+(largest-face designator)                                          ; => face
+(smallest-face designator)                                         ; => face
+```
+
+### Examples
+
+```lisp
+;; Top face of a box
+(query-shape (make-box 10 20 30) :where (list (face-p) (normal-along 0 0 1)))
+=> (#<FACE ...>)
+
+;; Longest edge
+(longest-edge (make-box 10 20 30))
+=> #<EDGE ...>
+
+;; Largest planar face with normal in +Z (same as top-face)
+(query-shape :my-box :where
+  (list (face-p) (surface-type :plane) (normal-along 0 0 1) (max-by #'face-area)))
+=> (#<FACE ...>)
+
+;; Circular edges near radius 5
+(query-shape (make-cylinder 5 20)
+             :where (list (edge-p) (radius-around 5 :tolerance 0.1)))
+=> (#<EDGE ...> #<EDGE ...>)
+```
+
 ## Compounds & Assemblies
 
 ```lisp
