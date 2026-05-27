@@ -198,6 +198,18 @@
     (:viewer-object-props . "Object Properties")
     (:viewer-rendering . "Rendering")
     (:viewer-text-labels . "Text Labels")
+    (:graphic3d . "Graphic3D")
+    (:ocaf . "OCAF")
+    (:xcaf . "XCAF")
+    (:shape-utilities . "Shape Utilities")
+    (:advanced-modeling . "Advanced Modeling")
+    (:materials-texture . "Materials & Texture")
+    (:meshing . "Meshing")
+    (:2d-constraints . "2D Constraints")
+    (:animation . "Animation")
+    (:normal-project . "Normal Projection")
+    (:transfer-params . "Transfer Parameters")
+    (:selection . "Selection (OCCT)")
     (:queue . "Queue")
     (:ops . "Viewer Ops")
     (:select . "Selection")
@@ -211,6 +223,32 @@
     (:params . "Params")
     (:propagation . "Propagation")
     (:api . "Parametric API")))
+
+(defparameter *category-merge-groups*
+  '((:booleans :bop-splitter :bop-utilities :bop-volume)
+    (:io :brep-io :rwstl-io)
+    (:primitives :wedge-primitive)
+    (:shape-analysis :find-edges :inttools :hlr :gcpnts-points
+                     :geometry-evaluation :subshape-properties
+                     :surface-curve-local-props)
+    (:topology :topology-data-access)
+    (:assembly :assembly-location)
+    (:graphic3d :graphic3d-aspects :graphic3d-clip-plane :graphic3d-group
+                :graphic3d-rendering-params :graphic3d-shader-program
+                :graphic3d-structure :prs3d-tools :viewer-ais-types)
+    (:ocaf :ocaf-attributes :ocaf-functions :ocaf-label-tree :ocaf-naming)
+    (:xcaf :xcaf-dimtol :xcaf-doc)
+    (:shape-utilities :shape-check :shape-conversion :shape-copy
+                      :shape-tolerance :small-faces :sewing :defeaturing
+                      :remove-features)
+    (:advanced-modeling :advanced-surface-filling :fair-curve :drafted-prism)
+    (:materials-texture :materials :texture)
+    (:meshing :mesh)
+    (:2d-constraints :constrained-2d :expression-interp))
+  "List of merge groups. Each entry is (TARGET &rest SOURCES) where
+  TARGET and SOURCES are keyword symbols matching source-file stems.
+  Functions from SOURCES stems are merged into the TARGET stem's
+  category, and SOURCE stems are removed from the index.")
 
 (defvar *category-fn-index* nil
   "Cached mapping of category stem → list of function symbols.
@@ -257,7 +295,25 @@
                      (sort fns (lambda (a b)
                                  (string-lessp (symbol-name a) (symbol-name b))))))
              index)
+    (%apply-merge-groups index)
     index))
+
+(defun %apply-merge-groups (index)
+  (dolist (group *category-merge-groups*)
+    (destructuring-bind (target . sources) group
+      (let* ((target-key (string-downcase target))
+             (merged (gethash target-key index)))
+        (dolist (source sources)
+          (let ((source-key (string-downcase source)))
+            (multiple-value-bind (source-fns found)
+                (gethash source-key index)
+              (when found
+                (setf merged (union merged source-fns :test #'eq))
+                (remhash source-key index)))))
+        (when merged
+          (setf (gethash target-key index)
+                (sort merged #'string-lessp))))))
+  index)
 
 (defun %ensure-category-index (&key (packages t))
   (or *category-fn-index*

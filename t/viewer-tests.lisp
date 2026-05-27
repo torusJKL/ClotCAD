@@ -2167,8 +2167,9 @@
   (let ((*category-fn-index* (make-hash-table :test 'equal)))
     (let ((output (with-output-to-string (*standard-output*)
                     (%print-category-detail :nonexistent))))
-      (assert-true (search "No category found" output :test 'char=)
-                   "should show no-category message"))))
+      (unless (find-package :sb-introspect)
+        (assert-true (search "not available" output :test 'char=)
+                     "should show sb-introspect unavailable message")))))
 
 (deftest category-detail-shows-functions
   (let ((*category-fn-index*
@@ -2181,3 +2182,97 @@
       ;; If sb-introspect not available, prints unavailable message
       (unless (find-package :sb-introspect)
         (assert-true (search "not available" output :test 'char=))))))
+
+;; --- Merge group tests ---
+
+(deftest apply-merge-groups-merges-source-into-target
+  (let ((index (let ((h (make-hash-table :test 'equal)))
+                 (setf (gethash "booleans" h) '(boolean-op1 boolean-op2))
+                 (setf (gethash "bop-splitter" h) '(split-thing))
+                 (setf (gethash "bop-utilities" h) '(util-fn))
+                 h))
+        (*category-merge-groups*
+          '((:booleans :bop-splitter :bop-utilities))))
+    (%apply-merge-groups index)
+    (let ((target (gethash "booleans" index)))
+      (assert-true target "target stem should still exist")
+      (assert-equal 3 (length target)
+                     "target should contain its own + merged functions"))
+    (assert-nil (gethash "bop-splitter" index)
+                "bop-splitter stem should be removed")
+    (assert-nil (gethash "bop-utilities" index)
+                "bop-utilities stem should be removed")))
+
+(deftest apply-merge-groups-unmerged-stems-remain
+  (let ((index (let ((h (make-hash-table :test 'equal)))
+                 (setf (gethash "primitives" h) '(make-box))
+                 (setf (gethash "animation" h) '(animate-start))
+                 h))
+        (*category-merge-groups*
+          '((:booleans :bop-splitter))))
+    (%apply-merge-groups index)
+    (assert-true (gethash "primitives" index)
+                 "unmerged stem should remain")
+    (assert-true (gethash "animation" index)
+                 "unmerged stem should remain")))
+
+(deftest apply-merge-groups-empty-groups-noop
+  (let ((index (let ((h (make-hash-table :test 'equal)))
+                 (setf (gethash "primitives" h) '(make-box))
+                 h))
+        (*category-merge-groups* nil))
+    (%apply-merge-groups index)
+    (assert-equal 1 (hash-table-count index)
+                   "no groups should not change index")))
+
+(deftest apply-merge-groups-sorts-after-merge
+  (let ((index (let ((h (make-hash-table :test 'equal)))
+                 (setf (gethash "target" h) '(z-fn))
+                 (setf (gethash "source" h) '(a-fn))
+                 h))
+        (*category-merge-groups*
+          '((:target :source))))
+    (%apply-merge-groups index)
+    (let ((result (gethash "target" index)))
+      (assert-equal 2 (length result))
+      ;; After merge, sort by symbol-name; a-fn < z-fn
+      (assert-eq 'a-fn (first result)))))
+
+(deftest apply-merge-groups-target-not-in-index
+  (let ((index (let ((h (make-hash-table :test 'equal)))
+                 (setf (gethash "source-only" h) '(only-fn))
+                 h))
+        (*category-merge-groups*
+          '((:new-target :source-only))))
+    (%apply-merge-groups index)
+    (let ((result (gethash "new-target" index)))
+      (assert-true result "target should be created from source")
+      (assert-eql 1 (length result)))
+    (assert-nil (gethash "source-only" index)
+                "source stem should be removed")))
+
+(deftest merge-groups-do-not-affect-substring-search
+  (let ((output (with-output-to-string (*standard-output*)
+                  (apropos "make"))))
+    (assert-true (search "make-box" output :test 'char=)
+                 "substring search should find make-box regardless of category grouping")
+    (assert-true (search "make-cylinder" output :test 'char=)
+                 "substring search should find make-cylinder regardless of category grouping")))
+
+(deftest category-display-name-new-entries
+  (assert-equal "Graphic3D" (%category-display-name "graphic3d"))
+  (assert-equal "OCAF" (%category-display-name "ocaf"))
+  (assert-equal "XCAF" (%category-display-name "xcaf"))
+  (assert-equal "Shape Utilities" (%category-display-name "shape-utilities"))
+  (assert-equal "Advanced Modeling" (%category-display-name "advanced-modeling"))
+  (assert-equal "Materials & Texture" (%category-display-name "materials-texture"))
+  (assert-equal "Meshing" (%category-display-name "meshing"))
+  (assert-equal "2D Constraints" (%category-display-name "2d-constraints"))
+  (assert-equal "Animation" (%category-display-name "animation"))
+  (assert-equal "Normal Projection" (%category-display-name "normal-project"))
+  (assert-equal "Transfer Parameters" (%category-display-name "transfer-params"))
+  (assert-equal "Selection (OCCT)" (%category-display-name "selection")))
+
+(deftest category-display-name-fallback-for-unmapped
+  (assert-equal "Widget" (%category-display-name "widget")
+                "unmapped stem should use string-capitalize fallback"))
