@@ -35,6 +35,10 @@
   (unless (eq expected actual)
     (error (or msg (format nil "expected ~S eq ~S" expected actual)))))
 
+(defun assert-eql (expected actual &optional msg)
+  (unless (eql expected actual)
+    (error (or msg (format nil "expected ~S but got ~S" expected actual)))))
+
 (defmacro assert-error (&body body)
   `(let ((condition nil))
      (handler-case
