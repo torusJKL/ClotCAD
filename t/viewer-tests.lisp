@@ -1979,7 +1979,24 @@ browse-substring-matching-default-packages
                    handle-repl-command-unknown
                    handle-repl-command-non-command-passes-through
                    abort-all-threads-is-safe-when-none-stuck
-                   eval-string-command-dispatch-works))
+                    eval-string-command-dispatch-works
+                    ;; Text tests
+                    font-fallback-finds-at-least-one-font
+                    font-fallback-specific-font
+                    font-fallback-copes-with-missing-names
+                    plane-keyword-xz
+                    plane-keyword-xy
+                    plane-keyword-yz
+                    plane-frame-passes-through
+                    plane-face-uses-make-frame-on-face
+                    plane-invalid-signals-error
+                    make-3d-text-returns-shape
+                    make-3d-text-with-font-returns-shape
+                    make-3d-text-on-xy-plane
+                    make-3d-text-on-yz-plane
+                    make-3d-text-with-face-plane
+                    make-3d-text-with-frame-plane
+                    make-3d-text-with-halign-valign))
       (funcall test-sym))
     (format t "~2&=== Results: ~D pass, ~D fail, ~D errors ===~%"
             (test-result-pass *test-result*)

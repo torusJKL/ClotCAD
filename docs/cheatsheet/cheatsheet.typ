@@ -44,6 +44,19 @@
   `make-revol(shape, ax, ay, az, angle-deg)`\
 ]
 
+= 3D Text
+#concept-block[
+  `make-3d-text(string, ..options)`\
+  #v(2pt)
+  #inline("Options")\
+  `:font` - name string or auto-fallback\
+  `:size` - font size (default 10)\
+  `:thickness` - extrusion depth (default 5)\
+  `:plane` - :xy, :xz(default), :yz, face, frame\
+  `:h-align` - :left, :center(default), :right\
+  `:v-align` - :bottom, :center(default), :top\
+]
+
 = Boolean Operations
 #concept-block[
   `cut(shape, &rest others)`\

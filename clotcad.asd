@@ -19,10 +19,11 @@
      (:file "api")))
    (:module "viewer"
     :components
-    ((:file "package")
-     (:file "bindings")
-     (:file "frame")
-     (:file "queue")
+      ((:file "package")
+      (:file "bindings")
+      (:file "frame")
+      (:file "text")
+      (:file "queue")
      (:file "ops")
      (:file "select")
       (:file "query")
@@ -41,8 +42,9 @@
   :pathname "t/"
   :serial t
   :components
-  ((:file "viewer-tests")
+   ((:file "viewer-tests")
    (:file "query")
    (:file "naming")
    (:file "frame")
-   (:file "sketch")))
+   (:file "sketch")
+   (:file "text")))

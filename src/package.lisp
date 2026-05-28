@@ -305,7 +305,9 @@
       :polygon
       :line-chain
       :extrude-from-face
-      ;; Threading macros
+       ;; 3D Text
+       :make-3d-text
+       ;; Threading macros
       :->
       :->>
       :as->))
