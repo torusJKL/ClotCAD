@@ -961,6 +961,50 @@
     (let ((entry (gethash "box" *displayed-models*)))
       (assert-nil (first entry) "first element should be nil (shape was nil)"))))
 
+;; --- FIFO ordering tests ---
+
+(deftest drain-queue-fifo-clear-then-display
+  "clear-all then display in same drain: shape should be present."
+  (with-mocked-viewer
+    (queue-push :clear nil)
+    (queue-push :display "box" nil t t)
+    (drain-queue *viewer*)
+    (assert-true (nth-value 1 (gethash "box" *displayed-models*))
+                 "shape should exist after clear + display in FIFO order")))
+
+(deftest drain-queue-fifo-display-then-clear
+  "display then clear-all in same drain: no shapes should remain."
+  (with-mocked-viewer
+    (queue-push :display "box" nil t t)
+    (queue-push :clear nil)
+    (drain-queue *viewer*)
+    (assert-true (zerop (hash-table-count *displayed-models*))
+                 "clear after display should remove the shape")))
+
+(deftest drain-queue-fifo-interleaved
+  "display, display, remove in same drain: only the kept shape remains."
+  (with-mocked-viewer
+    (queue-push :display "a" nil t t)
+    (queue-push :display "b" nil t t)
+    (queue-push :remove "a")
+    (drain-queue *viewer*)
+    (assert-true (nth-value 1 (gethash "b" *displayed-models*))
+                 "shape b should remain")
+    (assert-nil (gethash "a" *displayed-models*)
+                "shape a should have been removed")))
+
+(deftest drain-queue-fifo-clear-then-two-displays
+  "clear-all then two displays: both shapes should be present."
+  (with-mocked-viewer
+    (queue-push :clear nil)
+    (queue-push :display "x" nil t t)
+    (queue-push :display "y" nil t t)
+    (drain-queue *viewer*)
+    (assert-equal 2 (hash-table-count *displayed-models*)
+                  "both shapes should be present")
+    (assert-true (nth-value 1 (gethash "x" *displayed-models*)))
+    (assert-true (nth-value 1 (gethash "y" *displayed-models*)))))
+
 ;; --- File operation callback tests ---
 
 (deftest file-op-dispatch-import-step
@@ -1708,8 +1752,12 @@
                drain-queue-processes-all-items drain-queue-clear-empties-models
                drain-queue-remove-removes-one
                drain-queue-display-updates-models
-               drain-queue-on-empty-is-safe
-               queue-push-without-viewer-is-safe
+                drain-queue-on-empty-is-safe
+                drain-queue-fifo-clear-then-display
+                drain-queue-fifo-display-then-clear
+                drain-queue-fifo-interleaved
+                drain-queue-fifo-clear-then-two-displays
+                queue-push-without-viewer-is-safe
                display-adds-to-models display-queues-display-message
                display-converts-keyword-to-string
                display-replaces-existing-name
