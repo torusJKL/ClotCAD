@@ -1,6 +1,6 @@
 (defsystem :clotcad
   :description "ClotCAD — parametric CAD with 3D viewer"
-  :version "0.4.0"
+  :version "0.4.1"
   :author "Gal Buki"
   :license "GPLv3"
   :homepage "https://github.com/torusJKL/ClotCAD"
@@ -22,12 +22,13 @@
     ((:file "package")
      (:file "bindings")
      (:file "frame")
+     (:file "text")
      (:file "queue")
      (:file "ops")
      (:file "select")
-      (:file "query")
-      (:file "naming")
-      (:file "sketch")
+     (:file "query")
+     (:file "naming")
+     (:file "sketch")
      (:file "repl")
      (:file "introspect")
      (:file "ui")
@@ -45,4 +46,5 @@
    (:file "query")
    (:file "naming")
    (:file "frame")
-   (:file "sketch")))
+   (:file "sketch")
+   (:file "text")))

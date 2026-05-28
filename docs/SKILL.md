@@ -17,7 +17,14 @@ a CLI client for Slynk REPL servers.
 
 ```bash
 slyc --package CLOTCAD-USER --port 4005 "<lisp-form>"
+
+slyc --package CLOTCAD-USER --port 4005 << 'EOF'
+<lisp-form>
+<lisp-form>
+EOF
 ```
+
+Use heredoc for messages with multiple forms, they will be implicitly wrapped in a (progn ...) form.
 
 `CLOTCAD-USER` (nicknames: `CAD-USER`, `OCCT-USER`) uses `:cl`, `:cl-occt`,
 and `:clotcad` — all modeling and viewer functions are available.

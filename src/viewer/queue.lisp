@@ -116,6 +116,8 @@ are on the Qt main thread and can safely call viewer functions.")
         (viewer (or vwr *viewer*)))
     (sb-thread:with-mutex (*queue-lock*)
       (rotatef items *viewer-queue*))
+    ;; Process messages in FIFO order (push adds to front, reverse for FIFO)
+    (setf items (nreverse items))
     ;; Phase 1: process all messages that update Lisp state
     (dolist (msg items)
       (destructuring-bind (type name &optional shape visible show-in-tree) msg

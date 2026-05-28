@@ -404,6 +404,67 @@ Any primitive that accepts a point also accepts a vertex designator (compound sy
   :depth 15)
 ```
 
+## 3D Text
+
+Create extruded 3D text labels with automatic font resolution and plane placement.
+
+```lisp
+(make-3d-text string &key font (size 10) (thickness 5)
+                           (h-align :center) (v-align :center)
+                           (plane :xz))                   ; => shape
+```
+
+`make-3d-text` is a convenience function that combines font loading, text rendering, and 3D extrusion. It returns a `shape` ready for `display`, `def`, `write-step`, etc.
+
+### Arguments
+
+- `string` — the text to render (required)
+- `:font` — font name string; when nil, tries fallback chain: `"sans-serif"` → `"Arial"` → `"DejaVu Sans"` → `"Liberation Sans"` → `"FreeSans"`. Signals an error listing available fonts if all fail.
+- `:size` — font size in model units (default 10)
+- `:thickness` — extrusion depth (default 5)
+- `:h-align` — horizontal alignment: `:left`, `:center`, `:right` (default `:center`)
+- `:v-align` — vertical alignment: `:bottom`, `:center`, `:top`, `:top-first-line` (default `:center`)
+- `:plane` — placement specification; accepts `:xy`, `:xz` (default), `:yz`, a `face` shape, or a `frame` instance
+
+### Plane Orientations
+
+| Plane | Normal | Reading direction | Up direction | Extrusion |
+|-------|--------|-------------------|--------------|-----------|
+| `:xy` | Z | +X | +Y | +Z |
+| `:xz` (default) | Y | +X | +Z | +Y |
+| `:yz` | X | +Y | +Z | +X |
+
+### Face & Frame Placement
+
+When `:plane` is a face shape, `make-frame-on-face` derives a coordinate frame from the face's surface at its UV midpoint. Z = face normal, X = face U-direction (reading), Y = face V-direction (up). Works on non-planar faces (tangent plane approximation).
+
+When `:plane` is a `frame` instance, the frame's Z-axis is used as the plane normal and X-axis as the reading direction.
+
+### Examples
+
+```lisp
+;; Quick label on XZ plane (default)
+(display :my-text (make-3d-text "ClotCAD"))
+;; => text reads +X, up +Z, extrusion +Y
+
+;; XY plane with custom font
+(display :label (make-3d-text "Hello" :font "Arial" :size 20
+                              :thickness 8 :plane :xy))
+
+;; Text on a specific face of a shape
+(let* ((roof (make-box 100 50 30))
+       (face (top-face roof)))
+  (display :roof-label (make-3d-text "OPEN" :plane face)))
+
+;; From a frame at a custom position
+(let ((f (make-frame-on-plane 20 0 0 0 1 0)))
+  (display :label (make-3d-text "Point" :plane f)))
+
+;; In a def/shpw workflow
+(def :my-label (make-3d-text "My Label" :font "DejaVu Sans" :plane :xy))
+(show :my-label)
+```
+
 ## Compounds & Assemblies
 
 ```lisp
